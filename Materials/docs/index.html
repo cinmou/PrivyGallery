@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PrivyGallery — Keep private photos private</title>
+<meta name="description" content="A local-first, encrypted vault for the photos, videos, and documents you'd rather keep to yourself." />
+<link rel="icon" href="assets/app-icon.png" />
+<meta property="og:title" content="PrivyGallery" />
+<meta property="og:description" content="A local-first, encrypted vault for the photos and videos you'd rather keep private." />
+<meta property="og:image" content="assets/app-icon.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<style>
+  /* ── Tokens (color scheme unchanged) ───────────────────────────────────── */
+  :root {
+    --ink: #111111;
+    --on-primary: #ffffff;
+    --canvas: #ffffff;
+    --soft-cloud: #f5f5f5;
+    --charcoal: #39393b;
+    --ash: #4b4b4d;
+    --mute: #707072;
+    --stone: #9e9ea0;
+    --hairline: #cacacb;
+    --hairline-soft: #e5e5e5;
+
+    --r-lg: 30px; --r-full: 9999px;
+    --s-xs: 4px; --s-sm: 8px; --s-md: 12px; --s-lg: 18px;
+    --s-xl: 24px; --s-xxl: 30px; --s-section: 40px;
+
+    --maxw: 1180px;
+    --gutter: clamp(20px, 5vw, 64px);
+
+    --display: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    --ui: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--canvas); color: var(--ink);
+    font-family: var(--ui); font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding-left: var(--gutter); padding-right: var(--gutter); }
+  .mute { color: var(--mute); }
+
+  /* ── Buttons ───────────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--s-sm);
+    height: 44px; padding: 0 26px; border-radius: var(--r-lg);
+    font-family: var(--ui); font-weight: 600; font-size: 14px; cursor: pointer;
+    border: none; transition: transform .08s ease, opacity .08s ease; white-space: nowrap;
+  }
+  .btn:active { transform: scale(.97); opacity: .85; }
+  .btn--primary { background: var(--ink); color: var(--on-primary); }
+  .btn--ghost { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
+  .btn--on-image { background: var(--canvas); color: var(--ink); border: none; }
+  .appstore img { height: 44px; }
+
+  /* ── Nav ───────────────────────────────────────────────────────────────── */
+  .nav { background: var(--canvas); position: sticky; top: 0; z-index: 50; box-shadow: inset 0 -1px 0 var(--hairline-soft); }
+  .nav .wrap { display: flex; align-items: center; height: 58px; gap: var(--s-lg); }
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  .brand .name { font-family: var(--display); font-size: 18px; font-weight: 800; line-height: 1; }
+  .nav-right { display: flex; align-items: center; gap: var(--s-md); margin-left: auto; }
+  .nav .btn { height: 38px; padding: 0 18px; }
+  .nav-link { font-weight: 600; font-size: 14px; }
+
+  /* Language switcher */
+  .lang { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--r-full); overflow: hidden; }
+  .lang button { background: transparent; border: none; cursor: pointer; font-family: var(--ui);
+    font-weight: 600; font-size: 12px; padding: 6px 11px; color: var(--mute); line-height: 1; }
+  .lang button.active { background: var(--ink); color: var(--on-primary); }
+
+  /* ── Hero (group3 background) ──────────────────────────────────────────── */
+  .hero { position: relative; background: var(--ink); color: var(--on-primary); overflow: hidden; }
+  .hero-bg { position: absolute; inset: 0; }
+  .hero-bg img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+  .hero-bg::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(17,17,17,.80) 0%, rgba(17,17,17,.45) 55%, rgba(17,17,17,.20) 100%); }
+  .hero .wrap { position: relative; display: flex; flex-direction: column; justify-content: center;
+    min-height: clamp(420px, 64vh, 600px); padding: 64px 0 var(--s-section); }
+  .hero h1 { font-family: var(--display); font-weight: 800; line-height: 0.94; letter-spacing: -0.01em;
+    font-size: clamp(40px, 7vw, 76px); max-width: 720px; }
+  /* Chinese title runs visually larger per glyph — scale it down */
+  html[lang^="zh"] .hero h1 { font-size: clamp(30px, 5vw, 54px); line-height: 1.1; letter-spacing: 0; }
+  .hero p { max-width: 480px; margin-top: var(--s-md); font-size: 16px; color: #e3e3e4; }
+  .hero .cta-row { display: flex; gap: var(--s-md); margin-top: var(--s-xl); flex-wrap: wrap; align-items: center; }
+
+  /* ── Sections ──────────────────────────────────────────────────────────── */
+  section { padding: var(--s-section) 0; }
+  .eyebrow { font-weight: 600; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--mute);
+    margin-bottom: var(--s-md); }
+  .h-xl { font-weight: 700; font-size: clamp(22px, 3vw, 30px); line-height: 1.12; letter-spacing: -0.01em; }
+
+  /* ── Screenshots ───────────────────────────────────────────────────────── */
+  .shots { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--s-sm); }
+  .shots .shot { background: var(--soft-cloud); border-radius: 14px; overflow: hidden; aspect-ratio: 9 / 19.5; }
+  .shots .shot img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+
+  /* ── Features (promo copy) ─────────────────────────────────────────────── */
+  .feats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); }
+  .feats .f { background: var(--canvas); padding: var(--s-xl); }
+  .feats .f h3 { font-weight: 700; font-size: 17px; line-height: 1.25; }
+  .feats .f p { margin-top: 6px; color: var(--charcoal); font-size: 14px; }
+
+  /* ── Problem analysis ──────────────────────────────────────────────────── */
+  .problem { background: var(--ink); color: var(--on-primary); }
+  .problem .wrap { padding: var(--s-xxl) var(--gutter); text-align: left; }
+  .problem h2 { font-family: var(--display); font-weight: 800; line-height: 1.05; letter-spacing: -0.01em;
+    font-size: clamp(26px, 4vw, 40px); max-width: 760px; }
+  .problem p { margin-top: var(--s-md); color: var(--stone); font-size: 16px; max-width: 560px; }
+
+  /* ── Footer ────────────────────────────────────────────────────────────── */
+  footer { border-top: 1px solid var(--hairline); padding: var(--s-xl) 0; }
+  footer .wrap { display: flex; align-items: center; justify-content: space-between; gap: var(--s-md); flex-wrap: wrap; }
+  footer .links { display: flex; gap: var(--s-lg); }
+  footer .links a { font-size: 13px; font-weight: 600; }
+  footer .copy { font-size: 12px; color: var(--mute); }
+
+  /* ── Responsive ────────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .shots { grid-template-columns: repeat(3, 1fr); }
+    .nav-link { display: none; }
+  }
+  @media (max-width: 560px) {
+    .feats { grid-template-columns: 1fr; }
+    .shots { grid-template-columns: repeat(2, 1fr); }
+    .brand .name { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/app-icon.png" alt="PrivyGallery" /><span class="name">PrivyGallery</span></a>
+    <div class="nav-right">
+      <div class="lang" role="group" aria-label="Language">
+        <button data-lang="en" class="active" onclick="setLang('en')">EN</button>
+        <button data-lang="zhHans" onclick="setLang('zhHans')">简</button>
+        <button data-lang="zhHant" onclick="setLang('zhHant')">繁</button>
+      </div>
+      <a class="nav-link" href="https://github.com/cinmou/SecurityFolder">GitHub</a>
+      <a class="btn btn--primary" data-i18n="nav.cta" href="https://apps.apple.com/us/app/privygallery-dual-space-vault/id6765981187">Get the App</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero (group3 = 3.PNG background) -->
+<header class="hero" id="top">
+  <div class="hero-bg"><img src="../images/Group%203.png" alt="" /></div>
+  <div class="wrap">
+    <h1 data-i18n="hero.title">Keep private photos private</h1>
+    <p data-i18n="hero.sub">A local-first, encrypted vault for the photos, videos, and documents you'd rather keep to yourself.</p>
+    <div class="cta-row">
+      <a class="appstore" href="https://apps.apple.com/us/app/privygallery-dual-space-vault/id6765981187">
+        <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" />
+      </a>
+      <a class="btn btn--on-image" data-i18n="hero.github" href="https://github.com/cinmou/SecurityFolder">View on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<!-- Screenshots -->
+<section class="wrap">
+  <div class="eyebrow" data-i18n="screens.eyebrow">A look inside</div>
+  <div class="shots">
+    <div class="shot"><img src="../images/1.PNG" alt="Library" /></div>
+    <div class="shot"><img src="../images/2.png" alt="Albums" /></div>
+    <div class="shot"><img src="../images/3.PNG" alt="Settings" /></div>
+    <div class="shot"><img src="../images/4.PNG" alt="Settings" /></div>
+    <div class="shot"><img src="../images/5.PNG" alt="Backup" /></div>
+    <div class="shot"><img src="../images/6.png" alt="Media player" /></div>
+  </div>
+</section>
+
+<!-- Features (promo copy) -->
+<section class="wrap">
+  <div class="eyebrow" data-i18n="feats.eyebrow">Built for real privacy</div>
+  <div class="feats">
+    <div class="f"><h3 data-i18n="f1.t">Organise by Albums</h3><p data-i18n="f1.d">Keep photos, videos, and documents neatly separated.</p></div>
+    <div class="f"><h3 data-i18n="f2.t">Dual Spaces for Better Separation</h3><p data-i18n="f2.d">Time-based switching keeps different spaces naturally separated.</p></div>
+    <div class="f"><h3 data-i18n="f3.t">Strong Vault for Sensitive Media</h3><p data-i18n="f3.d">Extra protection for your most private photos and videos.</p></div>
+    <div class="f"><h3 data-i18n="f4.t">Encrypted Backups Ready When Needed</h3><p data-i18n="f4.d">Export local backups and keep them under your control.</p></div>
+  </div>
+</section>
+
+<!-- Problem analysis -->
+<section class="problem">
+  <div class="wrap">
+    <h2 data-i18n="prob.t">Why keep hidden photos together?</h2>
+    <p data-i18n="prob.d">Private photos, documents, and videos should not all live in one place.</p>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="wrap">
+    <span class="copy" data-i18n="foot.copy">© 2026 PrivyGallery</span>
+    <div class="links">
+      <a href="https://apps.apple.com/us/app/privygallery-dual-space-vault/id6765981187" data-i18n="foot.appstore">App Store</a>
+      <a href="https://github.com/cinmou/SecurityFolder">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const I18N = {
+    en: {
+      "nav.cta": "Get the App",
+      "hero.title": "Keep private photos private",
+      "hero.sub": "A local-first, encrypted vault for the photos, videos, and documents you'd rather keep to yourself.",
+      "hero.github": "View on GitHub",
+      "screens.eyebrow": "A look inside",
+      "feats.eyebrow": "Built for real privacy",
+      "f1.t": "Organise by Albums",
+      "f1.d": "Keep photos, videos, and documents neatly separated.",
+      "f2.t": "Dual Spaces for Better Separation",
+      "f2.d": "Time-based switching keeps different spaces naturally separated.",
+      "f3.t": "Strong Vault for Sensitive Media",
+      "f3.d": "Extra protection for your most private photos and videos.",
+      "f4.t": "Encrypted Backups Ready When Needed",
+      "f4.d": "Export local backups and keep them under your control.",
+      "prob.t": "Why keep hidden photos together?",
+      "prob.d": "Private photos, documents, and videos should not all live in one place.",
+      "foot.copy": "© 2026 PrivyGallery",
+      "foot.appstore": "App Store"
+    },
+    zhHans: {
+      "nav.cta": "获取应用",
+      "hero.title": "把私密照片，留给自己",
+      "hero.sub": "一个本地优先、加密的保险箱，守护你不愿示人的照片、视频与文档。",
+      "hero.github": "在 GitHub 查看",
+      "screens.eyebrow": "应用一览",
+      "feats.eyebrow": "为真正的隐私而设计",
+      "f1.t": "按相册整理",
+      "f1.d": "把照片、视频和文档清晰地分门别类。",
+      "f2.t": "双空间，更好区隔",
+      "f2.d": "基于时间的切换，让不同空间自然分隔。",
+      "f3.t": "强力保险箱，守护敏感媒体",
+      "f3.d": "为你最私密的照片和视频提供额外保护。",
+      "f4.t": "需要时即取的加密备份",
+      "f4.d": "导出本地备份，始终掌握在你自己手中。",
+      "prob.t": "为什么要把隐藏的照片放在一起？",
+      "prob.d": "私密的照片、文档和视频，不应该全部放在同一个地方。",
+      "foot.copy": "© 2026 PrivyGallery",
+      "foot.appstore": "App Store"
+    },
+    zhHant: {
+      "nav.cta": "取得應用",
+      "hero.title": "把私密照片，留給自己",
+      "hero.sub": "一個本機優先、加密的保險箱，守護你不願示人的照片、影片與文件。",
+      "hero.github": "在 GitHub 檢視",
+      "screens.eyebrow": "應用一覽",
+      "feats.eyebrow": "為真正的隱私而設計",
+      "f1.t": "依相簿整理",
+      "f1.d": "把照片、影片和文件清晰地分門別類。",
+      "f2.t": "雙空間，更好區隔",
+      "f2.d": "基於時間的切換，讓不同空間自然分隔。",
+      "f3.t": "強力保險箱，守護敏感媒體",
+      "f3.d": "為你最私密的照片和影片提供額外保護。",
+      "f4.t": "需要時即取的加密備份",
+      "f4.d": "匯出本機備份，始終掌握在你自己手中。",
+      "prob.t": "為什麼要把隱藏的照片放在一起？",
+      "prob.d": "私密的照片、文件和影片，不應該全部放在同一個地方。",
+      "foot.copy": "© 2026 PrivyGallery",
+      "foot.appstore": "App Store"
+    }
+  };
+  const HTML_LANG = { en: "en", zhHans: "zh-Hans", zhHant: "zh-Hant" };
+
+  function setLang(lang) {
+    const dict = I18N[lang] || I18N.en;
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const key = el.getAttribute("data-i18n");
+      if (dict[key] != null) el.textContent = dict[key];
+    });
+    document.documentElement.lang = HTML_LANG[lang] || "en";
+    document.querySelectorAll(".lang button").forEach(b =>
+      b.classList.toggle("active", b.dataset.lang === lang));
+    try { localStorage.setItem("pg-lang", lang); } catch (e) {}
+  }
+
+  (function () {
+    let saved = null;
+    try { saved = localStorage.getItem("pg-lang"); } catch (e) {}
+    if (!saved) {
+      const n = (navigator.language || "en").toLowerCase();
+      saved = n.startsWith("zh") ? (/(hant|tw|hk|mo)/.test(n) ? "zhHant" : "zhHans") : "en";
+    }
+    setLang(saved);
+  })();
+</script>
+
+</body>
+</html>

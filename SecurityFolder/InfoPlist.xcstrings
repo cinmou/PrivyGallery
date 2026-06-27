@@ -1,0 +1,314 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私影相册"
+          }
+        },
+        "zh-Hant-TW": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私影相冊"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私影相冊"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        }
+      }
+    },
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私影相册"
+          }
+        },
+        "zh-Hant-TW": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私影相冊"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私影相冊"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PrivyGallery"
+          }
+        }
+      }
+    },
+    "NSFaceIDUsageDescription": {
+      "comment": "Privacy - Face ID Usage Description",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Face ID to unlock your private media vault. Face ID is used only for on-device authentication; we do not access or store your facial data."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Face ID to unlock your private media vault. Face ID is used only for on-device authentication; we do not access or store your facial data."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face ID を使用してプライベート メディア スペースのロックを解除するために使用されます。 Face ID はネイティブ認証にのみ使用され、顔データにアクセスしたり保存したりすることはありません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face ID로 개인 미디어 공간을 잠금 해제하는 데 사용됩니다. Face ID는 기본 인증에만 사용되며, 당사는 귀하의 얼굴 데이터에 접근하거나 저장하지 않습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于通过 Face ID 解锁你的私密媒体空间。Face ID 仅用于本机身份验证，我们不会访问或保存你的面部数据。"
+          }
+        },
+        "zh-Hant-TW": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用於透過 Face ID 解鎖你的私密媒體空間。 Face ID 僅用於本機身份驗證，我們不會存取或儲存你的臉部資料。"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用於透過 Face ID 解鎖你嘅私密媒體空間。 Face ID 僅用於本機身份驗證，我們不會存取或儲存你嘅臉部數據。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisé pour déverrouiller votre espace multimédia privé avec Face ID. Face ID n'est utilisé que pour l'authentification native, nous n'accédons ni n'enregistrons vos données faciales."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Используется для разблокировки вашего личного медиа-пространства с помощью Face ID. Face ID используется только для встроенной аутентификации, мы не получаем доступ к вашим данным о лице и не сохраняем их."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se utiliza para desbloquear su espacio multimedia privado con Face ID. Face ID solo se utiliza para la autenticación nativa, no accedemos ni guardamos sus datos faciales."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird verwendet, um Ihren privaten Medienbereich mit Face ID freizuschalten. Face ID wird nur zur nativen Authentifizierung verwendet. Wir greifen nicht auf Ihre Gesichtsdaten zu und speichern diese nicht."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilizzato per sbloccare il tuo spazio multimediale privato con Face ID. Face ID viene utilizzato solo per l'autenticazione nativa, non accediamo né salviamo i tuoi dati facciali."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription": {
+      "comment": "Privacy - Photo Library Usage Description",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow access to your photo library so PrivyGallery can import photos and videos and, with your confirmation, delete the originals after import."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow access to your photo library so PrivyGallery can import photos and videos and, with your confirmation, delete the originals after import."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许访问你的系统图库，以便导入照片和视频，并在你确认后删除已导入的原件。"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允許訪問你嘅系統圖庫，以便導入相片和視頻，並在你確認後刪除已導入嘅原件。"
+          }
+        },
+        "zh-Hant-TW": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允許訪問你的系統圖庫，以便匯入照片和影片，並在你確認後刪除已匯入的原件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム ギャラリーにアクセスして写真やビデオをインポートできるようにし、確認後にインポートされたオリジナルを削除します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사진과 비디오를 가져오기 위해 시스템 갤러리에 대한 액세스를 허용하고 확인 시 가져온 원본을 삭제합니다."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permet d'accéder à votre galerie système pour importer des photos et des vidéos, et supprime les originaux importés après votre confirmation."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Предоставляет доступ к вашей системной галерее для импорта фотографий и видео и удаляет импортированные оригиналы после вашего подтверждения."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permite el acceso a la galería de su sistema para importar fotos y videos, y elimina los originales importados tras su confirmación."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ermöglicht den Zugriff auf Ihre Systemgalerie zum Importieren von Fotos und Videos und löscht importierte Originale nach Ihrer Bestätigung."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consente l'accesso alla galleria del tuo sistema per importare foto e video ed elimina gli originali importati dopo la tua conferma."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.2"
+}
