@@ -11,7 +11,7 @@ enum AppMetadata {
     static let displayNameEN = "PrivyGallery"
     static let contactEmail = "liuruhongyi@gmail.com"
     static let appStoreReviewURLString = "itms-apps://itunes.apple.com/app/id6765981187?action=write-review"
-    static let openSourceURLString = "https://example.com"
+    static let openSourceURLString = "https://github.com/cinmou/PrivyGallery"
     static let privacyPolicyURLString = "https://quaint-windscreen-5b3.notion.site/Privacy-Policy-for-Priv-Media-355474154efe8050bde7e2106ade7a83"
     static let standardEULAURLString = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
 
