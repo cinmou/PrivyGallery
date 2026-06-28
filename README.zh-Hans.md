@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Materials/docs/assets/app-icon.png" alt="PrivyGallery" width="120" />
+  <img src="Materials/images/app-icon.png" alt="PrivyGallery" width="120" />
 </p>
 
 <h1 align="center">PrivyGallery</h1>
