@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="https://apps.apple.com/us/app/privygallery-dual-space-vault/id6765981187">App Store</a> ·
-  <a href="Materials/docs/index.html">Landing Page</a> ·
+  <a href="https://privygallery.cinmou.uk">Landing Page</a> ·
   <a href="tools/vault-unpacker/">.vault Unpacker</a> ·
   <a href="Materials/docs/vault-format.md">Backup Format</a> ·
   <a href="SECURITY.md">Security</a> ·
