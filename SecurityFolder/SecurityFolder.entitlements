@@ -6,5 +6,7 @@
 	<array>
 		<string>group.com.cinmouice.MediaVault</string>
 	</array>
+	<key>com.apple.security.personal-information.photos-library</key>
+	<true/>
 </dict>
 </plist>
