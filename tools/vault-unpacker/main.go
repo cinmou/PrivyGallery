@@ -135,7 +135,11 @@ func unpackOne(vaultPath, password, outDir string, listOnly bool) (int, int64, e
 			if it.IsInTrash {
 				trash = "  [trash]"
 			}
-			fmt.Printf("   • %s (%s)%s\n", name, it.MediaKindRawValue, trash)
+			live := ""
+			if it.LivePhotoCompanionRelativePath != "" {
+				live = " +video"
+			}
+			fmt.Printf("   • %s (%s%s)%s\n", name, it.MediaKindRawValue, live, trash)
 		}
 		return len(man.Items), 0, nil
 	}

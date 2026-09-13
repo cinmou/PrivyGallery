@@ -20,14 +20,6 @@ enum VaultSpaceKind: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var supportsBiometrics: Bool {
-        true
-    }
-
-    var allowsImport: Bool {
-        true
-    }
-
     var allowsFullBackup: Bool {
         true
     }

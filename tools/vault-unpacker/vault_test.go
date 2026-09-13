@@ -46,7 +46,11 @@ func buildInnerArchive(t *testing.T, man manifest, media map[string][]byte) []by
 		payload := media[blob.RelativePath]
 		buf.Write(be32(uint32(len(blob.RelativePath))))
 		buf.WriteString(blob.RelativePath)
-		buf.WriteByte(domainMedia)
+		domain := blob.SourceDomain
+		if domain == 0 {
+			domain = domainMedia
+		}
+		buf.WriteByte(domain)
 		buf.Write(be64(uint64(len(payload))))
 
 		for off := 0; off < len(payload); off += mediaChunk {
@@ -71,7 +75,7 @@ func buildInnerArchive(t *testing.T, man manifest, media map[string][]byte) []by
 
 // buildVault mirrors encryptArchive: SVEX header + chunked AES-GCM of the inner
 // archive, using the same KDF, nonce/tag layout and AAD.
-func buildVault(t *testing.T, password string, partIndex, totalParts int, archive []byte) []byte {
+func buildVault(t *testing.T, password string, formatVersion, partIndex, totalParts int, archive []byte) []byte {
 	t.Helper()
 	salt := make([]byte, 32)
 	rand.Read(salt)
@@ -86,7 +90,7 @@ func buildVault(t *testing.T, password string, partIndex, totalParts int, archiv
 	const vaultChunk = 4096 // small, to exercise multiple outer chunks
 	header := vaultHeader{
 		AppName:          "PrivyGallery",
-		FormatVersion:    2,
+		FormatVersion:    formatVersion,
 		PartIndex:        partIndex,
 		TotalParts:       totalParts,
 		ArchiveEncoding:  "chunked-lzfse-v1",
@@ -134,7 +138,7 @@ func sprintfAAD(partIndex, totalParts, chunkIndex int, archiveByteCount int64) s
 		itoa(partIndex) + "|" + itoa(totalParts) + "|" + itoa(chunkIndex) + "|" + itoa64(archiveByteCount)
 }
 
-func itoa(v int) string   { return itoa64(int64(v)) }
+func itoa(v int) string { return itoa64(int64(v)) }
 func itoa64(v int64) string {
 	if v == 0 {
 		return "0"
@@ -185,7 +189,7 @@ func TestUnpackRoundTrip(t *testing.T) {
 	}
 
 	archive := buildInnerArchive(t, man, media)
-	vaultBytes := buildVault(t, password, 0, 1, archive)
+	vaultBytes := buildVault(t, password, 2, 0, 1, archive)
 
 	dir := t.TempDir()
 	vaultPath := filepath.Join(dir, "test.vault")
@@ -228,7 +232,7 @@ func TestWrongPassword(t *testing.T) {
 		BlobEntries: []blobEntry{{RelativePath: "VaultStorage/x", ByteCount: int64(len(media["VaultStorage/x"]))}},
 	}
 	archive := buildInnerArchive(t, man, media)
-	vaultBytes := buildVault(t, password, 0, 1, archive)
+	vaultBytes := buildVault(t, password, 2, 0, 1, archive)
 
 	dir := t.TempDir()
 	vaultPath := filepath.Join(dir, "t.vault")
@@ -237,5 +241,66 @@ func TestWrongPassword(t *testing.T) {
 	_, _, err := unpackOne(vaultPath, "wrong", filepath.Join(dir, "out"), false)
 	if err == nil {
 		t.Fatal("expected error with wrong password")
+	}
+}
+
+func TestUnpackLivePhotoAndAlbumCover(t *testing.T) {
+	password := "pw"
+	still := []byte("still image bytes")
+	video := []byte("paired video bytes")
+	cover := []byte("cover jpeg bytes")
+
+	man := manifest{
+		SpaceRawValue: "spaceA",
+		TotalParts:    1,
+		Albums: []manifestAlbum{
+			{Name: "Trip", CoverImageRelativePath: "VaultStorage/Space_A/AlbumCovers/c.jpg"},
+		},
+		Items: []manifestItem{{
+			RelativePath:                   "VaultStorage/Space_A/Active/s.heic",
+			OriginalFilename:               "IMG_0001.HEIC",
+			MediaKindRawValue:              "livePhoto",
+			LivePhotoCompanionRelativePath: "VaultStorage/Space_A/Active/v.MOV",
+		}},
+		BlobEntries: []blobEntry{
+			{RelativePath: "VaultStorage/Space_A/Active/s.heic", SourceDomain: domainMedia, ByteCount: int64(len(still))},
+			{RelativePath: "VaultStorage/Space_A/Active/v.MOV", SourceDomain: domainLivePhotoCompanion, ByteCount: int64(len(video))},
+			{RelativePath: "VaultStorage/Space_A/AlbumCovers/c.jpg", SourceDomain: domainAlbumCover, ByteCount: int64(len(cover))},
+		},
+	}
+	media := map[string][]byte{
+		"VaultStorage/Space_A/Active/s.heic":     still,
+		"VaultStorage/Space_A/Active/v.MOV":      video,
+		"VaultStorage/Space_A/AlbumCovers/c.jpg": cover,
+	}
+
+	dir := t.TempDir()
+	vaultPath := filepath.Join(dir, "live.vault")
+	archive := buildInnerArchive(t, man, media)
+	if err := os.WriteFile(vaultPath, buildVault(t, password, 3, 0, 1, archive), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	outDir := filepath.Join(dir, "out")
+	extracted, _, err := unpackOne(vaultPath, password, outDir, false)
+	if err != nil {
+		t.Fatalf("unpack failed: %v", err)
+	}
+	if extracted != 3 {
+		t.Fatalf("expected 3 extracted files, got %d", extracted)
+	}
+
+	for path, want := range map[string][]byte{
+		filepath.Join(outDir, "IMG_0001.HEIC"):            still,
+		filepath.Join(outDir, "IMG_0001.MOV"):             video,
+		filepath.Join(outDir, "_AlbumCovers", "Trip.jpg"): cover,
+	} {
+		got, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("missing %s: %v", path, err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("%s content mismatch", path)
+		}
 	}
 }

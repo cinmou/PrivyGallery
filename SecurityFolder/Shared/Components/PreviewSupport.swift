@@ -43,36 +43,4 @@ enum PreviewSupport {
             locationLongitude: -0.127758
         )
     }
-
-    static func sampleAlbumCell(usesRowStyle: Bool = false) -> AlbumCellModel {
-        let item = sampleItem()
-        return AlbumCellModel(
-            id: UUID(),
-            title: usesRowStyle ? "归档" : "旅行相册",
-            subtitle: usesRowStyle ? "12 项" : "24 项",
-            coverTitle: nil,
-            coverItem: usesRowStyle ? nil : item,
-            coverImageRelativePath: nil,
-            systemImage: usesRowStyle ? "archivebox" : "photo.on.rectangle",
-            allowsDeletion: !usesRowStyle,
-            usesRowStyle: usesRowStyle,
-            isSecureAlbum: false
-        )
-    }
-
-    static func sampleDetail() -> MediaItemDetailInfo {
-        MediaItemDetailInfo(
-            id: UUID(),
-            title: "示例照片",
-            mediaKindTitle: "照片",
-            originalFilename: "IMG_0001.HEIC",
-            contentTypeIdentifier: "public.heic",
-            byteCount: 3_145_728,
-            importedAt: .now.addingTimeInterval(-7200),
-            lastExportedAt: .now.addingTimeInterval(-1800),
-            originalCapturedAt: .now.addingTimeInterval(-86_400),
-            locationLatitude: 51.507351,
-            locationLongitude: -0.127758
-        )
-    }
 }

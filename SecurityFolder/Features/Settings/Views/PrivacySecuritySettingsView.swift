@@ -614,7 +614,6 @@ private struct SecondSpaceSetupView: View {
     ) -> some View {
         Section {
             VStack(spacing: 16) {
-                // 1. 图标
                 Image(systemName: "key.viewfinder")
                     .resizable()
                     .scaledToFit()
@@ -623,18 +622,15 @@ private struct SecondSpaceSetupView: View {
                     .padding(.top, 2)
                     .accessibilityHidden(true)
 
-                // 2. 标题（使用传入的参数）
                 Text(title)
                     .font(.title3)
                     .fontWeight(.bold)
 
-                // 3. 副标题说明文字
                 Text(prompt)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
-                // 4. 密码输入区域
                 if kind == .custom {
                     AutoFocusSecureField(
                         title: String(localized: "密码"),
@@ -823,7 +819,6 @@ private struct CoercionPasscodeSetupView: View {
             
             Button(action: action) {
                 Text(buttonTitle)
-                    // 使用 .infinity 宽度以及 center 对齐来保证整个按钮居中
                     .frame(maxWidth: .infinity, alignment: .center)
             }
             .disabled(remainingSeconds > 0)

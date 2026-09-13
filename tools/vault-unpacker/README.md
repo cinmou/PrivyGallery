@@ -74,25 +74,28 @@ vault-unpacker -l "PrivyGallery Backup.vault"
 
 Extracted media is written into the output directory using each item's original
 filename. Files that were in the app's trash at export time go into a `_Trash/`
-subfolder. Name collisions get a ` (2)`, ` (3)`, … suffix so nothing is
-overwritten.
+subfolder. A Live Photo's paired video is written next to its still image with
+the same base name (`IMG_0001.HEIC` + `IMG_0001.MOV`), and custom album covers
+go into `_AlbumCovers/`, named after the album. Name collisions get a ` (2)`,
+` (3)`, … suffix so nothing is overwritten.
 
 ## How it works
 
 The `.vault` format is a password-encrypted container:
 
-1. A cleartext JSON header (`SVEX`, version 2) declares the KDF, salt, cipher,
+1. A cleartext JSON header (`SVEX`, format version 2 or 3) declares the KDF, salt, cipher,
    chunk size, and the part index for multi-part backups.
 2. The body is the inner archive (`SVAR`), split into chunks and sealed
    independently with AES-GCM. Each chunk's authenticated data binds it to the
    format version, part number, chunk index, and archive length.
 3. The inner archive holds a JSON manifest (albums + media metadata) followed by
-   each media blob, stored as a sequence of LZFSE-or-raw compressed chunks.
+   each blob (media, Live Photo videos, and album covers in format 3), stored
+   as a sequence of LZFSE-or-raw compressed chunks.
 
 The tool reverses exactly this pipeline. The authoritative byte-level layout
 lives in the source — see [`vault.go`](vault.go), whose constants and reader
-mirror the app's `VaultExportService`. (Note: the older `docs/vault-format.md`
-describes the legacy v1 container and does not match the current v2 format.)
+mirror the app's `VaultExportService`. A byte-level description is in
+[`Materials/docs/vault-format.md`](../../Materials/docs/vault-format.md).
 
 ## Tests
 

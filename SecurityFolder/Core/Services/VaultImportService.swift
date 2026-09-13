@@ -162,6 +162,7 @@ struct VaultImportService {
         VaultTransferLog.mark("import.start", "fileCount=\(urls.count)")
         #endif
         var combined = VaultImportResult.empty
+        var session = VaultImportSession()
         for (index, url) in urls.enumerated() {
             #if DEBUG
             VaultTransferLog.mark("import.file.open", "index=\(index + 1) total=\(urls.count) ext=\(url.pathExtension)")
@@ -170,6 +171,7 @@ struct VaultImportService {
                 from: url,
                 into: targetSpace,
                 password: password,
+                session: &session,
                 onProgress: { progress in
                     let overall = progress.fractionCompleted.map { (Double(index) + $0) / Double(urls.count) }
                     onProgress?(VaultTransferProgress(
@@ -286,10 +288,11 @@ struct VaultImportService {
         return VaultImportInspectionResult(mediaItemCount: mediaCount)
     }
 
-    func importBackup(
+    private func importBackup(
         from backupURL: URL,
         into targetSpace: VaultSpaceKind,
         password: String,
+        session: inout VaultImportSession,
         onProgress: ((VaultTransferProgress) -> Void)? = nil
     ) async throws -> VaultImportResult {
         let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -384,7 +387,12 @@ struct VaultImportService {
         let manifest = archive.manifest
         let manifestBlobMap = Dictionary(uniqueKeysWithValues: manifest.blobEntries.map { ($0.relativePath, $0) })
         let manifestItemsByRelativePath = Dictionary(uniqueKeysWithValues: manifest.items.map { ($0.relativePath, $0) })
+        let manifestItemsByCompanionPath = Dictionary(
+            manifest.items.compactMap { item in item.livePhotoCompanionRelativePath.map { ($0, item) } },
+            uniquingKeysWith: { first, _ in first }
+        )
         var restoredMediaRelativePaths: [String: String] = [:]
+        var restoredCompanionPaths: [String: String] = [:]
 
         let handle = try FileHandle(forReadingFrom: archiveURL)
         defer {
@@ -394,7 +402,6 @@ struct VaultImportService {
 
         let blobCount = Int(try readUInt32(from: handle))
         var restoredBlobCount = 0
-        var skippedCount = 0
         for _ in 0..<blobCount {
             try Task.checkCancellation()
             let entryPath = try readString(from: handle)
@@ -406,20 +413,34 @@ struct VaultImportService {
                 throw VaultImportError.invalidManifest
             }
 
-            if domain == .media {
+            switch domain {
+            case .media:
                 guard let itemRecord = manifestItemsByRelativePath[entryPath] else {
                     throw VaultImportError.invalidManifest
                 }
-                let restoredRelativePath = try restorePlainMediaBlob(
+                restoredMediaRelativePaths[entryPath] = try restoreEncryptedBlob(
                     from: handle,
                     expectedByteCount: expectedByteCount,
-                    itemRecord: itemRecord,
+                    to: restoredRelativePath(bucket: itemRecord.isInTrash ? "Trash" : "Active", extensionSource: itemRecord.originalFilename, targetSpace: targetSpace),
                     targetSpace: targetSpace
                 )
-                restoredMediaRelativePaths[entryPath] = restoredRelativePath
-            } else {
-                try skipBytes(expectedByteCount, from: handle)
-                skippedCount += 1
+            case .livePhotoCompanion:
+                guard let itemRecord = manifestItemsByCompanionPath[entryPath] else {
+                    throw VaultImportError.invalidManifest
+                }
+                restoredCompanionPaths[entryPath] = try restoreEncryptedBlob(
+                    from: handle,
+                    expectedByteCount: expectedByteCount,
+                    to: restoredRelativePath(bucket: itemRecord.isInTrash ? "Trash" : "Active", extensionSource: entryPath, targetSpace: targetSpace),
+                    targetSpace: targetSpace
+                )
+            case .albumCover:
+                session.coverPaths[entryPath] = try restoreEncryptedBlob(
+                    from: handle,
+                    expectedByteCount: expectedByteCount,
+                    to: restoredRelativePath(bucket: "AlbumCovers", extensionSource: entryPath, targetSpace: targetSpace),
+                    targetSpace: targetSpace
+                )
             }
 
             restoredBlobCount += 1
@@ -444,13 +465,19 @@ struct VaultImportService {
             ),
             to: onProgress
         )
+        let mediaPaths = restoredMediaRelativePaths
+        let companionPaths = restoredCompanionPaths
+        let currentSession = session
         let mediaCount = try await MainActor.run {
             try restoreMedia(
                 manifest: manifest,
-                restoredMediaRelativePaths: restoredMediaRelativePaths,
+                restoredMediaRelativePaths: mediaPaths,
+                restoredCompanionPaths: companionPaths,
+                session: currentSession,
                 targetSpace: targetSpace
             )
         }
+        session = mediaCount.session
 
         BackupOperationRecoveryService.shared.markImportEnteringMetadataSave()
         emitImportProgress(
@@ -470,7 +497,7 @@ struct VaultImportService {
             importedStrongProtectedAlbumCount: mediaCount.strongProtectedAlbumCount,
             importedRegularPhotoCount: mediaCount.regularPhotoCount,
             importedRegularVideoCount: mediaCount.regularVideoCount,
-            skippedItemCount: skippedCount,
+            skippedItemCount: 0,
             failedItemCount: 0
         )
     }
@@ -502,7 +529,7 @@ struct VaultImportService {
         #if DEBUG
         VaultTransferLog.mark("import.header", "version=\(header.formatVersion) partIndex=\(header.partIndex + 1) totalParts=\(header.totalParts) archiveBytes=\(header.archiveByteCount)")
         #endif
-        guard header.formatVersion == 2 else {
+        guard header.formatVersion == 2 || header.formatVersion == 3 else {
             throw VaultImportError.unsupportedVersion
         }
         guard header.archiveEncoding == "chunked-lzfse-v1",
@@ -618,6 +645,8 @@ struct VaultImportService {
     private func restoreMedia(
         manifest: VaultBackupPartManifest,
         restoredMediaRelativePaths: [String: String],
+        restoredCompanionPaths: [String: String],
+        session: VaultImportSession,
         targetSpace: VaultSpaceKind
     ) throws -> (
         itemCount: Int,
@@ -625,17 +654,26 @@ struct VaultImportService {
         strongProtectedItemCount: Int,
         strongProtectedAlbumCount: Int,
         regularPhotoCount: Int,
-        regularVideoCount: Int
+        regularVideoCount: Int,
+        session: VaultImportSession
     ) {
+        var session = session
         let existingSnapshot = try metadataStore.loadSnapshot(for: targetSpace)
         var existingAlbums = existingSnapshot.albums
         var existingItems = existingSnapshot.items
         var usedAlbumNames = Set(existingAlbums.map(\.name))
         var importedAlbumsByOldID: [String: VaultAlbum] = [:]
+        var newAlbumIDs = Set<UUID>()
 
         for albumRecord in manifest.albums {
             guard let albumKind = MediaAlbumKind(rawValue: albumRecord.kindRawValue),
                   albumKind == .custom || albumKind == .secureCustom else {
+                continue
+            }
+            // An album spanning several backup parts is created once and reused by later parts.
+            if let restoredID = session.albumIDs[albumRecord.id],
+               let restoredAlbum = existingAlbums.first(where: { $0.id == restoredID }) {
+                importedAlbumsByOldID[albumRecord.id] = restoredAlbum
                 continue
             }
             let albumName = availableName(from: albumRecord.name, usedNames: &usedAlbumNames)
@@ -643,7 +681,7 @@ struct VaultImportService {
                 name: albumName,
                 kind: albumKind,
                 space: targetSpace,
-                coverImageRelativePath: albumRecord.coverImageRelativePath,
+                coverImageRelativePath: albumRecord.coverImageRelativePath.flatMap { session.coverPaths[$0] },
                 coverSymbolName: albumRecord.coverSymbolName,
                 sortOption: AlbumSortOption(rawValue: albumRecord.sortOptionRawValue) ?? .newestFirst,
                 showsCover: albumRecord.showsCover,
@@ -652,6 +690,8 @@ struct VaultImportService {
             )
             existingAlbums.append(album)
             importedAlbumsByOldID[albumRecord.id] = album
+            session.albumIDs[albumRecord.id] = album.id
+            newAlbumIDs.insert(album.id)
         }
 
         var importedItemsByOldID: [String: VaultItem] = [:]
@@ -680,7 +720,9 @@ struct VaultImportService {
                 locationLatitude: itemRecord.locationLatitude,
                 locationLongitude: itemRecord.locationLongitude,
                 albums: itemAlbums,
-                videoDuration: itemRecord.videoDuration
+                livePhotoCompanionRelativePath: itemRecord.livePhotoCompanionRelativePath.flatMap { restoredCompanionPaths[$0] },
+                videoDuration: itemRecord.videoDuration,
+                trashedAt: itemRecord.trashedAt ?? (itemRecord.isInTrash ? itemRecord.updatedAt : nil)
             )
             existingItems.append(item)
             importedItemsByOldID[itemRecord.id] = item
@@ -688,8 +730,18 @@ struct VaultImportService {
 
         for albumRecord in manifest.albums {
             guard let importedAlbum = importedAlbumsByOldID[albumRecord.id] else { continue }
-            importedAlbum.coverItemID = albumRecord.coverItemIDRawValue.flatMap { importedItemsByOldID[$0]?.id }
-            importedAlbum.customOrderedUUIDs = albumRecord.customOrderedItemIDs.compactMap { importedItemsByOldID[$0]?.id }
+            if let coverItemID = albumRecord.coverItemIDRawValue.flatMap({ importedItemsByOldID[$0]?.id }) {
+                importedAlbum.coverItemID = coverItemID
+            }
+            if importedAlbum.coverImageRelativePath == nil {
+                importedAlbum.coverImageRelativePath = albumRecord.coverImageRelativePath.flatMap { session.coverPaths[$0] }
+            }
+            let orderedIDs = albumRecord.customOrderedItemIDs.compactMap { importedItemsByOldID[$0]?.id }
+            if newAlbumIDs.contains(importedAlbum.id) {
+                importedAlbum.customOrderedUUIDs = orderedIDs
+            } else {
+                importedAlbum.customOrderedUUIDs += orderedIDs
+            }
         }
 
         for album in existingAlbums {
@@ -706,32 +758,36 @@ struct VaultImportService {
         try metadataStore.saveSnapshot(space: targetSpace, albums: existingAlbums, items: existingItems)
 
         let importedItems = Array(importedItemsByOldID.values)
+        let newAlbums = existingAlbums.filter { newAlbumIDs.contains($0.id) }
         return (
             itemCount: importedItems.count,
-            albumCount: importedAlbumsByOldID.count,
+            albumCount: newAlbums.count,
             strongProtectedItemCount: importedItems.filter(\.isStrongProtected).count,
-            strongProtectedAlbumCount: importedAlbumsByOldID.values.filter(\.isSecureAlbum).count,
+            strongProtectedAlbumCount: newAlbums.filter(\.isSecureAlbum).count,
             // Live Photos are photos from the user's perspective; count them with photos,
             // not as a separate category, and never count the paired companion video.
             regularPhotoCount: importedItems.filter { !$0.isStrongProtected && ($0.mediaKind == .photo || $0.mediaKind == .livePhoto) }.count,
-            regularVideoCount: importedItems.filter { !$0.isStrongProtected && $0.mediaKind == .video }.count
+            regularVideoCount: importedItems.filter { !$0.isStrongProtected && $0.mediaKind == .video }.count,
+            session: session
         )
     }
 
-    private func restorePlainMediaBlob(
+    private func restoredRelativePath(bucket: String, extensionSource: String, targetSpace: VaultSpaceKind) -> String {
+        let pathExtension = URL(fileURLWithPath: extensionSource).pathExtension
+        let directoryName = targetSpace == .spaceA ? "Space_A" : "Space_B"
+        let filename = pathExtension.isEmpty ? UUID().uuidString : "\(UUID().uuidString).\(pathExtension)"
+        return "VaultStorage/\(directoryName)/\(bucket)/\(filename)"
+    }
+
+    private func restoreEncryptedBlob(
         from handle: FileHandle,
         expectedByteCount: Int64,
-        itemRecord: VaultBackupItemRecord,
+        to relativePath: String,
         targetSpace: VaultSpaceKind
     ) throws -> String {
         #if DEBUG
-        VaultTransferLog.mark("import.restore.item", "kind=\(itemRecord.mediaKindRawValue) secure=\(itemRecord.isStrongProtected) bytes=\(expectedByteCount)")
+        VaultTransferLog.mark("import.restore.blob", "bytes=\(expectedByteCount)")
         #endif
-        let originalExtension = URL(fileURLWithPath: itemRecord.originalFilename).pathExtension
-        let directoryName = targetSpace == .spaceA ? "Space_A" : "Space_B"
-        let bucket = itemRecord.isInTrash ? "Trash" : "Active"
-        let filename = originalExtension.isEmpty ? UUID().uuidString : "\(UUID().uuidString).\(originalExtension)"
-        let relativePath = "VaultStorage/\(directoryName)/\(bucket)/\(filename)"
         let destinationURL = mediaStorage.fileURL(for: relativePath)
 
         let writer = try VaultCryptoService.shared.makeEncryptedFileWriter(to: destinationURL, space: targetSpace)
@@ -977,6 +1033,8 @@ private struct VaultBackupItemRecord: Codable {
     let locationLatitude: Double?
     let locationLongitude: Double?
     let albumIDs: [String]
+    let trashedAt: Date?
+    let livePhotoCompanionRelativePath: String?
 }
 
 private struct VaultBackupBlobEntry: Codable {
@@ -987,6 +1045,16 @@ private struct VaultBackupBlobEntry: Codable {
 
 private enum VaultBackupSourceDomain: UInt8, Codable {
     case media = 1
+    case livePhotoCompanion = 2
+    case albumCover = 3
+}
+
+/// State shared across the parts of one multi-file restore.
+private struct VaultImportSession {
+    /// Backup album ID → album created by this restore.
+    var albumIDs: [String: UUID] = [:]
+    /// Cover path inside the backup → restored cover path.
+    var coverPaths: [String: String] = [:]
 }
 
 private enum VaultArchiveChunkCodec: UInt8 {

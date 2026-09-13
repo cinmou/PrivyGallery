@@ -7,12 +7,10 @@ struct MembershipCenterView: View {
     @ObservedObject private var storeKitManager = StoreKitManager.shared
     @Environment(\.dismiss) private var dismiss
     
-    // 交互状态
     @State private var isPressing = false
     @State private var rotationAngle: Double = 0
     @State private var previousAngle: Double = 0
     
-    // 礼花背景动画状态
     @State private var celebrationRotation: Double = 0
     @State private var celebrationScale: CGFloat = 1
     
@@ -35,7 +33,6 @@ struct MembershipCenterView: View {
                             let center = CGPoint(x: size.width / 2, y: size.height / 2)
                             
                             ZStack {
-                                // 1. 礼花/点缀背景
                                 CelebrationParticles(
                                     tier: subscriptionManager.currentTier,
                                     baseColor: subscriptionManager.currentTier.accentColor,
@@ -44,7 +41,6 @@ struct MembershipCenterView: View {
                                 .scaleEffect(1.2)
                                 .scaleEffect(celebrationScale)
                                 
-                                // 2. 交互徽章本体
                                 ZStack {
                                     Image("custom.wheel")
                                         .resizable()
@@ -108,7 +104,6 @@ struct MembershipCenterView: View {
                     }
                     .frame(height: 190) // 给上下留出空间给礼花展示
                     
-                    // 把隐藏的 Debug 开关转移到文字区域，作为彩蛋
                     VStack(spacing: 6) {
                         Text(subscriptionManager.currentTier.title)
                             .font(.title2.weight(.bold))
@@ -124,14 +119,12 @@ struct MembershipCenterView: View {
                 .padding(.horizontal, 24)
                 .background(Color(UIColor.secondarySystemGroupedBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                // 去掉了整个卡片点击旋转，因为现在使用拖拽旋转手势
                 
                 // MARK: - 权益说明
                 VStack(alignment: .leading, spacing: 14) {
                     Text(String(localized: "会员说明"))
                         .font(.headline)
                     ForEach(subscriptionManager.entitlementSummary, id: \.self) { item in
-                        // 修改：去掉默认的对号图标，可以改成普通的 Text 或者保留 Label 但不提供图
                         Text(item)
                             .foregroundStyle(.primary)
                     }

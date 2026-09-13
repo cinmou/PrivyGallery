@@ -126,7 +126,6 @@ final class VisibleThumbnailRequestCoordinator {
     private let requestBatchSize = 12
     private let completionBatchSize = 12
 
-    var isSuspended: Bool { thumbnailLoadingSuspended }
     var allowsVisibleRequests: Bool {
         !thumbnailLoadingSuspended && visibleRequestPassDepth > 0
     }

@@ -103,10 +103,6 @@ private struct LibraryTabContent: View {
                 .tabItem {
                     // 中间锁定按钮沿用系统 tab item，只把标题拿掉，
                     // 图标换成我们自己的 custom.wheel。
-                    //
-                    // 如果你后面想继续微调这个图标大小，优先改下面这个 frame。
-                    // 这里建议只做小范围调整，不要大到超过系统 tab bar 的安全高度，
-                    // 否则不同尺寸设备上的垂直对齐会开始飘。
                     Image("custom.wheel")
                         .renderingMode(.original)
                         .resizable()

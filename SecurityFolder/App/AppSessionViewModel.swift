@@ -36,12 +36,12 @@ final class AppSessionViewModel: ObservableObject {
         shouldAutomaticallyAttemptBiometricUnlock
     }
 
-    var suppressAutomaticBiometricErrors: Bool {
-        shouldSuppressAutomaticBiometricErrors
-    }
-
     var requiresPasscodeAfterBiometricFailures: Bool {
         consecutiveBiometricFailureCount >= 2
+    }
+
+    var unlockLockoutRemaining: TimeInterval? {
+        lockService.unlockLockoutRemaining()
     }
 
     init() {
@@ -80,39 +80,18 @@ final class AppSessionViewModel: ObservableObject {
     }
 
     func unlock(space: VaultSpaceKind, using passcode: String) -> UnlockAttemptResult {
-        let result = lockService.validate(passcode: passcode, for: space, allowCoercionTrigger: true)
-        if case let .success(space) = result {
-            activeSpace = space
-            selectedTab = .media
-            syncSharedImportAppState()
-            registerInteraction()
-            startAutoLockMonitoring()
-            isSnapshotObscured = false
-            shouldAutomaticallyAttemptBiometricUnlock = false
-            shouldSuppressAutomaticBiometricErrors = false
-            consecutiveBiometricFailureCount = 0
-        }
-        return result
+        applyUnlockResult(lockService.validate(passcode: passcode, for: space, allowCoercionTrigger: true))
     }
 
     func unlock(using passcode: String) -> UnlockAttemptResult {
-        let result = lockService.validate(passcode: passcode, allowCoercionTrigger: true)
-        if case let .success(space) = result {
-            activeSpace = space
-            selectedTab = .media
-            syncSharedImportAppState()
-            registerInteraction()
-            startAutoLockMonitoring()
-            isSnapshotObscured = false
-            shouldAutomaticallyAttemptBiometricUnlock = false
-            shouldSuppressAutomaticBiometricErrors = false
-            consecutiveBiometricFailureCount = 0
-        }
-        return result
+        applyUnlockResult(lockService.validate(passcode: passcode, allowCoercionTrigger: true))
     }
 
     func unlockPrimaryWithBiometrics() -> UnlockAttemptResult {
-        let result = lockService.unlockPrimaryWithBiometrics()
+        applyUnlockResult(lockService.unlockPrimaryWithBiometrics())
+    }
+
+    private func applyUnlockResult(_ result: UnlockAttemptResult) -> UnlockAttemptResult {
         if case let .success(space) = result {
             activeSpace = space
             selectedTab = .media
@@ -195,7 +174,7 @@ final class AppSessionViewModel: ObservableObject {
     }
 
     func validatePasscode(_ passcode: String, for space: VaultSpaceKind) -> UnlockAttemptResult {
-        lockService.validate(passcode: passcode, for: space, allowCoercionTrigger: false)
+        lockService.verify(passcode: passcode, for: space)
     }
 
     func removeCoercionPasscode(for space: VaultSpaceKind) {
@@ -217,17 +196,11 @@ final class AppSessionViewModel: ObservableObject {
         pendingUnlockMessage = message
         shouldAutomaticallyAttemptBiometricUnlock = allowAutomaticBiometricRetry && !requiresPasscodeAfterBiometricFailures
         shouldSuppressAutomaticBiometricErrors = allowAutomaticBiometricRetry
-        print("[SecurityFolder][Session] Locked. automaticBiometricRetry=\(allowAutomaticBiometricRetry)")
-    }
-
-    func switchToDecoyOrBlankSpace() {
-        lock()
     }
 
     func handleDidEnterBackground() {
         isSnapshotObscured = true
         guard isUnlocked else { return }
-        print("[SecurityFolder][Session] App entered background while unlocked. Locking and allowing automatic biometric retry on resume.")
         lock(allowAutomaticBiometricRetry: true)
     }
 
@@ -249,7 +222,6 @@ final class AppSessionViewModel: ObservableObject {
 
     func markAutomaticBiometricUnlockAttempted() {
         shouldAutomaticallyAttemptBiometricUnlock = false
-        print("[SecurityFolder][Session] Automatic biometric unlock attempt consumed.")
     }
 
     func consumeSuppressAutomaticBiometricErrors() -> Bool {
@@ -259,17 +231,13 @@ final class AppSessionViewModel: ObservableObject {
     }
 
     func recordBiometricFailure(message: String) {
-        if message == String(localized: "生物识别验证失败。") {
-            consecutiveBiometricFailureCount += 1
-            print("[SecurityFolder][Session] Biometric unlock failed. consecutiveFailures=\(consecutiveBiometricFailureCount)")
+        guard message == String(localized: "生物识别验证失败。") else { return }
+        consecutiveBiometricFailureCount += 1
 
-            if requiresPasscodeAfterBiometricFailures {
-                pendingUnlockMessage = String(localized: "生物识别已连续验证失败两次，请输入密码解锁。")
-                shouldAutomaticallyAttemptBiometricUnlock = false
-                shouldSuppressAutomaticBiometricErrors = false
-            }
-        } else {
-            print("[SecurityFolder][Session] Biometric unlock did not succeed. message=\(message)")
+        if requiresPasscodeAfterBiometricFailures {
+            pendingUnlockMessage = String(localized: "生物识别已连续验证失败两次，请输入密码解锁。")
+            shouldAutomaticallyAttemptBiometricUnlock = false
+            shouldSuppressAutomaticBiometricErrors = false
         }
     }
 

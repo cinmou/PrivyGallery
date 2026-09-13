@@ -37,15 +37,58 @@ func (n *namer) destination(item manifestItem) (string, bool) {
 		dir = filepath.Join(n.outDir, "_Trash")
 	}
 
-	ext := filepath.Ext(base)
-	stem := strings.TrimSuffix(base, ext)
+	return n.claim(filepath.Join(dir, base)), item.IsInTrash
+}
 
-	candidate := filepath.Join(dir, base)
+// companionDestination places a Live Photo's paired video next to its still
+// image with the same base name (IMG_0001.HEIC + IMG_0001.MOV).
+func (n *namer) companionDestination(item manifestItem, stillDest, companionPath string) (string, bool) {
+	ext := filepath.Ext(companionPath)
+	if ext == "" {
+		ext = ".mov"
+	}
+	if stillDest == "" {
+		base := sanitize(strings.TrimSpace(item.OriginalFilename))
+		if base == "" {
+			base = sanitize(strings.TrimSpace(item.Name))
+		}
+		stem := strings.TrimSuffix(base, filepath.Ext(base))
+		if stem == "" {
+			stem = "media"
+		}
+		dir := n.outDir
+		if item.IsInTrash {
+			dir = filepath.Join(n.outDir, "_Trash")
+		}
+		stillDest = filepath.Join(dir, stem)
+	}
+	return n.claim(strings.TrimSuffix(stillDest, filepath.Ext(stillDest)) + ext), item.IsInTrash
+}
+
+// coverDestination stores a custom album cover under "_AlbumCovers", named
+// after its album.
+func (n *namer) coverDestination(album manifestAlbum, coverPath string) string {
+	name := sanitize(album.Name)
+	if name == "" {
+		name = "album"
+	}
+	ext := filepath.Ext(coverPath)
+	if ext == "" {
+		ext = ".jpg"
+	}
+	return n.claim(filepath.Join(n.outDir, "_AlbumCovers", name+ext))
+}
+
+// claim reserves path, appending " (2)", " (3)"… when it is already taken.
+func (n *namer) claim(path string) string {
+	ext := filepath.Ext(path)
+	stem := strings.TrimSuffix(path, ext)
+	candidate := path
 	for i := 2; n.used[strings.ToLower(candidate)]; i++ {
-		candidate = filepath.Join(dir, fmt.Sprintf("%s (%d)%s", stem, i, ext))
+		candidate = fmt.Sprintf("%s (%d)%s", stem, i, ext)
 	}
 	n.used[strings.ToLower(candidate)] = true
-	return candidate, item.IsInTrash
+	return candidate
 }
 
 // sanitize strips path separators and characters that are illegal on common

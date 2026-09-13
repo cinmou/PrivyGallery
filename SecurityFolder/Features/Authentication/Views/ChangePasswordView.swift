@@ -51,21 +51,14 @@ struct ChangePasswordView: View {
     }
 
     var body: some View {
-        // NavigationStack 提供整个界面的导航结构，包括顶部的导航栏区域
         NavigationStack {
-            // List 提供了原生的分组列表样式（iOS 设置页常见的圆角卡片外观，背景灰色/黑色）
             List {
-                // 根据当前所处的流程阶段（stage），切换显示该步骤所需的内容区块
                 switch stage {
                 case .verifyCurrent:
-                    // 阶段 1：验证当前密码的界面
                     verifyCurrentSection
                 case .chooseKind:
-                    // 阶段 2：选择新密码类型（4位数字、6位数字、复杂密码）的界面
                     chooseKindSection
                 case .enterPrimaryNew:
-                    // 阶段 3：输入主空间新密码的界面
-                    // 修改 title 字符串可改变卡片内部的标题，修改 helper 可改变底部的辅助说明文字
                     newPasscodeSection(
                         title: String(localized: "输入新密码"),
                         helper: "",
@@ -73,7 +66,6 @@ struct ChangePasswordView: View {
                         text: $primaryDraft.primaryValue
                     )
                 case .confirmPrimaryNew:
-                    // 阶段 4：再次确认主空间新密码的界面
                     confirmPasscodeSection(
                         title: String(localized: "确认新密码"),
                         helper: String(localized: "请再次输入同样的密码。"),
@@ -81,10 +73,8 @@ struct ChangePasswordView: View {
                         text: $primaryDraft.confirmationValue
                     )
                 case .verifySecondaryCurrent:
-                    // 阶段 5：需要验证第二空间当前密码的界面
                     verifySecondarySection
                 case .enterSecondaryNew:
-                    // 阶段 6：输入另一个空间新密码的界面
                     newPasscodeSection(
                         title: String.localizedStringWithFormat(
                             String(localized: "修改%@的密码"),
@@ -99,7 +89,6 @@ struct ChangePasswordView: View {
                         text: $secondaryDraft.primaryValue
                     )
                 case .confirmSecondaryNew:
-                    // 阶段 7：确认另一个空间新密码的界面
                     confirmPasscodeSection(
                         title: String.localizedStringWithFormat(String(localized: "确认%@的密码"), counterpartSpaceName),
                         helper: String(localized: "请再次输入同样的密码。"),
@@ -107,7 +96,6 @@ struct ChangePasswordView: View {
                         text: $secondaryDraft.confirmationValue
                     )
                 case .enterPrimaryCoercion:
-                    // 阶段 8：设置全局胁迫密码的界面
                     newPasscodeSection(
                         title: String(localized: "修改胁迫密码"),
                         helper: String.localizedStringWithFormat(String(localized: "胁迫密码需要改成同样的密码类型：%@。"), selectedKind.title),
@@ -115,7 +103,6 @@ struct ChangePasswordView: View {
                         text: $coercionDraft.primaryValue
                     )
                 case .confirmPrimaryCoercion:
-                    // 阶段 9：确认全局胁迫密码的界面
                     confirmPasscodeSection(
                         title: String(localized: "确认胁迫密码"),
                         helper: String(localized: "请再次输入胁迫密码。"),
@@ -124,7 +111,6 @@ struct ChangePasswordView: View {
                     )
                 }
 
-                // 如果出现了错误（比如密码校验失败），在紧接着的下一个 Section 显示红色报错文本
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
@@ -133,31 +119,25 @@ struct ChangePasswordView: View {
                             .frame(maxWidth: .infinity, alignment: .center) // 居中显示
                     }
                     .listRowBackground(Color.clear) // 隐藏红色文字的白色卡片底色
-                    // 也可以调整间距：.listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 }
             }
             .listStyle(.insetGrouped) // 告诉系统这个 List 应该使用圆角卡片（Inset Grouped）风格
             .navigationTitle(navigationTitle) // 设置顶部导航栏中央的大标题内容（由底部的 navigationTitle 变量控制）
             .navigationBarTitleDisplayMode(.inline) // 让导航栏标题居中显示，不要变成巨大的左侧标题
             .toolbar {
-                // ToolbarItem(placement: .topBarLeading) 定义了导航栏左侧位置的按钮
                 ToolbarItem(placement: .topBarLeading) {
                     if canGoBack {
-                        // 当能“上一步”时，显示一个向左的箭头图标
                         Button {
                             goBack()
                         } label: {
-                            // Image 用于显示 SF Symbols 系统图标，修改 "chevron.left" 字符串可以换成其它图标
                             Image(systemName: "chevron.left")
                         }
                         .accessibilityLabel(String(localized: "上一步")) // 让 VoiceOver 朗读“上一步”
                     } else if canCancel {
-                        // 不能上一步但允许“取消”时，显示一个错号图标
                         Button {
                             resetDrafts()
                             dismiss() // 关闭当前页面
                         } label: {
-                            // Image 用于显示 SF Symbols 系统图标，修改 "xmark" 字符串可以换成其它图标（如 "chevron.down"）
                             Image(systemName: "xmark")
                                 .fontWeight(.medium) // 控制图标粗细
                         }
@@ -165,27 +145,20 @@ struct ChangePasswordView: View {
                     }
                 }
                 
-                // ToolbarItem(placement: .topBarTrailing) 定义了导航栏右侧位置的按钮
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: {
                         handlePrimaryAction() // 点击触发验证、继续、或保存等主要操作
                     }) {
-                        // 当处于保存中状态时（由于耗时操作），展示系统默认的菊花加载动画
                         if isSaving {
                             ProgressView()
                                 .progressViewStyle(.circular)
                         } else {
-                            // 否则，展示一个“对号”图标代表确认或继续，修改 "checkmark" 可以更换图标
                             Image(systemName: "checkmark")
                         }
                     }
-                    // .disabled() 根据布尔值决定按钮是否可以点击：
-                    // isSaving (保存时禁用) || primaryActionDisabled (例如密码还没输入或者长度不够时禁用)
-                    // 按钮被禁用时，系统会自动把对号变成浅灰色；满足条件时会自动恢复为深蓝色（App 强调色）
                     .disabled(isSaving || primaryActionDisabled)
                     .tint(.blue) // 强制使用蓝色作为激活状态的颜色
                     .keyboardShortcut(.defaultAction)
-                    // 无障碍朗读：VoiceOver 依然读出“验证并继续”、“完成”等真正的文字意义，而不是念出“对号”
                     .accessibilityLabel(primaryActionTitle)
                 }
             }
@@ -205,7 +178,6 @@ struct ChangePasswordView: View {
                 resetDrafts()
                 primaryDraft.kind = currentKind
             }
-            // 以下 onChange 会监听各种输入值的变化，用于控制合法性检查和清理多余字符
             .onChange(of: currentPasscode) { _, newValue in
                 sanitizeCurrentPasscode(with: newValue, kind: currentKind, assignToSecondary: false)
             }
@@ -279,7 +251,6 @@ struct ChangePasswordView: View {
         !isSaving && stage != .verifyCurrent
     }
 
-    // 控制当前顶部导航栏显示的大标题字符串
     private var navigationTitle: String {
         switch stage {
         case .verifyCurrent:
@@ -295,7 +266,6 @@ struct ChangePasswordView: View {
         }
     }
 
-    // 控制当前右上角按钮（或 VoiceOver）代表的操作语义文字
     private var primaryActionTitle: String {
         switch stage {
         case .verifyCurrent:
@@ -315,7 +285,6 @@ struct ChangePasswordView: View {
         }
     }
 
-    // 控制当前状态下，右上角的按钮是否应该被禁用（返回 true 则代表满足条件，按钮不可点且为灰色）
     private var primaryActionDisabled: Bool {
         switch stage {
         case .verifyCurrent:
@@ -341,13 +310,9 @@ struct ChangePasswordView: View {
 
     // MARK: - 局部视图组件 (Subviews)
 
-    // “验证当前密码” 阶段特有的自定义界面
     private var verifyCurrentSection: some View {
-        // Section 是 List 里的一个分组（一块白色圆角背景区域）
         Section {
-            // VStack 用于纵向排列子视图，spacing: 16 控制内部每一项的上下间距
             VStack(spacing: 16) {
-                // 1. 顶部的图示。想要换成其他系统图标，把 "lock.rectangle.stack.fill" 换成对应名称即可。
                 Image("custom.wheel")
                     .resizable() // 允许图片改变原始尺寸
                     .scaledToFit() // 保持比例缩放
@@ -356,21 +321,16 @@ struct ChangePasswordView: View {
                     .padding(.top, 2) // 让图标距离卡片顶部边缘有一定的距离
                     .accessibilityHidden(true) // 告诉 VoiceOver 忽略这个图示，避免向盲人重复播报无意义的装饰信息
 
-                // 2. 中央大标题。更改双引号内的文字可以修改它
                             Text(String(localized: "输入当前密码"))
                     .font(.title3) // title3 提供一个稍微大一点的默认大小
                     .fontWeight(.bold) // 加粗显示
 
-                // 3. 辅助说明文字。
                 Text(String(localized: "输入用于解锁此应用的密码"))
                     .font(.subheadline) // subheadline 比 title3 细一点，小一点
                     .foregroundStyle(.secondary) // 次要文字颜色，通常表现为灰色
                     .multilineTextAlignment(.center) // 如果文字太长被折叠到两行，让它们保持居中对齐
                 
-                // 4. 输入框区域
-                // 如果目前的密码类型是“自定复杂密码”
                 if currentKind == .custom {
-                    // 使用原生密码输入框，带遮挡圆点
                     SecureField(String(localized: "密码"), text: $currentPasscode)
                         .textContentType(.password) // 提示系统键盘这属于密码，允许密码填充
                         .textInputAutocapitalization(.never)
@@ -378,8 +338,6 @@ struct ChangePasswordView: View {
                         .textFieldStyle(.roundedBorder) // 给予输入框一个圆角描边
                         .padding(.horizontal) // 让输入框距离左右两边有留白
                 } else {
-                    // 否则，使用自定义封装的“纯数字/圆点”密码盘
-                    // 此处由于上面已经自定义了说明，所以传递空字符串 title 和 prompt 隐藏组件自带的额外说明
                     NativeNumericPasscodeField(
                         title: "", 
                         prompt: "", 
@@ -394,13 +352,9 @@ struct ChangePasswordView: View {
         }
     }
 
-    // “选择密码类型” 阶段（如4位、6位）的界面
     private var chooseKindSection: some View {
-        // 第一部分：让用户通过 Picker 选择密码类型的卡片
         Section {
-            // Picker 会生成单选列表。第一参数 "密码类型" 并不会显示在屏幕上（受 labelsHidden 影响），但对无障碍辅助有用
             Picker(String(localized: "密码类型"), selection: $primaryDraft.kind) {
-                // 遍历 AppPasscodeKind 里的所有枚举选项并显示为 Text
                 ForEach(AppPasscodeKind.allCases) { kind in
                     Text(kind.title).tag(kind)
                 }
@@ -408,7 +362,6 @@ struct ChangePasswordView: View {
             .pickerStyle(.inline) // inline 样式可以在 List 分组卡片里展示可勾选的平铺列表
             .labelsHidden() // 隐藏 Picker 左侧默认的前缀文字
 
-            // 下方根据特定场景提供灰色小字提示
             if isChangingKind && (requiresCounterpartMigration || requiresCoercionMigration) {
                 Text(
                     String.localizedStringWithFormat(
@@ -421,9 +374,7 @@ struct ChangePasswordView: View {
                     .foregroundStyle(.secondary)
             }
         } header: {
-            // 卡片头部（此处自定义了一个带有图标和大标题的视图结构）
             VStack(spacing: 16) {
-                // 大图标
                 Image(systemName: "ellipsis.rectangle.fill")
                     .resizable()
                     .scaledToFit()
@@ -431,7 +382,6 @@ struct ChangePasswordView: View {
                     .foregroundStyle(.tint)
                     .padding(.top, 2)
                 
-                // 大标题文字
                 Text(String(localized: "密码类型"))
                     .font(.title3)
                     .fontWeight(.bold)
@@ -442,9 +392,7 @@ struct ChangePasswordView: View {
         }
     }
         
-    // “验证另一个空间密码” 的过渡阶段界面
     private var verifySecondarySection: some View {
-        // Group 用于把多个 Section 组合在一个函数里返回，它自己不提供任何排版效果
         Group {
             Section {
                 Text(
@@ -458,7 +406,6 @@ struct ChangePasswordView: View {
                     .foregroundStyle(.secondary) // 灰色文字
             }
 
-            // 使用通用的密码填写组件
             passcodeEntrySection(
                 title: String.localizedStringWithFormat(
                     String(localized: "输入%@当前密码"),
@@ -472,7 +419,6 @@ struct ChangePasswordView: View {
         }
     }
 
-    // 辅助函数：用于“输入首次新密码”页面的便捷封装
     @ViewBuilder
     private func newPasscodeSection(
         title: String,
@@ -480,7 +426,6 @@ struct ChangePasswordView: View {
         kind: AppPasscodeKind,
         text: Binding<String>
     ) -> some View {
-        // 调用通用的 passcodeEntrySection，并告诉系统如果是文字密码，键盘行为应该是创建新密码（.newPassword）
         passcodeEntrySection(
             title: title,
             helper: helper,
@@ -490,7 +435,6 @@ struct ChangePasswordView: View {
         )
     }
 
-    // 辅助函数：用于“第二次确认密码”页面的便捷封装
     @ViewBuilder
     private func confirmPasscodeSection(
         title: String,
@@ -507,7 +451,6 @@ struct ChangePasswordView: View {
         )
     }
 
-    // 真正负责渲染标准密码输入框的通用组件（包含新建密码和确认密码等所有阶段）
     @ViewBuilder
     private func passcodeEntrySection(
         title: String,
@@ -518,7 +461,6 @@ struct ChangePasswordView: View {
     ) -> some View {
         Section {
             VStack(spacing: 16) {
-                // 1. 图标
                 Image(systemName: "key.viewfinder")
                     .resizable()
                     .scaledToFit()
@@ -527,12 +469,10 @@ struct ChangePasswordView: View {
                     .padding(.top, 2)
                     .accessibilityHidden(true)
 
-                // 2. 标题（使用传入的参数）
                 Text(title)
                     .font(.title3)
                     .fontWeight(.bold)
 
-                // 3. 副标题说明文字（使用传入的参数，如果不为空才显示）
                 if !helper.isEmpty {
                     Text(helper)
                         .font(.subheadline)
@@ -540,9 +480,7 @@ struct ChangePasswordView: View {
                         .multilineTextAlignment(.center)
                 }
 
-                // 4. 密码输入区域
                 if kind == .custom {
-                    // 如果是任意字符构成的复杂密码，使用系统 SecureField
                     SecureField(String(localized: "密码"), text: text)
                         .textContentType(secureTextType)
                         .textInputAutocapitalization(.never)
@@ -550,7 +488,6 @@ struct ChangePasswordView: View {
                         .textFieldStyle(.roundedBorder)
                         .padding(.horizontal)
                 } else {
-                    // 如果是纯数字类型，调用纯数字组件
                     NativeNumericPasscodeField(
                         title: "", 
                         prompt: "",

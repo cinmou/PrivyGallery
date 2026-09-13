@@ -115,7 +115,6 @@ nonisolated struct VaultExportService: Sendable {
     private let metadataStore = EncryptedMetadataStore.shared
 
     private let vaultChunkSize = 8 * 1_024 * 1_024
-    private let archiveCopyChunkSize = 1 * 1_024 * 1_024
     private let pbkdfRounds = 600_000
     private let maxItemsPerPart = 700
     private let targetPartBytes: Int64 = 2 * 1_024 * 1_024 * 1_024
@@ -337,6 +336,15 @@ nonisolated struct VaultExportService: Sendable {
                 throw VaultExportError.missingSourceFile(item.relativePath)
             }
             let byteCount = try cryptoService.plaintextByteCount(forEncryptedFileAt: sourceURL)
+            let companionBlobEntry = try item.livePhotoCompanionRelativePath.flatMap { companionPath -> VaultBackupBlobEntry? in
+                let companionURL = mediaStorage.fileURL(for: companionPath)
+                guard fileManager.fileExists(atPath: companionURL.path()) else { return nil }
+                return VaultBackupBlobEntry(
+                    relativePath: companionPath,
+                    sourceDomain: .livePhotoCompanion,
+                    byteCount: try cryptoService.plaintextByteCount(forEncryptedFileAt: companionURL)
+                )
+            }
             let record = VaultBackupItemRecord(
                 id: item.id.uuidString,
                 name: item.name,
@@ -355,14 +363,30 @@ nonisolated struct VaultExportService: Sendable {
                 contentTypeIdentifier: item.contentTypeIdentifier,
                 locationLatitude: item.locationLatitude,
                 locationLongitude: item.locationLongitude,
-                albumIDs: item.albums.map(\.id).map(\.uuidString)
+                albumIDs: item.albums.map(\.id).map(\.uuidString),
+                trashedAt: item.trashedAt,
+                livePhotoCompanionRelativePath: companionBlobEntry?.relativePath
             )
             let blobEntry = VaultBackupBlobEntry(
                 relativePath: item.relativePath,
                 sourceDomain: .media,
                 byteCount: byteCount
             )
-            return VaultBackupItemPayload(record: record, blobEntry: blobEntry)
+            return VaultBackupItemPayload(record: record, blobEntries: [blobEntry] + (companionBlobEntry.map { [$0] } ?? []))
+        }
+        let referencedAlbumIDs = Set(itemRecords.flatMap(\.record.albumIDs))
+
+        var coverBlobsByAlbumID: [String: VaultBackupBlobEntry] = [:]
+        for album in albums {
+            guard !isSystemAlbum(kindRawValue: album.kindRawValue),
+                  let coverPath = album.coverImageRelativePath else { continue }
+            let coverURL = mediaStorage.fileURL(for: coverPath)
+            guard fileManager.fileExists(atPath: coverURL.path()) else { continue }
+            coverBlobsByAlbumID[album.id.uuidString] = VaultBackupBlobEntry(
+                relativePath: coverPath,
+                sourceDomain: .albumCover,
+                byteCount: try cryptoService.plaintextByteCount(forEncryptedFileAt: coverURL)
+            )
         }
 
         let albumRecords = albums.map {
@@ -371,7 +395,7 @@ nonisolated struct VaultExportService: Sendable {
                 name: $0.name,
                 kindRawValue: $0.kindRawValue,
                 coverItemIDRawValue: $0.coverItemIDRawValue,
-                coverImageRelativePath: $0.coverImageRelativePath,
+                coverImageRelativePath: coverBlobsByAlbumID[$0.id.uuidString]?.relativePath,
                 coverSymbolName: $0.coverSymbolName,
                 sortOptionRawValue: $0.sortOptionRawValue,
                 customOrderedItemIDs: $0.customOrderedItemIDs,
@@ -385,13 +409,19 @@ nonisolated struct VaultExportService: Sendable {
         var currentPayloads: [VaultBackupItemPayload] = []
         var currentBytes: Int64 = 0
 
+        var exportedCoverPaths = Set<String>()
         func flushCurrentPart() {
             guard !currentPayloads.isEmpty else { return }
             let partIndex = parts.count
             let itemIDSet = Set(currentPayloads.map(\.record.id))
             let albumIDSet = Set(currentPayloads.flatMap(\.record.albumIDs))
             let partAlbums = albumRecords
-                .filter { albumIDSet.contains($0.id) || isSystemAlbum(kindRawValue: $0.kindRawValue) }
+                .filter {
+                    albumIDSet.contains($0.id)
+                        || isSystemAlbum(kindRawValue: $0.kindRawValue)
+                        // Empty custom albums still carry a name, color and cover; keep them in the first part.
+                        || (partIndex == 0 && !referencedAlbumIDs.contains($0.id))
+                }
                 .map { album -> VaultBackupAlbumRecord in
                     VaultBackupAlbumRecord(
                         id: album.id,
@@ -407,6 +437,12 @@ nonisolated struct VaultExportService: Sendable {
                         colorRawValue: album.colorRawValue
                     )
                 }
+            // Each cover file is written once, in the first part that references its album.
+            let coverEntries = partAlbums.compactMap { album -> VaultBackupBlobEntry? in
+                guard let entry = coverBlobsByAlbumID[album.id],
+                      exportedCoverPaths.insert(entry.relativePath).inserted else { return nil }
+                return entry
+            }
             let manifest = VaultBackupPartManifest(
                 exportedAt: .now,
                 spaceRawValue: space.rawValue,
@@ -414,21 +450,22 @@ nonisolated struct VaultExportService: Sendable {
                 totalParts: 0,
                 albums: partAlbums,
                 items: currentPayloads.map(\.record),
-                blobEntries: currentPayloads.map(\.blobEntry)
+                blobEntries: currentPayloads.flatMap(\.blobEntries) + coverEntries
             )
-            parts.append(VaultBackupPartPlan(partIndex: partIndex, manifest: manifest, estimatedPlaintextBytes: currentBytes))
+            let coverBytes = coverEntries.reduce(Int64(0)) { $0 + $1.byteCount }
+            parts.append(VaultBackupPartPlan(partIndex: partIndex, manifest: manifest, estimatedPlaintextBytes: currentBytes + coverBytes))
             currentPayloads.removeAll(keepingCapacity: true)
             currentBytes = 0
         }
 
         for payload in itemRecords {
             let itemWouldExceedCount = currentPayloads.count >= maxItemsPerPart
-            let itemWouldExceedBytes = !currentPayloads.isEmpty && currentBytes + payload.blobEntry.byteCount > targetPartBytes
+            let itemWouldExceedBytes = !currentPayloads.isEmpty && currentBytes + payload.byteCount > targetPartBytes
             if itemWouldExceedCount || itemWouldExceedBytes {
                 flushCurrentPart()
             }
             currentPayloads.append(payload)
-            currentBytes += max(payload.blobEntry.byteCount, 1)
+            currentBytes += max(payload.byteCount, 1)
         }
         flushCurrentPart()
 
@@ -537,7 +574,8 @@ nonisolated struct VaultExportService: Sendable {
         let header = VaultBackupHeader(
             exportedAt: .now,
             appName: "PrivyGallery",
-            formatVersion: 2,
+            // Version 3 marks parts carrying Live Photo videos or album covers, which older app versions cannot restore.
+            formatVersion: part.manifest.blobEntries.contains { $0.sourceDomain != .media } ? 3 : 2,
             partIndex: part.partIndex,
             totalParts: totalParts,
             archiveEncoding: "chunked-lzfse-v1",
@@ -1133,7 +1171,11 @@ nonisolated private struct VaultBackupPartPlan {
 
 nonisolated private struct VaultBackupItemPayload {
     let record: VaultBackupItemRecord
-    let blobEntry: VaultBackupBlobEntry
+    let blobEntries: [VaultBackupBlobEntry]
+
+    var byteCount: Int64 {
+        blobEntries.reduce(0) { $0 + $1.byteCount }
+    }
 }
 
 nonisolated private struct VaultBackupHeader: Codable {
@@ -1198,6 +1240,8 @@ nonisolated private struct VaultBackupItemRecord: Codable {
     let locationLatitude: Double?
     let locationLongitude: Double?
     let albumIDs: [String]
+    let trashedAt: Date?
+    let livePhotoCompanionRelativePath: String?
 }
 
 nonisolated private struct VaultBackupBlobEntry: Codable {
@@ -1208,6 +1252,8 @@ nonisolated private struct VaultBackupBlobEntry: Codable {
 
 nonisolated private enum VaultBackupSourceDomain: UInt8, Codable {
     case media = 1
+    case livePhotoCompanion = 2
+    case albumCover = 3
 }
 
 nonisolated private struct VaultBackupChunkRecord {

@@ -17,7 +17,7 @@ import (
 	lzfse "github.com/blacktop/lzfse-cgo"
 )
 
-// The .vault format is documented in ../../docs/vault-format.md. The constants
+// The .vault format is documented in ../../Materials/docs/vault-format.md. The constants
 // and binary layout below mirror exactly what the iOS/macOS app writes in
 // VaultExportService.swift. Anything that diverges from that file is a bug.
 
@@ -28,7 +28,9 @@ const (
 	archiveMagic   = "SVAR"
 	archiveVersion = 1
 
-	domainMedia = 1
+	domainMedia              = 1
+	domainLivePhotoCompanion = 2
+	domainAlbumCover         = 3
 
 	codecRaw   = 0
 	codecLZFSE = 1
@@ -58,12 +60,13 @@ type vaultHeader struct {
 
 // manifest is the JSON index stored (encrypted) inside the SVAR archive.
 type manifest struct {
-	ExportedAt    string         `json:"exportedAt"`
-	SpaceRawValue string         `json:"spaceRawValue"`
-	PartIndex     int            `json:"partIndex"`
-	TotalParts    int            `json:"totalParts"`
-	Items         []manifestItem `json:"items"`
-	BlobEntries   []blobEntry    `json:"blobEntries"`
+	ExportedAt    string          `json:"exportedAt"`
+	SpaceRawValue string          `json:"spaceRawValue"`
+	PartIndex     int             `json:"partIndex"`
+	TotalParts    int             `json:"totalParts"`
+	Albums        []manifestAlbum `json:"albums"`
+	Items         []manifestItem  `json:"items"`
+	BlobEntries   []blobEntry     `json:"blobEntries"`
 }
 
 type manifestItem struct {
@@ -72,10 +75,18 @@ type manifestItem struct {
 	OriginalFilename  string `json:"originalFilename"`
 	MediaKindRawValue string `json:"mediaKindRawValue"`
 	IsInTrash         bool   `json:"isInTrash"`
+	// Set for Live Photos; points at a domainLivePhotoCompanion blob.
+	LivePhotoCompanionRelativePath string `json:"livePhotoCompanionRelativePath"`
+}
+
+type manifestAlbum struct {
+	Name                   string `json:"name"`
+	CoverImageRelativePath string `json:"coverImageRelativePath"`
 }
 
 type blobEntry struct {
 	RelativePath string `json:"relativePath"`
+	SourceDomain uint8  `json:"sourceDomain"`
 	ByteCount    int64  `json:"byteCount"`
 }
 
@@ -164,7 +175,8 @@ func decryptVaultToArchive(vaultPath, password, archivePath string) (*vaultHeade
 		return nil, fmt.Errorf("decode header JSON: %w", err)
 	}
 
-	if header.FormatVersion != 2 ||
+	// Format 3 only adds blob domains (Live Photo videos, album covers).
+	if (header.FormatVersion != 2 && header.FormatVersion != 3) ||
 		header.ArchiveEncoding != "chunked-lzfse-v1" ||
 		header.Cipher != "aes-gcm-chunked-archive" {
 		return nil, fmt.Errorf("unsupported backup format (version=%d encoding=%q cipher=%q)",
@@ -317,9 +329,20 @@ func extractArchive(archivePath, outDir string, listOnly bool) ([]extractedFile,
 
 	// Map each blob path to its richer item record for friendly filenames.
 	itemByPath := make(map[string]manifestItem, len(man.Items))
+	itemByCompanionPath := make(map[string]manifestItem)
 	for _, it := range man.Items {
 		itemByPath[it.RelativePath] = it
+		if it.LivePhotoCompanionRelativePath != "" {
+			itemByCompanionPath[it.LivePhotoCompanionRelativePath] = it
+		}
 	}
+	albumByCoverPath := make(map[string]manifestAlbum)
+	for _, album := range man.Albums {
+		if album.CoverImageRelativePath != "" {
+			albumByCoverPath[album.CoverImageRelativePath] = album
+		}
+	}
+	destByItemPath := make(map[string]string, len(man.Items))
 
 	blobCount, err := rd.u32()
 	if err != nil {
@@ -349,12 +372,20 @@ func extractArchive(archivePath, outDir string, listOnly bool) ([]extractedFile,
 			return nil, nil, err
 		}
 		expectedBytes := int64(expectedBytesU)
-		if domain != domainMedia {
+		var dest string
+		var inTrash bool
+		switch domain {
+		case domainMedia:
+			dest, inTrash = naming.destination(itemByPath[relativePath])
+			destByItemPath[relativePath] = dest
+		case domainLivePhotoCompanion:
+			item := itemByCompanionPath[relativePath]
+			dest, inTrash = naming.companionDestination(item, destByItemPath[item.RelativePath], relativePath)
+		case domainAlbumCover:
+			dest = naming.coverDestination(albumByCoverPath[relativePath], relativePath)
+		default:
 			return nil, nil, fmt.Errorf("unsupported blob domain %d for %q", domain, relativePath)
 		}
-
-		item := itemByPath[relativePath]
-		dest, inTrash := naming.destination(item)
 
 		var w *bufio.Writer
 		var out *os.File

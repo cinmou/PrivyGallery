@@ -44,17 +44,14 @@ final class UnlockViewModel: ObservableObject {
     /// 根据当前会话状态，决定显示首次引导还是普通锁定页。
     func prepare(using session: AppSessionViewModel) {
         hasAttemptedAutomaticBiometricUnlock = false
-        print("[SecurityFolder][Unlock] prepare shouldRunPrimaryOnboarding=\(session.shouldRunPrimaryOnboarding) isSpaceAConfigured=\(session.isPasscodeConfigured(for: .spaceA)) isSpaceBConfigured=\(session.isPasscodeConfigured(for: .spaceB))")
 
         if session.shouldRunPrimaryOnboarding {
             stage = .onboardingWelcome
             onboardingBiometricsEnabled = session.isBiometricUnlockEnabled
-            print("[SecurityFolder][Unlock] Entering onboarding flow.")
             return
         }
 
         stage = .locked
-        print("[SecurityFolder][Unlock] Entering locked flow.")
     }
 
     func availableSpaces(using session: AppSessionViewModel) -> [VaultSpaceKind] {
@@ -104,7 +101,6 @@ final class UnlockViewModel: ObservableObject {
     func submitPrimaryOnboardingPasscodeEntry(draft: PasscodeDraftController) {
         draft.sanitize()
         let candidate = draft.normalizedPrimaryValue
-        print("[SecurityFolder][Unlock] submitPrimaryOnboardingPasscodeEntry kind=\(draft.kind.rawValue) primaryLength=\(candidate.count)")
 
         guard draft.kind.isValid(candidate) else {
             errorMessage = String(localized: "密码格式不符合要求。")
@@ -121,7 +117,6 @@ final class UnlockViewModel: ObservableObject {
         using session: AppSessionViewModel
     ) {
         draft.sanitize()
-        print("[SecurityFolder][Unlock] submitPrimaryOnboardingPasscode kind=\(draft.kind.rawValue) primaryLength=\(draft.normalizedPrimaryValue.count) confirmationLength=\(draft.normalizedConfirmationValue.count)")
 
         guard draft.kind.isValid(draft.normalizedPrimaryValue) else {
             errorMessage = String(localized: "密码格式不符合要求。")
@@ -155,11 +150,10 @@ final class UnlockViewModel: ObservableObject {
             unlockAfterSetup: false
         ) {
         case .success:
-            print("[SecurityFolder][Unlock] Primary passcode configured at onboarding completion.")
+            break
         case let .failure(message):
             errorMessage = message
             stage = .onboardingPasscodeConfirmation
-            print("[SecurityFolder][Unlock] Failed to configure primary passcode at onboarding completion: \(message)")
             return
         }
 
@@ -184,15 +178,12 @@ final class UnlockViewModel: ObservableObject {
     func submitUnlock(passcode: String, using session: AppSessionViewModel) {
         let kind = preferredUnlockKind(using: session)
         let normalizedPasscode = kind.normalized(passcode)
-        print("[SecurityFolder][Unlock] submitUnlock kind=\(kind.rawValue) inputLength=\(normalizedPasscode.count)")
 
         switch session.unlock(using: normalizedPasscode) {
         case .success:
             errorMessage = nil
-            print("[SecurityFolder][Unlock] Unlock succeeded.")
         case let .failure(message):
             errorMessage = message
-            print("[SecurityFolder][Unlock] Unlock failed: \(message)")
         }
     }
 
@@ -204,7 +195,6 @@ final class UnlockViewModel: ObservableObject {
         switch session.unlockPrimaryWithBiometrics() {
         case .success:
             errorMessage = nil
-            print("[SecurityFolder][Unlock] Biometric unlock succeeded. automatic=\(isAutomaticAttempt)")
         case let .failure(message):
             let shouldSuppress = isAutomaticAttempt
                 && session.consumeSuppressAutomaticBiometricErrors()
@@ -214,10 +204,8 @@ final class UnlockViewModel: ObservableObject {
 
             if shouldSuppress {
                 errorMessage = nil
-                print("[SecurityFolder][Unlock] Suppressed automatic biometric failure: \(message)")
             } else {
                 errorMessage = session.consumePendingUnlockMessage() ?? message
-                print("[SecurityFolder][Unlock] Biometric unlock failed. automatic=\(isAutomaticAttempt) message=\(message)")
             }
         }
     }

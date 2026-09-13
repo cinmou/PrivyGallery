@@ -99,6 +99,15 @@ final class VaultCryptoService {
         try saveBiometricKeyIfMissing(rawKeyData, for: space)
     }
 
+    /// 只校验密码能否解开该空间的主密钥，不加载密钥，也不清除其他空间已加载的密钥。
+    func verifyPasscode(_ passcode: String, for space: VaultSpaceKind) -> Bool {
+        guard let wrappedKeyData = try? keychainData(for: wrappedAccount(for: space)),
+              let sealedBox = try? AES.GCM.SealedBox(combined: wrappedKeyData) else {
+            return false
+        }
+        return (try? AES.GCM.open(sealedBox, using: wrappingKey(for: space, passcode: passcode))) != nil
+    }
+
     /// 首次设置密码时创建空间主密钥；若该空间已经有密钥，则只做重包裹。
     func configurePasscode(for space: VaultSpaceKind, newPasscode: String) throws {
         guard !keychainItemExists(for: wrappedAccount(for: space)) else {

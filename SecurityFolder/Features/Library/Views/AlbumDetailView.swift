@@ -177,7 +177,6 @@ struct AlbumDetailView: View {
                 showingManagedPhotoImporter = false
                 guard !importedAssets.isEmpty else { return }
                 pendingImportedSystemAssetIdentifiers = importedAssets.compactMap(\.assetIdentifier)
-                print("[ImportCleanup][AlbumManaged] importedAssets=\(importedAssets.count) assetIDs=\(pendingImportedSystemAssetIdentifiers.count)")
                 viewModel.importPickerAssets(importedAssets, directlyInto: albumID)
             }
         }
@@ -248,7 +247,6 @@ struct AlbumDetailView: View {
 
                     Section {
                         Button(String(localized: "知道了")) {
-                            print("[ImportCleanup][Album] import result dismissed photoCount=\(summary.photoCount) videoCount=\(summary.videoCount) pendingIDs=\(pendingImportedSystemAssetIdentifiers.count) enabled=\(deleteImportedSystemAssetsAfterImport)")
                             showingManagedPhotoImporter = false
                             presentedImportResultSummary = nil
                             scheduleDeletePromptAfterImport(importedCount: summary.photoCount + summary.videoCount)
@@ -880,154 +878,6 @@ struct AlbumDetailView: View {
     }
 
     @ViewBuilder
-    private func contextMenuContent(for item: VaultItem, albumKind: MediaAlbumKind?) -> some View {
-        Button {
-            isSelecting = true
-            selectedItemIDs = [item.id]
-        } label: {
-            Label(String(localized: "选择"), systemImage: "checkmark.circle")
-        }
-
-        Button {
-            renameText = item.name
-            renamingItem = item
-        } label: {
-            Label(String(localized: "重命名"), systemImage: "pencil")
-        }
-
-        Button {
-            detailItemID = item.id
-        } label: {
-            Label(String(localized: "显示详情"), systemImage: "info.circle")
-        }
-
-        switch albumKind {
-        case .trash:
-            if let exportURL = viewModel.exportURL(for: item.id) {
-                ShareLink(item: exportURL) {
-                    Label(String(localized: "导出"), systemImage: "square.and.arrow.up")
-                }
-            }
-            Button {
-                viewModel.restoreFromTrash(itemID: item.id)
-            } label: {
-                Label(String(localized: "恢复"), systemImage: "arrow.uturn.backward")
-            }
-            Button(role: .destructive) {
-                requestDestructiveOperation(for: Set([item.id]), albumKind: albumKind)
-            } label: {
-                Label(String(localized: "彻底删除"), systemImage: "trash")
-            }
-            
-        case .archive:
-            if let exportURL = viewModel.exportURL(for: item.id) {
-                ShareLink(item: exportURL) {
-                    Label(String(localized: "导出"), systemImage: "square.and.arrow.up")
-                }
-            }
-            Button {
-                viewModel.unarchive(itemID: item.id)
-            } label: {
-                Label(String(localized: "放回"), systemImage: "arrow.uturn.backward.circle")
-            }
-            Button(role: .destructive) {
-                requestDestructiveOperation(for: Set([item.id]), albumKind: albumKind)
-            } label: {
-                Label(String(localized: "移到回收站"), systemImage: "trash")
-            }
-
-        case .secureLibrary:
-            if advancedDataProtectionEnabled {
-                if let exportURL = viewModel.exportURL(for: item.id) {
-                    ShareLink(item: exportURL) {
-                        Label(String(localized: "导出"), systemImage: "square.and.arrow.up")
-                    }
-                }
-                Button {
-                    selectedItemIDs = [item.id]
-                    showingAlbumPicker = true
-                } label: {
-                    Label(String(localized: "管理相册"), systemImage: "lock.rectangle.stack")
-                }
-                Button(role: .destructive) {
-                    requestRemoveFromStrongProtection(for: Set([item.id]))
-                } label: {
-                    Label(String(localized: "移出强加密媒体库"), systemImage: "lock.open")
-                }
-                Button(role: .destructive) {
-                    requestPermanentDeletion(for: Set([item.id]))
-                } label: {
-                    Label(String(localized: "永久删除"), systemImage: "trash")
-                }
-            }
-
-        case .secureCustom:
-            if advancedDataProtectionEnabled {
-                if let exportURL = viewModel.exportURL(for: item.id) {
-                    ShareLink(item: exportURL) {
-                        Label(String(localized: "导出"), systemImage: "square.and.arrow.up")
-                    }
-                }
-                Button {
-                    selectedItemIDs = [item.id]
-                    showingAlbumPicker = true
-                } label: {
-                    Label(String(localized: "管理相册"), systemImage: "lock.rectangle.stack")
-                }
-                Button(role: .destructive) {
-                    requestDestructiveOperation(for: Set([item.id]), albumKind: albumKind)
-                } label: {
-                    Label(String(localized: "移出相册"), systemImage: "minus.circle")
-                }
-                Button(role: .destructive) {
-                    requestPermanentDeletion(for: Set([item.id]))
-                } label: {
-                    Label(String(localized: "永久删除"), systemImage: "trash")
-                }
-            }
-            
-        default:
-            if let exportURL = viewModel.exportURL(for: item.id) {
-                ShareLink(item: exportURL) {
-                    Label(String(localized: "导出"), systemImage: "square.and.arrow.up")
-                }
-            }
-            Button {
-                viewModel.duplicate(itemIDs: Set([item.id]))
-            } label: {
-                Label(String(localized: "复制"), systemImage: "plus.square.on.square")
-            }
-
-            Button {
-                selectedItemIDs = [item.id]
-                showingAlbumPicker = true
-            } label: {
-                Label(String(localized: "管理相册"), systemImage: "rectangle.stack")
-            }
-
-            if advancedDataProtectionEnabled {
-                Button {
-                    viewModel.enableStrongProtection(itemIDs: Set([item.id]))
-                } label: {
-                    Label(String(localized: "移入强加密媒体库"), systemImage: "lock.shield")
-                }
-            }
-            
-            Button {
-                viewModel.archive(itemIDs: Set([item.id]))
-            } label: {
-                Label(String(localized: "归档"), systemImage: "archivebox")
-            }
-            
-            Button(role: .destructive) {
-                requestDestructiveOperation(for: Set([item.id]), albumKind: albumKind)
-            } label: {
-                Label(destructiveTitle, systemImage: "trash")
-            }
-        }
-    }
-
-    @ViewBuilder
     private func sortOptionButton(
         for option: AlbumSortOption,
         currentSortOption: AlbumSortOption
@@ -1270,15 +1120,12 @@ struct AlbumDetailView: View {
     private func maybePromptToDeleteImportedSystemAssets(afterImportCount importedCount: Int) {
         defer { pendingImportedSystemAssetIdentifiers = [] }
         guard deleteImportedSystemAssetsAfterImport else {
-            print("[ImportCleanup][Album] prompt skipped because feature disabled")
             return
         }
         let assetIdentifiers = Array(Set(pendingImportedSystemAssetIdentifiers.filter { !$0.isEmpty }))
         guard !assetIdentifiers.isEmpty else {
-            print("[ImportCleanup][Album] prompt skipped because no asset identifiers were captured")
             return
         }
-        print("[ImportCleanup][Album] showing delete prompt importedCount=\(importedCount) uniqueAssetIDs=\(assetIdentifiers.count)")
         importedSystemAssetsDeletionPrompt = ImportedSystemAssetsDeletionPrompt(
             assetIdentifiers: assetIdentifiers,
             importedCount: importedCount
@@ -1293,14 +1140,12 @@ struct AlbumDetailView: View {
 
     private func presentImportResultIfNeeded() {
         guard !viewModel.isImportingMedia,
-              let summary = viewModel.importResultSummary,
+              viewModel.importResultSummary != nil,
               presentedImportResultSummary == nil else { return }
-        print("[ImportCleanup][Album] scheduling import result prompt photoCount=\(summary.photoCount) videoCount=\(summary.videoCount)")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             guard !viewModel.isImportingMedia,
                   let latestSummary = viewModel.importResultSummary,
                   presentedImportResultSummary == nil else { return }
-            print("[ImportCleanup][Album] presenting import result prompt")
             presentedImportResultSummary = latestSummary
             viewModel.dismissImportResult()
         }
@@ -1309,12 +1154,9 @@ struct AlbumDetailView: View {
     private func deleteImportedSystemAssets(_ assetIdentifiers: [String]) {
         Task {
             do {
-                print("[ImportCleanup][Album] delete confirmed assetIDs=\(assetIdentifiers.count)")
                 _ = try await SystemPhotoLibraryCleanupService.shared.deleteAssets(withLocalIdentifiers: assetIdentifiers)
-                print("[ImportCleanup][Album] delete finished successfully")
             } catch {
                 await MainActor.run {
-                    print("[ImportCleanup][Album] delete failed error=\(error.localizedDescription)")
                     viewModel.lastErrorMessage = error.localizedDescription
                 }
             }
@@ -1323,7 +1165,6 @@ struct AlbumDetailView: View {
 
     private func beginSystemPhotoImport() {
         guard deleteImportedSystemAssetsAfterImport else {
-            print("[ImportCleanup][Album] begin managed import without cleanup requirement")
             showingManagedPhotoImporter = true
             return
         }
@@ -1331,7 +1172,6 @@ struct AlbumDetailView: View {
         Task {
             let status = await SystemPhotoLibraryCleanupService.shared.ensureReadWriteAuthorization()
             await MainActor.run {
-                print("[ImportCleanup][Album] readWrite authorization status=\(status.rawValue)")
                 if status == .authorized || status == .limited {
                     showingManagedPhotoImporter = true
                 } else {
@@ -1382,20 +1222,6 @@ struct AlbumDetailView: View {
 
     private var trashAlbumID: UUID {
         viewModel.trashAlbum?.id ?? albumID
-    }
-}
-
-private struct ItemContextMenuModifier<MenuContent: View>: ViewModifier {
-    let isEnabled: Bool
-    @ViewBuilder let content: () -> MenuContent
-
-    @ViewBuilder
-    func body(content viewContent: Content) -> some View {
-        if isEnabled {
-            viewContent.contextMenu(menuItems: content)
-        } else {
-            viewContent
-        }
     }
 }
 
@@ -2641,7 +2467,7 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
         // the raw frame edges. adjustedContentInset accounts for navigation bar
         // top inset and tab-bar / contentInsetBottom at the bottom, so the trigger
         // zone is consistent regardless of the surrounding chrome. The threshold is
-        // 160 pt (up from 128) to make edge-scroll reliable in the 3-column /
+        // 160 pt to make edge-scroll reliable in the 3-column /
         // largest-zoom layout where cells are ~122 pt tall.
         let threshold: CGFloat = 160
         let inset = collectionView.adjustedContentInset
@@ -3274,70 +3100,6 @@ private final class MediaGridCell: UICollectionViewCell {
 private extension Array {
     subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
-    }
-}
-
-private struct MediaLibraryDebugView: View {
-    @ObservedObject var viewModel: MediaLibraryViewModel
-    let albumID: UUID
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section(String(localized: "当前资源")) {
-                    ForEach(viewModel.debugInfo(for: albumID)) { info in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(info.name)
-                                    .font(.headline)
-                                Spacer()
-                                Text(info.exists ? String(localized: "存在") : String(localized: "丢失"))
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(info.exists ? .green : .red)
-                            }
-
-                            Text(String.localizedStringWithFormat(
-                                String(localized: "%1$@ · %2$@ · %3$lld bytes"),
-                                info.mediaKind,
-                                info.contentType.isEmpty ? String(localized: "未知类型") : info.contentType,
-                                info.byteCount
-                            ))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-
-                            Text(info.relativePath)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-
-                            Text(info.absolutePath)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .textSelection(.enabled)
-                        .padding(.vertical, 4)
-                    }
-                }
-
-                Section(String(localized: "最近日志")) {
-                    ForEach(viewModel.debugMessages, id: \.self) { message in
-                        Text(message)
-                            .font(.caption)
-                            .textSelection(.enabled)
-                    }
-                }
-            }
-            .navigationTitle(String(localized: "资源库调试"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(String(localized: "完成")) {
-                        dismiss()
-                    }
-                }
-            }
-        }
     }
 }
 

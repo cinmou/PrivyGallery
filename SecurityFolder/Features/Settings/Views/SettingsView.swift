@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 import Photos
 import UIKit
 
-/// 设置界面
 struct SettingsView: View {
     @ObservedObject var settingsViewModel: SettingsViewModel
     @ObservedObject var session: AppSessionViewModel
@@ -11,19 +10,15 @@ struct SettingsView: View {
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     // MARK: - AppStorage 属性
     
-    /// 回收站项目保留天数，与 AppStorage 同步
     @AppStorage(AppSettingsKey.trashRetentionDays)
     private var trashRetentionDays = AppSettingsKey.defaultTrashRetentionDays
     
-    /// 自动锁定超时时间（分钟），与 AppStorage 同步
     @AppStorage(AppSettingsKey.autoLockTimeoutSeconds)
     private var autoLockTimeoutSeconds = AppSettingsKey.defaultAutoLockTimeoutSeconds
 
-    /// 应用主题外观，与 AppStorage 同步
     @AppStorage(AppSettingsKey.appTheme)
     private var appTheme = ThemeOption.system.rawValue
 
-    /// 高级数据保护开启后，不再生成任何临时解密媒体文件。
     @AppStorage(AppSettingsKey.advancedDataProtectionEnabled)
     private var advancedDataProtectionEnabled = AppSettingsKey.defaultAdvancedDataProtectionEnabled
     @AppStorage(AppSettingsKey.screenPrivacyProtectionEnabled)
@@ -31,35 +26,23 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKey.deleteImportedSystemAssetsAfterImport)
     private var deleteImportedSystemAssetsAfterImport = AppSettingsKey.defaultDeleteImportedSystemAssetsAfterImport
 
-    /// 上一次备份/恢复异常中断后的恢复提示。
     @AppStorage(AppSettingsKey.lastBackupRecoveryNotice)
     private var lastBackupRecoveryNotice = ""
 
     // MARK: - 状态属性
     
-    /// 显示在界面上的状态消息
     @State private var settingsStatusMessage: String?
-    /// 导出密码
     @State private var exportPassword = ""
-    /// 导出密码确认
     @State private var exportPasswordConfirmation = ""
-    /// 是否显示导出警告框
     @State private var showingExportAlert = false
-    /// 是否正在导出保险箱
     @State private var exportingVault = false
-    /// 导入密码
     @State private var importPassword = ""
-    /// 是否显示导入文件选择器
     @State private var showingImportPicker = false
-    /// 是否显示导入警告框
     @State private var showingImportAlert = false
-    /// 是否正在导入保险箱
     @State private var importingVault = false
     /// 选择的导入文件 URL。v2 备份可能由多个独立 `.vault` 分片组成，因此这里允许一次选择多个文件。
     @State private var selectedImportURLs: [URL] = []
-    /// 备份进度标题
     @State private var backupProgressTitle = ""
-    /// 备份进度详情
     @State private var backupProgressDetail = ""
     /// 备份进度值；等待系统面板等无法估算的阶段为 nil。
     @State private var backupProgressValue: Double?
@@ -67,31 +50,19 @@ struct SettingsView: View {
     @State private var backupProgressItem: (current: Int, total: Int) = (0, 0)
     @State private var backupProgressBytes: (current: Int64, total: Int64) = (0, 0)
     
-    /// 用于验证进入隐私设置的密码
     @State private var privacyAuthPassword = ""
-    /// 需要打开的受保护设置目标
     @State private var protectedDestination: ProtectedSettingsDestination?
-    /// 是否显示高级数据保护提示
     @State private var showingAdvancedProtectionAlert = false
-    /// 用于验证导出操作的当前空间密码
     @State private var exportAuthPassword = ""
-    /// 用于验证导入操作的当前空间密码
     @State private var importAuthPassword = ""
-    /// 当前显示的密码验证弹窗类型
     @State private var activeAuthPrompt: SettingsAuthPrompt?
-    /// 密码验证失败时的弹窗文案
     @State private var authenticationFailureMessage = ""
-    /// 是否显示密码验证失败弹窗
     @State private var showingAuthenticationFailureAlert = false
-    /// 密码错误弹窗关闭后是否需要立刻锁定
     @State private var authenticationFailureRequiresLock = false
-    /// 导出密码校验失败提示
     @State private var exportPasswordValidationMessage = ""
-    /// 是否显示导出密码校验失败弹窗
     @State private var showingExportPasswordValidationAlert = false
     /// 当前导入/导出后台任务，用于中途停止。
     @State private var activeBackupTask: Task<Void, Never>?
-    /// 当前备份操作结束后的结果弹窗。
     @State private var backupResultAlert: BackupResultAlert?
     /// 等待当前 sheet 完全关闭后再展示的导入/导出结果弹窗。
     @State private var pendingBackupResultAlert: BackupResultAlert?
@@ -388,7 +359,6 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
-    /// 验证进入隐私设置
     private func authenticateForPrivacySettings() {
         guard let activeSpace = session.activeSpace else {
             settingsStatusMessage = String(localized: "当前没有已解锁空间。")
@@ -417,7 +387,6 @@ struct SettingsView: View {
         }
     }
     
-    /// 验证导出权限
     private func authenticateForExport() {
         guard let activeSpace = session.activeSpace else {
             settingsStatusMessage = String(localized: "当前没有已解锁空间。")
@@ -439,7 +408,6 @@ struct SettingsView: View {
         }
     }
     
-    /// 验证导入权限
     private func authenticateForImport() {
         guard let activeSpace = session.activeSpace else {
             settingsStatusMessage = String(localized: "当前没有已解锁空间。")
@@ -462,7 +430,6 @@ struct SettingsView: View {
         }
     }
 
-    /// 导出当前空间
     private func exportCurrentSpace() {
         let trimmedPassword = exportPassword.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedConfirmation = exportPasswordConfirmation.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -554,7 +521,6 @@ struct SettingsView: View {
         }
     }
 
-    /// 重置导出输入
     private func resetExportInputs() {
         exportPassword = ""
         exportPasswordConfirmation = ""
@@ -580,7 +546,6 @@ struct SettingsView: View {
         }
     }
 
-    /// 导入当前空间备份
     private func importCurrentSpaceBackup() {
         guard !selectedImportURLs.isEmpty else {
             settingsStatusMessage = String(localized: "请先选择备份文件。")
@@ -684,13 +649,11 @@ struct SettingsView: View {
         }
     }
 
-    /// 重置导入输入
     private func resetImportInputs() {
         importPassword = ""
         selectedImportURLs = []
     }
 
-    /// 更新备份进度
     private func updateBackupProgress(_ progress: VaultTransferProgress) {
         backupProgressTitle = progress.localizedTitle
         backupProgressDetail = progress.message

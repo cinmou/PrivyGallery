@@ -25,7 +25,6 @@ final class MediaLibraryViewModel: ObservableObject {
     @Published var items: [VaultItem] = []
     @Published var librarySortOption: LibraryAlbumSortOption = .manual
     @Published var lastErrorMessage: String?
-    @Published var debugMessages: [String] = []
     @Published var isImportingMedia = false
     @Published var importProgressTitle = ""
     @Published var importProgressDetail = ""
@@ -193,23 +192,11 @@ final class MediaLibraryViewModel: ObservableObject {
             let fetchedItems = snapshot.items
             items = fetchedItems
             let didNormalizePaths = normalizeStoredPaths(in: fetchedItems)
-            let didMigratePlaintextFiles = migratePlaintextFilesIfNeeded(in: fetchedItems)
-            if didMigratePlaintextFiles {
-                recordDebug("已将旧的明文媒体迁移为分块密文。")
-            }
+            migratePlaintextFilesIfNeeded(in: fetchedItems)
             let purgedItemIDs = purgeExpiredTrashItems(in: fetchedItems)
             items = fetchedItems.filter { !purgedItemIDs.contains($0.id) }
             if insertedRequiredAlbums || didNormalizePaths || !purgedItemIDs.isEmpty {
                 try persistCurrentState()
-                if insertedRequiredAlbums {
-                    recordDebug("已补齐新的系统媒体库。")
-                }
-                if didNormalizePaths {
-                    recordDebug("已修正旧媒体记录中的绝对路径。")
-                }
-                if !purgedItemIDs.isEmpty {
-                    recordDebug("已清理超过回收站保留时长的媒体。")
-                }
             }
             syncSharedImportAppState()
         } catch {
@@ -286,12 +273,9 @@ final class MediaLibraryViewModel: ObservableObject {
     func deleteAlbum(id: UUID) {
         guard let targetAlbum = albums.first(where: { $0.id == id }),
               isUserManagedAlbum(targetAlbum) else {
-            recordDebug("删除相册被拒绝：未找到相册或不是用户相册 [\(id.uuidString)]")
             return
         }
 
-        let relatedItemCount = items.filter { $0.albums.contains(where: { $0.id == targetAlbum.id }) }.count
-        recordDebug("准备删除相册：\(targetAlbum.name) [\(targetAlbum.id.uuidString)]，关联媒体数量：\(relatedItemCount)")
 
         for item in items where item.albums.contains(where: { $0.id == targetAlbum.id }) {
             item.albums.removeAll { $0.id == targetAlbum.id }
@@ -305,7 +289,6 @@ final class MediaLibraryViewModel: ObservableObject {
         targetAlbum.showsCover = false
 
         albums.removeAll { $0.id == targetAlbum.id }
-        recordDebug("已从内存移除相册：\(targetAlbum.name) [\(targetAlbum.id.uuidString)]")
         saveAndRefresh()
     }
 
@@ -478,7 +461,6 @@ final class MediaLibraryViewModel: ObservableObject {
     func importPickerAssets(_ pickerAssets: [ImportedPickerAsset], directlyInto albumID: UUID) {
         guard canShowRealData else { return }
         guard !pickerAssets.isEmpty else {
-            recordDebug(String(localized: "系统相册没有返回可读取的数据。"))
             lastErrorMessage = String(localized: "没有读取到可导入的照片或视频数据。")
             return
         }
@@ -522,40 +504,6 @@ final class MediaLibraryViewModel: ObservableObject {
             try? persistCurrentState()
         }
         return exportURL
-    }
-
-    func exportURLs(for itemIDs: Set<UUID>) -> [URL] {
-        let selectedItems = items.filter { itemIDs.contains($0.id) }
-        var failedCount = 0
-        let exportedURLs = selectedItems.compactMap { item -> URL? in
-            do {
-                return try fileStorage.decryptedTemporaryURL(
-                    for: item.relativePath,
-                    originalFilename: item.originalFilename,
-                    space: item.space
-                )
-            } catch {
-                failedCount += 1
-                return nil
-            }
-        }
-
-        if !exportedURLs.isEmpty {
-            let exportedAt = Date.now
-            for item in selectedItems {
-                item.lastExportedAt = exportedAt
-            }
-            try? persistCurrentState()
-        }
-
-        if failedCount > 0 {
-            lastErrorMessage = String.localizedStringWithFormat(
-                String(localized: "%lld 个项目导出失败，其余项目已准备好分享。"),
-                failedCount
-            )
-        }
-
-        return exportedURLs
     }
 
     func prepareExportURLs(
@@ -655,25 +603,9 @@ final class MediaLibraryViewModel: ObservableObject {
         )
     }
 
-    func debugInfo(for albumID: UUID) -> [MediaFileDebugInfo] {
-        mediaItems(for: albumID).map { item in
-            let url = fileStorage.fileURL(for: item.relativePath)
-            return MediaFileDebugInfo(
-                id: item.id,
-                name: item.name,
-                mediaKind: item.mediaKind.title,
-                contentType: item.contentTypeIdentifier,
-                relativePath: item.relativePath,
-                absolutePath: url.path(),
-                exists: fileStorage.fileExists(at: item.relativePath),
-                byteCount: fileStorage.byteCount(for: item.relativePath)
-            )
-        }
-    }
-
     func trashRemainingDays(for item: VaultItem) -> Int {
         let retentionDays = trashRetentionDays
-        let elapsedDays = Calendar.current.dateComponents([.day], from: item.updatedAt, to: .now).day ?? 0
+        let elapsedDays = Calendar.current.dateComponents([.day], from: item.trashedAt ?? item.updatedAt, to: .now).day ?? 0
         return max(retentionDays - elapsedDays, 0)
     }
 
@@ -754,10 +686,12 @@ final class MediaLibraryViewModel: ObservableObject {
 
         do {
             item.relativePath = try fileStorage.restoreFromTrash(relativePath: item.relativePath, space: item.space)
-            if let companionPath = item.livePhotoCompanionRelativePath {
-                item.livePhotoCompanionRelativePath = try? fileStorage.restoreFromTrash(relativePath: companionPath, space: item.space)
+            if let companionPath = item.livePhotoCompanionRelativePath,
+               let restoredPath = try? fileStorage.restoreFromTrash(relativePath: companionPath, space: item.space) {
+                item.livePhotoCompanionRelativePath = restoredPath
             }
             item.isInTrash = false
+            item.trashedAt = nil
             item.updatedAt = .now
             saveAndRefresh()
         } catch {
@@ -769,6 +703,7 @@ final class MediaLibraryViewModel: ObservableObject {
         for item in items where itemIDs.contains(item.id) {
             item.isArchived = true
             item.isInTrash = false
+            item.trashedAt = nil
             item.updatedAt = .now
         }
         saveAndRefresh()
@@ -1032,9 +967,11 @@ final class MediaLibraryViewModel: ObservableObject {
         do {
             if !item.isInTrash {
                 item.relativePath = try fileStorage.moveToTrash(relativePath: item.relativePath, space: item.space)
-                if let companionPath = item.livePhotoCompanionRelativePath {
-                    item.livePhotoCompanionRelativePath = try? fileStorage.moveToTrash(relativePath: companionPath, space: item.space)
+                if let companionPath = item.livePhotoCompanionRelativePath,
+                   let trashedPath = try? fileStorage.moveToTrash(relativePath: companionPath, space: item.space) {
+                    item.livePhotoCompanionRelativePath = trashedPath
                 }
+                item.trashedAt = .now
             }
             item.isInTrash = true
             item.isArchived = false
@@ -1064,7 +1001,9 @@ final class MediaLibraryViewModel: ObservableObject {
 
         for item in fetchedItems where item.isInTrash && trashRemainingDays(for: item) <= 0 {
             permanentlyDelete(item)
-            purgedItemIDs.insert(item.id)
+            if !items.contains(where: { $0.id == item.id }) {
+                purgedItemIDs.insert(item.id)
+            }
         }
 
         return purgedItemIDs
@@ -1080,6 +1019,7 @@ final class MediaLibraryViewModel: ObservableObject {
         item.isStrongProtected = true
         item.isArchived = false
         item.isInTrash = false
+        item.trashedAt = nil
         item.albums.removeAll { $0.kind == .custom }
     }
 
@@ -1095,21 +1035,24 @@ final class MediaLibraryViewModel: ObservableObject {
         importProgressValue = 0
         importResultSummary = nil
         lastErrorMessage = nil
-        recordDebug(
-            String.localizedStringWithFormat(
-                String(localized: "开始从%1$@导入 %2$lld 个资源，目标相册：%3$@"),
-                sourceDescription,
-                totalCount,
-                album(for: albumID)?.displayName ?? String(localized: "未知")
-            )
-        )
     }
 
-    private func importFileURLs(_ urls: [URL], directlyInto albumID: UUID) async throws -> MediaImportResultSummary {
+    private func importFileURLs(
+        _ urls: [URL],
+        directlyInto albumID: UUID,
+        onFileImported: ((Int) -> Void)? = nil
+    ) async throws -> MediaImportResultSummary {
         let targetAlbum = userAlbum(for: albumID)
         let importIntoStrongProtection = album(for: albumID)?.kind.isSecure == true
         var photoCount = 0
         var videoCount = 0
+        var didFinish = false
+        defer {
+            // A stopped or failed batch still keeps the files that were already encrypted.
+            if !didFinish, photoCount + videoCount > 0 {
+                saveAndRefresh()
+            }
+        }
 
         for (index, url) in urls.enumerated() {
             try Task.checkCancellation()
@@ -1121,7 +1064,6 @@ final class MediaLibraryViewModel: ObservableObject {
             )
 
             let storedFile = try await fileStorage.importFile(from: url, space: space)
-            recordDebug("文件导入成功：\(storedFile.originalFilename)，类型：\(storedFile.contentTypeIdentifier)，大小：\(storedFile.byteCount)，路径：\(storedFile.relativePath)")
             let item = VaultItem(
                 name: availableItemName(for: storedFile.displayName),
                 createdAt: .now,
@@ -1151,6 +1093,7 @@ final class MediaLibraryViewModel: ObservableObject {
             }
 
             items.append(item)
+            onFileImported?(index)
             updateImportProgress(
                 title: String(localized: "写入媒体索引"),
                 detail: String.localizedStringWithFormat(String(localized: "已完成 %1$lld / %2$lld"), index + 1, urls.count),
@@ -1159,8 +1102,8 @@ final class MediaLibraryViewModel: ObservableObject {
             )
         }
 
+        didFinish = true
         saveAndRefresh()
-        recordDebug("文件导入完成，当前媒体数量：\(items.count)")
         return MediaImportResultSummary(photoCount: photoCount, videoCount: videoCount)
     }
 
@@ -1169,6 +1112,13 @@ final class MediaLibraryViewModel: ObservableObject {
         let importIntoStrongProtection = album(for: albumID)?.kind.isSecure == true
         var photoCount = 0
         var videoCount = 0
+        var didFinish = false
+        defer {
+            // A stopped or failed batch still keeps the files that were already encrypted.
+            if !didFinish, photoCount + videoCount > 0 {
+                saveAndRefresh()
+            }
+        }
         var nextImportedMediaNumber = nextImportedMediaOrdinal()
 
         for (index, pickerAsset) in pickerAssets.enumerated() {
@@ -1188,7 +1138,6 @@ final class MediaLibraryViewModel: ObservableObject {
             let fileURL = pickerAsset.fileURL
             defer { try? FileManager.default.removeItem(at: fileURL) }
             let storedFile = try await fileStorage.importFile(from: fileURL, space: space)
-            recordDebug("相册导入成功：\(storedFile.originalFilename)，类型：\(storedFile.contentTypeIdentifier)，大小：\(storedFile.byteCount)，路径：\(storedFile.relativePath)")
 
             // Import the companion video for Live Photos, then clean up the temp file.
             var companionRelativePath: String? = nil
@@ -1237,8 +1186,8 @@ final class MediaLibraryViewModel: ObservableObject {
             )
         }
 
+        didFinish = true
         saveAndRefresh()
-        recordDebug("系统相册导入完成，当前媒体数量：\(items.count)")
         return MediaImportResultSummary(photoCount: photoCount, videoCount: videoCount)
     }
 
@@ -1261,14 +1210,12 @@ final class MediaLibraryViewModel: ObservableObject {
         activeImportTask = nil
         isImportingMedia = false
         lastErrorMessage = message
-        recordDebug("媒体导入失败：\(message)")
     }
 
     private func cancelImportState(message: String) {
         activeImportTask = nil
         isImportingMedia = false
         lastErrorMessage = message
-        recordDebug(message)
     }
 
     func importSharedPendingItemsIfNeeded() {
@@ -1284,13 +1231,16 @@ final class MediaLibraryViewModel: ObservableObject {
             startImport(totalCount: urls.count, albumID: albumID, sourceDescription: String(localized: "分享扩展"))
             activeImportTask = Task { @MainActor [weak self] in
                 guard let self else { return }
+                var importedCount = 0
                 do {
-                    let summary = try await self.importFileURLs(urls, directlyInto: albumID)
+                    let summary = try await self.importFileURLs(urls, directlyInto: albumID) { importedCount = $0 + 1 }
                     store.removeEntries(pendingEntries)
                     self.finishImport(with: summary)
                 } catch is CancellationError {
+                    store.removeEntries(Array(pendingEntries.prefix(importedCount)))
                     self.cancelImportState(message: String(localized: "分享导入已停止。"))
                 } catch {
+                    store.removeEntries(Array(pendingEntries.prefix(importedCount)))
                     self.failImport(with: error.localizedDescription)
                 }
             }
@@ -1301,44 +1251,29 @@ final class MediaLibraryViewModel: ObservableObject {
 
     private func saveAndRefresh() {
         do {
-            recordDebug("开始保存元数据：albums=\(albums.count) items=\(items.count)")
             try persistCurrentState()
-            recordDebug("元数据保存成功，开始 refresh()")
             refresh()
-            recordDebug("refresh() 完成：albums=\(albums.count) items=\(items.count)")
         } catch {
             lastErrorMessage = error.localizedDescription
-            recordDebug("保存加密元数据失败：\(error.localizedDescription)")
         }
     }
 
     private func saveAndRefreshWithBatchDeleteLogs() {
         do {
             batchDeleteLog("batchDelete.save.begin", "albums=\(albums.count) items=\(items.count)")
-            recordDebug("开始保存元数据：albums=\(albums.count) items=\(items.count)")
             try persistCurrentState()
             batchDeleteLog("batchDelete.save.finish", "albums=\(albums.count) items=\(items.count)")
-            recordDebug("元数据保存成功，开始 refresh()")
             batchDeleteLog("batchDelete.refresh.begin", "")
             refresh()
             batchDeleteLog("batchDelete.refresh.finish", "albums=\(albums.count) items=\(items.count)")
-            recordDebug("refresh() 完成：albums=\(albums.count) items=\(items.count)")
         } catch {
             lastErrorMessage = error.localizedDescription
-            recordDebug("保存加密元数据失败：\(error.localizedDescription)")
         }
     }
 
     private func persistCurrentState() throws {
         try metadataStore.saveSnapshot(space: space, albums: albums, items: items)
         syncSharedImportAppState()
-    }
-
-    private func recordDebug(_ message: String) {
-        let line = "\(Date().formatted(date: .omitted, time: .standard)) \(message)"
-        debugMessages.insert(line, at: 0)
-        debugMessages = Array(debugMessages.prefix(80))
-        print("[MediaLibraryDebug] \(line)")
     }
 
     private func batchDeleteLog(_ name: String, _ details: String) {
@@ -1354,7 +1289,6 @@ final class MediaLibraryViewModel: ObservableObject {
         for item in fetchedItems {
             let normalizedPath = fileStorage.normalizedRelativePath(for: item.relativePath)
             if normalizedPath != item.relativePath {
-                recordDebug("修正路径：\(item.relativePath) -> \(normalizedPath)")
                 item.relativePath = normalizedPath
                 item.updatedAt = .now
                 didChange = true
@@ -1364,20 +1298,18 @@ final class MediaLibraryViewModel: ObservableObject {
         return didChange
     }
 
-    private func migratePlaintextFilesIfNeeded(in fetchedItems: [VaultItem]) -> Bool {
-        var didMigrate = false
-
+    private func migratePlaintextFilesIfNeeded(in fetchedItems: [VaultItem]) {
         for item in fetchedItems {
             do {
-                if try fileStorage.migrateFileToEncryptedStorageIfNeeded(relativePath: item.relativePath, space: item.space) {
-                    didMigrate = true
-                }
+                try fileStorage.migrateFileToEncryptedStorageIfNeeded(relativePath: item.relativePath, space: item.space)
             } catch {
                 lastErrorMessage = error.localizedDescription
             }
         }
-
-        return didMigrate
+        for album in albums {
+            guard let coverPath = album.coverImageRelativePath else { continue }
+            _ = try? fileStorage.migrateFileToEncryptedStorageIfNeeded(relativePath: coverPath, space: space)
+        }
     }
 
     private func items(for album: VaultAlbum, limit: Int? = nil) -> [VaultItem] {

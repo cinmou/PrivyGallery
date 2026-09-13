@@ -73,7 +73,8 @@ final class EncryptedMetadataStore {
                     locationLatitude: item.locationLatitude,
                     locationLongitude: item.locationLongitude,
                     albumIDs: item.albums.map(\.id),
-                    livePhotoCompanionRelativePath: item.livePhotoCompanionRelativePath
+                    livePhotoCompanionRelativePath: item.livePhotoCompanionRelativePath,
+                    trashedAt: item.trashedAt
                 )
             }
         )
@@ -81,13 +82,6 @@ final class EncryptedMetadataStore {
         let manifestData = try JSONEncoder.metadataEncoder.encode(manifest)
         try ensureDirectoryExists(manifestURL(for: space).deletingLastPathComponent())
         try cryptoService.encryptPlaintextData(manifestData, to: manifestURL(for: space), space: space)
-    }
-
-    func deleteSnapshot(for space: VaultSpaceKind) {
-        let url = manifestURL(for: space)
-        if fileManager.fileExists(atPath: url.path()) {
-            try? fileManager.removeItem(at: url)
-        }
     }
 
     private func buildSnapshot(from manifest: EncryptedMetadataManifest, for space: VaultSpaceKind) throws -> SpaceMetadataSnapshot {
@@ -134,7 +128,9 @@ final class EncryptedMetadataStore {
                 locationLongitude: record.locationLongitude,
                 albums: record.albumIDs.compactMap { albumsByID[$0] },
                 livePhotoCompanionRelativePath: record.livePhotoCompanionRelativePath,
-                videoDuration: record.videoDuration
+                videoDuration: record.videoDuration,
+                // Items trashed before trashedAt existed fall back to their last update time.
+                trashedAt: record.trashedAt ?? (record.isInTrash ? record.updatedAt : nil)
             )
         }
 
@@ -224,6 +220,7 @@ private struct EncryptedItemRecord: Codable {
     /// Vault-relative path of the companion MOV for a Live Photo.
     /// Optional so that manifests written by older app versions decode cleanly.
     let livePhotoCompanionRelativePath: String?
+    let trashedAt: Date?
 }
 
 private extension JSONEncoder {

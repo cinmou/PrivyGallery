@@ -379,15 +379,6 @@ final class MediaThumbnailService {
         cachedImage(for: cacheKey(for: itemID, size: size, contentMode: contentMode))
     }
 
-    func prefetchThumbnail(for item: VaultItem, size: CGSize, priority: TaskPriority = .utility) -> Task<Void, Never> {
-        Task.detached(priority: priority) { [self] in
-            #if DEBUG
-            MediaPerformanceLog.recordThumbnailRequest(priority: priority, visible: false)
-            #endif
-            _ = await thumbnail(for: item, size: size, priority: priority)
-        }
-    }
-
     func thumbnail(
         for item: VaultItem,
         size: CGSize,
@@ -527,7 +518,7 @@ final class MediaThumbnailService {
         guard let data = image.jpegData(compressionQuality: 0.76) else { return }
         do {
             try ensureThumbnailDirectoryExists()
-            try data.write(to: url, options: .atomic)
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
         } catch {
             return
         }
@@ -808,7 +799,6 @@ final class MediaThumbnailService {
         for key in keysToRemove {
             cache.removeObject(forKey: key)
         }
-        print("[MediaThumbnailService] Trimmed \(keysToRemove.count) in-memory thumbnails due to \(reason).")
     }
 
 }

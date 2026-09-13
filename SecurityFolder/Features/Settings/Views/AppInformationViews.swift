@@ -8,7 +8,6 @@ import UIKit
 
 enum AppMetadata {
     static let displayNameCN = "私影相册"
-    static let displayNameEN = "PrivyGallery"
     static let contactEmail = "liuruhongyi@gmail.com"
     static let appStoreReviewURLString = "itms-apps://itunes.apple.com/app/id6765981187?action=write-review"
     static let openSourceURLString = "https://github.com/cinmou/PrivyGallery"

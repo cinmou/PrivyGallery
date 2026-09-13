@@ -71,6 +71,7 @@ struct AppLockService {
             }
 
             try cryptoService.unlockWithBiometrics(space: targetSpace)
+            resetUnlockThrottle()
             return .success(targetSpace)
         } catch {
             return .failure(message: unlockErrorMessage(for: error))
@@ -112,21 +113,49 @@ struct AppLockService {
             return .failure(message: String(localized: "当前还没有可解锁的空间。"))
         }
 
-        if allowCoercionTrigger {
-            for space in configuredSpaces {
-                if matchesCoercionPasscode(normalizePotentialPasscode(passcode, for: space), for: space) {
-                    EmergencyWipeService().performCoercionWipeAndTerminate()
-                }
+        if let remaining = unlockLockoutRemaining() {
+            // The coercion passcode must keep working while ordinary attempts are locked out.
+            if allowCoercionTrigger,
+               configuredSpaces.contains(where: { matchesCoercionPasscode(normalizePotentialPasscode(passcode, for: $0), for: $0) }) {
+                EmergencyWipeService().performCoercionWipeAndTerminate()
             }
+            return .failure(message: lockoutMessage(remaining: remaining))
         }
 
         for space in configuredSpaces {
             let result = validate(passcode: passcode, for: space, allowCoercionTrigger: allowCoercionTrigger)
             if case .success = result {
+                resetUnlockThrottle()
                 return result
             }
         }
-        return .failure(message: String(localized: "密码不正确，请重试。"))
+        return .failure(message: recordFailedUnlockAttempt())
+    }
+
+    /// Time left before the lock screen accepts another passcode, or nil when not locked out.
+    func unlockLockoutRemaining(now: Date = .now) -> TimeInterval? {
+        let throttle = loadUnlockThrottle()
+        guard let lockedAt = throttle.lockedAt, let lockedUntil = throttle.lockedUntil else { return nil }
+        // Moving the clock backwards must not shorten the lockout.
+        let remaining = lockedUntil.timeIntervalSince(max(now, lockedAt))
+        return remaining > 0 ? remaining : nil
+    }
+
+    /// Checks a passcode without loading the space key or touching other unlocked spaces.
+    func verify(passcode: String, for space: VaultSpaceKind) -> UnlockAttemptResult {
+        guard isPasscodeConfigured(for: space) else {
+            return .failure(
+                message: String.localizedStringWithFormat(
+                    String(localized: "%@ 还没有设置密码。"),
+                    SpaceDisplaySettings.displayName(for: space)
+                )
+            )
+        }
+
+        guard cryptoService.verifyPasscode(normalizePotentialPasscode(passcode, for: space), for: space) else {
+            return .failure(message: String(localized: "密码不正确，或当前空间的密钥不可用。"))
+        }
+        return .success(space)
     }
 
     func configureInitialPasscode(
@@ -208,14 +237,15 @@ struct AppLockService {
         let hasSpaceAKind = defaults.string(forKey: AppSettingsKey.spaceAPasscodeKind) != nil
         let hasSpaceBKind = defaults.string(forKey: AppSettingsKey.spaceBPasscodeKind) != nil
 
-        print("[SecurityFolder][Startup] installMarker=\(hasInstallMarker) spaceAKey=\(hasSpaceAKey) spaceBKey=\(hasSpaceBKey) spaceAKind=\(hasSpaceAKind) spaceBKind=\(hasSpaceBKind)")
-
         if !hasInstallMarker {
             if hasSpaceAKey || hasSpaceBKey {
-                print("[SecurityFolder][Startup] Detected stale keychain data on a fresh install. Wiping persisted vault keys.")
                 wipeAllSecurityState()
             }
             defaults.set(true, forKey: AppSettingsKey.installMarker)
+            // Fresh installs never had the legacy "1111" secondary passcode; skip that cleanup
+            // so a user who picks 1111 for space B is not wiped on the next launch.
+            defaults.set(true, forKey: AppSettingsKey.legacySecondary1111CleanupCompleted)
+            deleteKeychainItem(account: unlockThrottleAccount)
             return
         }
 
@@ -227,7 +257,6 @@ struct AppLockService {
         let hasSecondaryWithoutPrimary = hasSpaceBKey && !hasSpaceAKey
 
         if isCorruptedPrimaryState || isCorruptedSecondaryState || hasSecondaryWithoutPrimary {
-            print("[SecurityFolder][Startup] Detected inconsistent security state. primaryMismatch=\(isCorruptedPrimaryState) secondaryMismatch=\(isCorruptedSecondaryState) secondaryWithoutPrimary=\(hasSecondaryWithoutPrimary). Wiping persisted vault keys.")
             wipeAllSecurityState()
             defaults.set(true, forKey: AppSettingsKey.installMarker)
         }
@@ -282,6 +311,7 @@ struct AppLockService {
         deleteKeychainItem(account: coercionAccount())
         defaults.removeObject(forKey: coercionKindKey())
         clearLegacyCoercionPasscodeState()
+        deleteKeychainItem(account: unlockThrottleAccount)
     }
 
     func authenticateOwner(reason: String, completion: @escaping (Bool) -> Void) {
@@ -427,14 +457,7 @@ struct AppLockService {
             return false
         }
 
-        do {
-            try cryptoService.unlock(space: space, passcode: normalizedPasscode)
-            cryptoService.lock()
-            return true
-        } catch {
-            cryptoService.lock()
-            return false
-        }
+        return cryptoService.verifyPasscode(normalizedPasscode, for: space)
     }
 
     private func matchesAnyConfiguredPrimaryPasscode(
@@ -561,6 +584,7 @@ struct AppLockService {
         defaults.removeObject(forKey: AppSettingsKey.biometricScheduleStartMinutes)
         defaults.removeObject(forKey: AppSettingsKey.biometricScheduleEndMinutes)
         deleteKeychainItem(account: coercionAccount())
+        deleteKeychainItem(account: unlockThrottleAccount)
         clearLegacyCoercionPasscodeState()
     }
 
@@ -577,9 +601,7 @@ struct AppLockService {
             return
         }
 
-        let legacyResult = validate(passcode: "1111", for: .spaceB, allowCoercionTrigger: false)
-        if case .success = legacyResult {
-            print("[SecurityFolder][Startup] Detected legacy secondary passcode 1111 residue. Wiping persisted vault keys.")
+        if cryptoService.verifyPasscode(normalizePotentialPasscode("1111", for: .spaceB), for: .spaceB) {
             wipeAllSecurityState()
         }
     }
@@ -597,17 +619,9 @@ struct AppLockService {
         guard !legacyEntries.isEmpty else { return }
 
         if !hasGlobalCoercion, let preferredEntry = legacyEntries.first(where: { $0.0 == .spaceA }) ?? legacyEntries.first {
-            do {
-                try saveKeychainData(preferredEntry.1, account: coercionAccount())
+            if (try? saveKeychainData(preferredEntry.1, account: coercionAccount())) != nil {
                 defaults.set(preferredEntry.2.rawValue, forKey: coercionKindKey())
-                print("[SecurityFolder][Startup] Migrated legacy coercion passcode from \(preferredEntry.0.rawValue) to global storage.")
-            } catch {
-                print("[SecurityFolder][Startup] Failed to migrate legacy coercion passcode: \(error)")
             }
-        }
-
-        if legacyEntries.count > 1 {
-            print("[SecurityFolder][Startup] Found multiple legacy coercion passcodes. Kept one global coercion passcode and removed the extra legacy entries.")
         }
 
         clearLegacyCoercionPasscodeState()
@@ -634,6 +648,62 @@ struct AppLockService {
         VaultSpaceKind.allCases.forEach { deleteKeychainItem(account: legacyCoercionAccount(for: $0)) }
     }
 
+    private var unlockThrottleAccount: String {
+        "global.unlock.throttle"
+    }
+
+    /// Lockout after the given number of consecutive failures; later failures keep the longest delay.
+    private func lockoutDuration(afterFailures failures: Int) -> TimeInterval? {
+        switch failures {
+        case ..<5: return nil
+        case 5: return 60
+        case 6: return 5 * 60
+        case 7: return 15 * 60
+        default: return 60 * 60
+        }
+    }
+
+    private func recordFailedUnlockAttempt() -> String {
+        var throttle = loadUnlockThrottle()
+        throttle.failedAttempts += 1
+        if let duration = lockoutDuration(afterFailures: throttle.failedAttempts) {
+            let now = Date.now
+            throttle.lockedAt = now
+            throttle.lockedUntil = now.addingTimeInterval(duration)
+            saveUnlockThrottle(throttle)
+            return lockoutMessage(remaining: duration)
+        }
+
+        saveUnlockThrottle(throttle)
+        let attemptsBeforeLockout = 5 - throttle.failedAttempts
+        guard attemptsBeforeLockout <= 2 else {
+            return String(localized: "密码不正确，请重试。")
+        }
+        return String.localizedStringWithFormat(String(localized: "密码不正确，再输错 %lld 次将暂时无法解锁。"), attemptsBeforeLockout)
+    }
+
+    private func resetUnlockThrottle() {
+        deleteKeychainItem(account: unlockThrottleAccount)
+    }
+
+    private func lockoutMessage(remaining: TimeInterval) -> String {
+        let minutes = max(1, Int((remaining / 60).rounded(.up)))
+        return String.localizedStringWithFormat(String(localized: "密码错误次数过多，请在 %lld 分钟后重试。"), minutes)
+    }
+
+    private func loadUnlockThrottle() -> UnlockThrottle {
+        guard let data = try? keychainData(account: unlockThrottleAccount),
+              let throttle = try? JSONDecoder().decode(UnlockThrottle.self, from: data) else {
+            return UnlockThrottle()
+        }
+        return throttle
+    }
+
+    private func saveUnlockThrottle(_ throttle: UnlockThrottle) {
+        guard let data = try? JSONEncoder().encode(throttle) else { return }
+        try? saveKeychainData(data, account: unlockThrottleAccount)
+    }
+
     private func unlockErrorMessage(for error: Error) -> String {
         if let cryptoError = error as? VaultCryptoError {
             return cryptoError.localizedDescription
@@ -650,4 +720,11 @@ struct AppLockService {
             return String(localized: "密码不正确，或当前空间的密钥不可用。")
         }
     }
+}
+
+/// Consecutive failed lock-screen passcode attempts. Stored in the keychain so relaunching the app does not reset it.
+private struct UnlockThrottle: Codable {
+    var failedAttempts = 0
+    var lockedAt: Date?
+    var lockedUntil: Date?
 }

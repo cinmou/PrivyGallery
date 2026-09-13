@@ -165,12 +165,16 @@ final class VaultFileStorageService {
             throw VaultFileStorageError.unreadableData
         }
 
-        try data.write(to: destinationURL, options: .atomic)
+        try cryptoService.encryptPlaintextData(data, to: destinationURL, space: space)
         return relativePath(for: destinationURL)
     }
 
     func albumCoverImage(for relativePath: String) -> UIImage? {
-        UIImage(contentsOfFile: fileURL(for: relativePath).path())
+        let space: VaultSpaceKind = relativePath.split(separator: "/").contains("Space_B") ? .spaceB : .spaceA
+        guard let data = try? cryptoService.decryptedData(forEncryptedFileAt: fileURL(for: relativePath), space: space) else {
+            return nil
+        }
+        return UIImage(data: data)
     }
 
     func moveToTrash(relativePath: String, space: VaultSpaceKind) throws -> String {
@@ -258,14 +262,6 @@ final class VaultFileStorageService {
         let destinationURL = destinationDirectory.appendingPathComponent(storedFilename)
         try cryptoService.encryptImportedFile(from: sourceURL, to: destinationURL, space: space)
         return relativePath(for: destinationURL)
-    }
-
-    private func defaultFileExtension(for mediaKind: MediaKind) -> String {
-        switch mediaKind {
-        case .photo: return "jpg"
-        case .video: return "mov"
-        case .livePhoto: return "heic"
-        }
     }
 
     nonisolated private func relativePath(for url: URL) -> String {

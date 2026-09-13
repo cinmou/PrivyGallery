@@ -196,6 +196,14 @@ final class SharedImportStore {
         }
     }
 
+    /// Removes queued plaintext files and shared app state, e.g. during an emergency wipe.
+    func wipeAll() {
+        if let root = try? rootDirectory() {
+            try? fileManager.removeItem(at: root)
+        }
+        defaults?.removePersistentDomain(forName: SharedImportConstants.appGroupIdentifier)
+    }
+
     private var defaults: UserDefaults? {
         UserDefaults(suiteName: SharedImportConstants.appGroupIdentifier)
     }

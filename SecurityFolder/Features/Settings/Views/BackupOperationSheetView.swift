@@ -15,7 +15,6 @@ struct BackupOperationSheetView: View {
     let totalBytes: Int64
     let onCancel: () -> Void
 
-    // 1. 定义显示确认弹窗的状态
     @State private var isShowingConfirmation = false
 
     var body: some View {
@@ -26,7 +25,6 @@ struct BackupOperationSheetView: View {
                 
                 ScrollView {
                     VStack(spacing: 20) { // 整体间距收紧
-                        // 顶部图标与文字
                         VStack(spacing: 12) {
                             Image(systemName: "lock.rectangle.stack.fill")
                                 .resizable()
@@ -47,9 +45,7 @@ struct BackupOperationSheetView: View {
                             }
                         }
                         
-                        // 卡片区域
                         VStack(spacing: 0) { // 内部设为0，通过子组件Padding控制
-                            // 进度条部分
                             VStack(spacing: 8) {
                                 HStack {
                                     Text(String(localized: "当前进度"))
@@ -94,7 +90,6 @@ struct BackupOperationSheetView: View {
                             
                             Divider()
                             
-                            // 2. 绑定整个列的红色按钮
                             Button(action: {
                                 isShowingConfirmation = true // 触发确认逻辑
                             }) {
@@ -110,7 +105,6 @@ struct BackupOperationSheetView: View {
                         .background(Color(uiColor: .secondarySystemGroupedBackground))
                         .cornerRadius(24)
                         
-                        // 底部提示文字：靠左且紧凑
                         Text(String(localized: "停止后，应用会自动清理本次未完成的导出或恢复数据。"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -125,7 +119,6 @@ struct BackupOperationSheetView: View {
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .interactiveDismissDisabled(true)
-            // 3. 二次确认弹窗
             .confirmationDialog(
                 String(localized: "确定要中止吗？"),
                 isPresented: $isShowingConfirmation,

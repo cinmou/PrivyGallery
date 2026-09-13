@@ -7,8 +7,6 @@ import UIKit
 struct MediaLibraryView: View {
     @ObservedObject var viewModel: MediaLibraryViewModel
     let adaptiveLayoutMode: AdaptiveLayoutMode
-    // 预留给未来在媒体库侧栏底部插入附加内容。
-    // 当前顶层已经恢复成系统原生 TabView，所以正常情况下这里会是 nil。
     let sidebarBottomAccessory: AnyView?
     let onOpenSettings: (() -> Void)?
     let embeddedSettingsView: AnyView?
@@ -92,7 +90,6 @@ struct MediaLibraryView: View {
                     showingManagedPhotoImporter = false
                     guard !importedAssets.isEmpty else { return }
                     pendingImportedSystemAssetIdentifiers = importedAssets.compactMap(\.assetIdentifier)
-                    print("[ImportCleanup][LibraryManaged] importedAssets=\(importedAssets.count) assetIDs=\(pendingImportedSystemAssetIdentifiers.count)")
                     if let importAlbumID {
                         viewModel.importPickerAssets(importedAssets, directlyInto: importAlbumID)
                     }
@@ -231,7 +228,6 @@ struct MediaLibraryView: View {
 
                         Section {
                             Button(String(localized: "知道了")) {
-                                print("[ImportCleanup][Library] import result dismissed photoCount=\(summary.photoCount) videoCount=\(summary.videoCount) pendingIDs=\(pendingImportedSystemAssetIdentifiers.count) enabled=\(deleteImportedSystemAssetsAfterImport)")
                                 showingManagedPhotoImporter = false
                                 presentedImportResultSummary = nil
                                 scheduleDeletePromptAfterImport(importedCount: summary.photoCount + summary.videoCount)
@@ -360,9 +356,6 @@ struct MediaLibraryView: View {
             // iPad 大屏下，媒体库自己切成左右双栏：
             // - 左边显示相册侧栏
             // - 右边显示选中的二级相册内容
-            //
-            // 如果大屏模式下改成"设置按钮打开右侧详情"，
-            // 也只在这里切换 detail，不去干扰左侧相册结构。
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 librarySidebar
                     // On macOS the import/sort actions and a sidebar toggle live in the
@@ -505,7 +498,6 @@ struct MediaLibraryView: View {
         List {
             Section {
                 // 这里是"全部照片 / 全部视频 / 强加密媒体库 / 自定义相册"的主列表。
-                // 如果你后面想改侧栏相册排序或插入新的系统相册，优先从这个 Section 下手。
                 ForEach(viewModel.mediaAlbums) { album in
                     sidebarAlbumRow(album)
                 }
@@ -837,7 +829,6 @@ struct MediaLibraryView: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if album.allowsDeletion {
                 Button(role: .destructive) {
-                    print("[MediaLibraryUI] swipe delete tapped for album=\(album.title) id=\(album.id.uuidString)")
                     viewModel.deleteAlbum(id: album.id)
                 } label: {
                     Label(String(localized: "删除"), systemImage: "trash")
@@ -853,8 +844,6 @@ struct MediaLibraryView: View {
         Button {
             showAlbumDetail(album.id)
         } label: {
-            // 大屏侧栏相册选中态统一在 SimpleSidebarSelectionModifier 里调。
-            // 现在只保留一个尽量简单的灰色胶囊背景，不再使用复杂的自定义玻璃效果。
             AlbumCellView(album: album, accentSelection: selectedAlbumID == album.id)
                 .padding(.horizontal, 10)
                 .padding(.vertical, sidebarAlbumVerticalPadding)
@@ -872,7 +861,6 @@ struct MediaLibraryView: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if album.allowsDeletion {
                 Button(role: .destructive) {
-                    print("[MediaLibraryUI] swipe delete tapped for album=\(album.title) id=\(album.id.uuidString)")
                     viewModel.deleteAlbum(id: album.id)
                 } label: {
                     Label(String(localized: "删除"), systemImage: "trash")
@@ -971,7 +959,6 @@ struct MediaLibraryView: View {
             }
 
             Button(String(localized: "删除相册"), role: .destructive) {
-                print("[MediaLibraryUI] context delete tapped for album=\(album.title) id=\(album.id.uuidString)")
                 viewModel.deleteAlbum(id: album.id)
             }
         }
@@ -996,7 +983,6 @@ struct MediaLibraryView: View {
 
     private func beginSystemPhotoImport() {
         guard deleteImportedSystemAssetsAfterImport else {
-            print("[ImportCleanup][Library] begin managed import without cleanup requirement")
             showingManagedPhotoImporter = true
             return
         }
@@ -1004,7 +990,6 @@ struct MediaLibraryView: View {
         Task {
             let status = await SystemPhotoLibraryCleanupService.shared.ensureReadWriteAuthorization()
             await MainActor.run {
-                print("[ImportCleanup][Library] readWrite authorization status=\(status.rawValue)")
                 if status == .authorized || status == .limited {
                     showingManagedPhotoImporter = true
                 } else {
@@ -1017,15 +1002,12 @@ struct MediaLibraryView: View {
     private func maybePromptToDeleteImportedSystemAssets(afterImportCount importedCount: Int) {
         defer { pendingImportedSystemAssetIdentifiers = [] }
         guard deleteImportedSystemAssetsAfterImport else {
-            print("[ImportCleanup][Library] prompt skipped because feature disabled")
             return
         }
         let assetIdentifiers = Array(Set(pendingImportedSystemAssetIdentifiers.filter { !$0.isEmpty }))
         guard !assetIdentifiers.isEmpty else {
-            print("[ImportCleanup][Library] prompt skipped because no asset identifiers were captured")
             return
         }
-        print("[ImportCleanup][Library] showing delete prompt importedCount=\(importedCount) uniqueAssetIDs=\(assetIdentifiers.count)")
         importedSystemAssetsDeletionPrompt = ImportedSystemAssetsDeletionPrompt(
             assetIdentifiers: assetIdentifiers,
             importedCount: importedCount
@@ -1040,22 +1022,18 @@ struct MediaLibraryView: View {
 
     private func presentImportResultIfNeeded() {
         guard selectedAlbumID == nil, !showingEmbeddedSettings else {
-            print("[ImportCleanup][Library] skipping import result prompt because a detail screen is active")
             return
         }
         guard !viewModel.isImportingMedia,
-              let summary = viewModel.importResultSummary,
+              viewModel.importResultSummary != nil,
               presentedImportResultSummary == nil else { return }
-        print("[ImportCleanup][Library] scheduling import result prompt photoCount=\(summary.photoCount) videoCount=\(summary.videoCount)")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             guard selectedAlbumID == nil, !showingEmbeddedSettings else {
-                print("[ImportCleanup][Library] cancelled delayed import result prompt because a detail screen became active")
                 return
             }
             guard !viewModel.isImportingMedia,
                   let latestSummary = viewModel.importResultSummary,
                   presentedImportResultSummary == nil else { return }
-            print("[ImportCleanup][Library] presenting import result prompt")
             presentedImportResultSummary = latestSummary
             viewModel.dismissImportResult()
         }
@@ -1064,12 +1042,9 @@ struct MediaLibraryView: View {
     private func deleteImportedSystemAssets(_ assetIdentifiers: [String]) {
         Task {
             do {
-                print("[ImportCleanup][Library] delete confirmed assetIDs=\(assetIdentifiers.count)")
                 _ = try await SystemPhotoLibraryCleanupService.shared.deleteAssets(withLocalIdentifiers: assetIdentifiers)
-                print("[ImportCleanup][Library] delete finished successfully")
             } catch {
                 await MainActor.run {
-                    print("[ImportCleanup][Library] delete failed error=\(error.localizedDescription)")
                     viewModel.lastErrorMessage = error.localizedDescription
                 }
             }

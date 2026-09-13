@@ -19,6 +19,8 @@ final class VaultItem: Identifiable, Equatable, Hashable {
     var locationLatitude: Double?
     var locationLongitude: Double?
     var videoDuration: Double?
+    /// When the item entered the trash; drives the retention countdown.
+    var trashedAt: Date?
     var albums: [VaultAlbum]
     /// Encrypted vault-relative path of the companion video for a Live Photo.
     /// `nil` for all non-Live-Photo items.
@@ -44,9 +46,11 @@ final class VaultItem: Identifiable, Equatable, Hashable {
         locationLongitude: Double? = nil,
         albums: [VaultAlbum] = [],
         livePhotoCompanionRelativePath: String? = nil,
-        videoDuration: Double? = nil
+        videoDuration: Double? = nil,
+        trashedAt: Date? = nil
     ) {
         self.videoDuration = videoDuration
+        self.trashedAt = trashedAt
         self.id = id
         self.name = name
         self.createdAt = createdAt

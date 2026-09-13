@@ -15,6 +15,7 @@ struct EmergencyWipeService {
         clearDocumentsDirectory()
         clearApplicationSupportBackupDirectories()
         clearTemporaryDirectory()
+        SharedImportStore.shared.wipeAll()
         SecurityFolderApp.wipeLegacyPersistentStoreFiles()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {

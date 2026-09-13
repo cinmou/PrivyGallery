@@ -5,8 +5,6 @@ import LocalAuthentication
 /// 这个文件同时承载了两套体验：
 /// 1. 主空间尚未初始化时的首次引导（欢迎页 -> 隐私政策 -> 选密码类型 -> 设密码 -> Face ID -> 第二空间 -> 完成）
 /// 2. 已初始化后的普通锁定页
-///
-/// 如果你后续要调整首次启动时那几张"卡片"页面，主要就在这个文件里改。
 struct UnlockView: View {
     @ObservedObject var session: AppSessionViewModel
     @StateObject private var viewModel = UnlockViewModel()
@@ -29,6 +27,8 @@ struct UnlockView: View {
     @State private var unlockInput = ""
     @State private var isSubmittingUnlock = false
     @State private var isRequestingOnboardingBiometrics = false
+    @State private var lockoutRemaining: TimeInterval?
+    @State private var lockoutRefreshID = UUID()
 
     private enum NavigationDirection {
         case forward
@@ -96,6 +96,20 @@ struct UnlockView: View {
                 guard viewModel.stage == .onboardingComplete else { return }
                 try? await Task.sleep(nanoseconds: 1_250_000_000)
                 viewModel.unlockPrimaryAfterOnboarding(using: session)
+            }
+            .task(id: lockoutRefreshID) {
+                while let remaining = session.unlockLockoutRemaining {
+                    if lockoutRemaining == nil {
+                        unlockInput = ""
+                    }
+                    lockoutRemaining = remaining
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    guard !Task.isCancelled else { return }
+                }
+                if lockoutRemaining != nil {
+                    lockoutRemaining = nil
+                    viewModel.errorMessage = nil
+                }
             }
             .onChange(of: onboardingDraft.kind) { _, _ in
                 onboardingDraft.sanitize()
@@ -619,9 +633,19 @@ struct UnlockView: View {
             autoSubmitNumericPasscode: autoSubmitNumericPasscode,
             isSubmittingUnlock: isSubmittingUnlock,
             errorMessage: viewModel.errorMessage,
+            lockoutMessage: lockoutMessage,
             expectedLength: expectedLength(for: unlockKind),
             onBiometricUnlock: { viewModel.unlockWithBiometrics(using: session) },
             onUnlock: submitUnlock
+        )
+    }
+
+    private var lockoutMessage: String? {
+        guard let lockoutRemaining else { return nil }
+        let seconds = Int(lockoutRemaining.rounded(.up))
+        return String.localizedStringWithFormat(
+            String(localized: "密码错误次数过多，请在 %@ 后重试。"),
+            String(format: "%d:%02d", seconds / 60, seconds % 60)
         )
     }
 
@@ -685,10 +709,10 @@ struct UnlockView: View {
         } else {
             viewModel.errorMessage = session.consumePendingUnlockMessage()
         }
+        lockoutRefreshID = UUID()
     }
 
     private func submitUnlock() {
-        // 普通锁定页的密码提交流程。
         guard !isSubmittingUnlock else { return }
         isSubmittingUnlock = true
         viewModel.submitUnlock(passcode: unlockInput, using: session)
@@ -696,6 +720,8 @@ struct UnlockView: View {
 
         if session.isUnlocked {
             unlockInput = ""
+        } else {
+            lockoutRefreshID = UUID()
         }
     }
 
@@ -822,8 +848,6 @@ private struct OnboardingContainerModifier: ViewModifier {
     }
 }
 
-/// 普通锁定页内容。
-/// 如果你想改"解锁"这一页的文案、布局、按钮或错误提示，主要就在这里动。
 private struct LockScreenContent: View {
     let canUseBiometrics: Bool
     let biometricEnabled: Bool
@@ -834,6 +858,7 @@ private struct LockScreenContent: View {
     let autoSubmitNumericPasscode: Bool
     let isSubmittingUnlock: Bool
     let errorMessage: String?
+    let lockoutMessage: String?
     let expectedLength: Int
     let onBiometricUnlock: () -> Void
     let onUnlock: () -> Void
@@ -847,8 +872,8 @@ private struct LockScreenContent: View {
         List {
             headerSection
 
-            if let errorMessage {
-                errorSection(message: errorMessage)
+            if let message = lockoutMessage ?? errorMessage {
+                errorSection(message: message)
             }
 
             actionSection
@@ -888,6 +913,7 @@ private struct LockScreenContent: View {
                         textContentType: .password
                     )
                     .padding(.horizontal)
+                    .disabled(lockoutMessage != nil)
                 } else {
                     NativeNumericPasscodeField(
                         title: "",
@@ -898,6 +924,7 @@ private struct LockScreenContent: View {
                         onCompleted: autoSubmitNumericPasscode ? { performUnlockWithIconAnimation() } : nil
                     )
                     .padding(.vertical, 8)
+                    .disabled(lockoutMessage != nil)
                     
                 }
             }
@@ -933,7 +960,7 @@ private struct LockScreenContent: View {
                     performUnlockWithIconAnimation()
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
-                .disabled(unlockInput.isEmpty || isSubmittingUnlock || isAnimatingUnlock)
+                .disabled(unlockInput.isEmpty || isSubmittingUnlock || isAnimatingUnlock || lockoutMessage != nil)
                 .keyboardShortcut(.defaultAction)
                 .alignmentGuide(.listRowSeparatorLeading) { _ in
                     return 0 // 强制分割线从 0（最左侧）开始

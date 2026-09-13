@@ -57,17 +57,6 @@ struct ImportedPickerAsset {
     }
 }
 
-struct MediaFileDebugInfo: Identifiable {
-    let id: UUID
-    let name: String
-    let mediaKind: String
-    let contentType: String
-    let relativePath: String
-    let absolutePath: String
-    let exists: Bool
-    let byteCount: Int64
-}
-
 struct MediaImportResultSummary: Identifiable {
     let id = UUID()
     let photoCount: Int
