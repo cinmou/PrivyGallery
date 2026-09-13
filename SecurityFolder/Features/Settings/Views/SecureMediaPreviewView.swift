@@ -8,6 +8,7 @@ struct SecureMediaPreviewView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pendingDeletion: PendingSecurePreviewDeletion?
     @State private var detailItemID: UUID?
+    @State private var showingAlbumPicker = false
 
     var body: some View {
         MediaViewerView(
@@ -23,6 +24,9 @@ struct SecureMediaPreviewView: View {
             onDismiss: { dismiss() }
         )
         .background(Color.black.ignoresSafeArea())
+        .sheet(isPresented: $showingAlbumPicker) {
+            AlbumSelectionSheet(viewModel: viewModel, currentAlbumID: albumID, selectedItemIDs: [item.id])
+        }
         .sheet(item: detailItemBinding) { detail in
             NavigationStack {
                 MediaItemInfoView(detail: detail)
@@ -47,6 +51,12 @@ struct SecureMediaPreviewView: View {
             detailItemID = item.id
         } label: {
             Label(String(localized: "显示详情"), systemImage: "info.circle")
+        }
+
+        Button {
+            showingAlbumPicker = true
+        } label: {
+            Label(String(localized: "管理相册"), systemImage: "rectangle.stack")
         }
 
         if currentAlbumKind == .secureLibrary {

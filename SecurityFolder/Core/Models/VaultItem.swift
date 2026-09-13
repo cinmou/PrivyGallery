@@ -18,6 +18,7 @@ final class VaultItem: Identifiable, Equatable, Hashable {
     var contentTypeIdentifier: String
     var locationLatitude: Double?
     var locationLongitude: Double?
+    var videoDuration: Double?
     var albums: [VaultAlbum]
     /// Encrypted vault-relative path of the companion video for a Live Photo.
     /// `nil` for all non-Live-Photo items.
@@ -42,8 +43,10 @@ final class VaultItem: Identifiable, Equatable, Hashable {
         locationLatitude: Double? = nil,
         locationLongitude: Double? = nil,
         albums: [VaultAlbum] = [],
-        livePhotoCompanionRelativePath: String? = nil
+        livePhotoCompanionRelativePath: String? = nil,
+        videoDuration: Double? = nil
     ) {
+        self.videoDuration = videoDuration
         self.id = id
         self.name = name
         self.createdAt = createdAt

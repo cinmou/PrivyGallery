@@ -40,9 +40,12 @@ struct LibraryCustomSortView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(album.title)
                     .foregroundStyle(.primary)
-                Text(album.subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    if let color = album.color { AlbumColorDot(color: color) }
+                    Text(album.subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

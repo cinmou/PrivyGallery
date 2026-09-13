@@ -103,13 +103,13 @@ nonisolated private final class VaultExportProgressEmitter: @unchecked Sendable 
     }
 }
 
-nonisolated struct VaultExportService {
+nonisolated struct VaultExportService: Sendable {
     private static let vaultMagic = Data("SVEX".utf8)
     private static let vaultVersion: UInt8 = 2
     private static let archiveMagic = Data("SVAR".utf8)
     private static let archiveVersion: UInt8 = 1
 
-    private let fileManager = FileManager.default
+    private var fileManager: FileManager { FileManager() }
     private let mediaStorage = VaultFileStorageService.shared
     private let cryptoService = VaultCryptoService.shared
     private let metadataStore = EncryptedMetadataStore.shared
@@ -345,6 +345,7 @@ nonisolated struct VaultExportService {
                 lastExportedAt: item.lastExportedAt,
                 originalCapturedAt: item.originalCapturedAt,
                 updatedAt: item.updatedAt,
+                videoDuration: item.videoDuration,
                 mediaKindRawValue: item.mediaKindRawValue,
                 isInTrash: item.isInTrash,
                 isArchived: item.isArchived,
@@ -375,7 +376,8 @@ nonisolated struct VaultExportService {
                 sortOptionRawValue: $0.sortOptionRawValue,
                 customOrderedItemIDs: $0.customOrderedItemIDs,
                 showsCover: $0.showsCover,
-                libraryOrderIndex: $0.libraryOrderIndex
+                libraryOrderIndex: $0.libraryOrderIndex,
+                colorRawValue: $0.colorRawValue
             )
         }
 
@@ -401,7 +403,8 @@ nonisolated struct VaultExportService {
                         sortOptionRawValue: album.sortOptionRawValue,
                         customOrderedItemIDs: album.customOrderedItemIDs.filter { itemIDSet.contains($0) },
                         showsCover: album.showsCover,
-                        libraryOrderIndex: album.libraryOrderIndex
+                        libraryOrderIndex: album.libraryOrderIndex,
+                        colorRawValue: album.colorRawValue
                     )
                 }
             let manifest = VaultBackupPartManifest(
@@ -1173,6 +1176,7 @@ nonisolated private struct VaultBackupAlbumRecord: Codable {
     let customOrderedItemIDs: [String]
     let showsCover: Bool
     let libraryOrderIndex: Int
+    let colorRawValue: String?
 }
 
 nonisolated private struct VaultBackupItemRecord: Codable {
@@ -1183,6 +1187,7 @@ nonisolated private struct VaultBackupItemRecord: Codable {
     let lastExportedAt: Date?
     let originalCapturedAt: Date?
     let updatedAt: Date
+    let videoDuration: Double?
     let mediaKindRawValue: String
     let isInTrash: Bool
     let isArchived: Bool

@@ -3,7 +3,6 @@ import SwiftUI
 struct MediaItemTileView: View {
     enum DisplayStyle {
         case grid
-        case secureGrid
         case secureRow
     }
 
@@ -12,14 +11,17 @@ struct MediaItemTileView: View {
     let isSelecting: Bool
     let footerText: String?
     let displayStyle: DisplayStyle
+    let currentAlbumID: UUID?
 
     init(
         item: VaultItem,
         isSelected: Bool,
         isSelecting: Bool,
         footerText: String? = nil,
-        displayStyle: DisplayStyle = .grid
+        displayStyle: DisplayStyle = .grid,
+        currentAlbumID: UUID? = nil
     ) {
+        self.currentAlbumID = currentAlbumID
         self.item = item
         self.isSelected = isSelected
         self.isSelecting = isSelecting
@@ -32,8 +34,6 @@ struct MediaItemTileView: View {
             switch displayStyle {
             case .grid:
                 gridBody
-            case .secureGrid:
-                secureGridBody
             case .secureRow:
                 secureRowBody
             }
@@ -46,11 +46,29 @@ struct MediaItemTileView: View {
                 MediaThumbnailView(item: item)
                     .frame(width: proxy.size.width, height: proxy.size.width)
 
-                Image(systemName: item.mediaKind.symbolName)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
-                    .padding(8)
+                Group {
+                    if item.mediaKind == .video {
+                        Text(item.videoDurationText)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 4))
+                    } else if item.mediaKind == .livePhoto {
+                        Image(systemName: "livephoto")
+                            .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                    }
+                }
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(8)
+
+                if !isSelecting {
+                    MediaAlbumColors(item: item, currentAlbumID: currentAlbumID)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
 
                 if let footerText {
                     VStack {
@@ -63,6 +81,7 @@ struct MediaItemTileView: View {
                             .padding(.vertical, 4)
                             .background(.black.opacity(0.45), in: Capsule())
                             .padding(8)
+                            .padding(.bottom, 20)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
@@ -90,52 +109,9 @@ struct MediaItemTileView: View {
         .contentShape(Rectangle())
     }
 
-    private var secureGridBody: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(platformCardBackground)
-
-                VStack(spacing: 8) {
-                    Image(systemName: item.mediaKind == .video ? "video" : item.mediaKind.symbolName)
-                        .font(.system(size: max(proxy.size.width * 0.24, 20), weight: .semibold))
-                        .foregroundStyle(.secondary)
-
-                    Text(item.name)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 6)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                if isSelecting {
-                    selectionIndicator(selectedFill: Color.accentColor, unselectedFill: Color(.tertiarySystemGroupedBackground), unselectedStroke: .secondary)
-                        .padding(8)
-                }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
-            }
-            .frame(width: proxy.size.width, height: proxy.size.width)
-        }
-        .aspectRatio(1, contentMode: .fit)
-        .contentShape(Rectangle())
-    }
-
-    private var platformCardBackground: Color {
-        #if targetEnvironment(macCatalyst)
-        Color(uiColor: .secondarySystemBackground)
-        #else
-        Color(.secondarySystemGroupedBackground)
-        #endif
-    }
-
     private var secureRowBody: some View {
         HStack(spacing: 12) {
-            Image(systemName: item.mediaKind == .video ? "video" : item.mediaKind.symbolName)
+            Image(systemName: item.mediaKind.symbolName)
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
 
@@ -157,6 +133,7 @@ struct MediaItemTileView: View {
             if isSelecting {
                 selectionIndicator(selectedFill: Color.accentColor, unselectedFill: Color(.secondarySystemBackground), unselectedStroke: .secondary)
             } else {
+                MediaAlbumColors(item: item, currentAlbumID: currentAlbumID)
                 Image(systemName: "chevron.right")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.tertiary)

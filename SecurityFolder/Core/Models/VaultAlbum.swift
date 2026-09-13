@@ -12,6 +12,7 @@ final class VaultAlbum: Identifiable, Equatable, Hashable {
     var customOrderedItemIDs: [String]
     var showsCover: Bool
     var libraryOrderIndex: Int
+    var colorRawValue: String?
     var items: [VaultItem]
 
     init(
@@ -26,7 +27,8 @@ final class VaultAlbum: Identifiable, Equatable, Hashable {
         customOrderedItemIDs: [UUID] = [],
         showsCover: Bool = false,
         libraryOrderIndex: Int = 0,
-        items: [VaultItem] = []
+        items: [VaultItem] = [],
+        colorRawValue: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -40,6 +42,12 @@ final class VaultAlbum: Identifiable, Equatable, Hashable {
         self.showsCover = showsCover
         self.libraryOrderIndex = libraryOrderIndex
         self.items = items
+        self.colorRawValue = colorRawValue
+    }
+
+    var color: AlbumColor? {
+        guard !isSystemAlbum else { return nil }
+        return colorRawValue.flatMap(AlbumColor.init(rawValue:))
     }
 
     var kind: MediaAlbumKind {

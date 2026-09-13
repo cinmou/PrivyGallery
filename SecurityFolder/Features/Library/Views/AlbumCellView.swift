@@ -30,9 +30,12 @@ struct AlbumCellView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(album.title)
                     .foregroundStyle(accentSelection ? Color.accentColor : .primary)
-                Text(album.subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(accentSelection ? Color.accentColor : .secondary)
+                HStack(spacing: 5) {
+                    if let color = album.color { AlbumColorDot(color: color) }
+                    Text(album.subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(accentSelection ? Color.accentColor : .secondary)
+                }
             }
 
             Spacer()

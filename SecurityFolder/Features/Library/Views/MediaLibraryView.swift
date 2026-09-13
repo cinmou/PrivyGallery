@@ -24,6 +24,7 @@ struct MediaLibraryView: View {
     @State private var renamingAlbumName = ""
     @State private var showingRenamePrompt = false
     @State private var showingCoverEditor = false
+    @State private var colorPickerAlbum: AlbumCellModel?
     @State private var showingSymbolPicker = false
     @State private var showingCoverPhotoPicker = false
     @State private var coverPhotoPickerItem: PhotosPickerItem?
@@ -132,6 +133,9 @@ struct MediaLibraryView: View {
                     }
                     editingAlbumID = nil
                 }
+            }
+            .sheet(item: $colorPickerAlbum) { album in
+                AlbumColorPicker(viewModel: viewModel, albumID: album.id)
             }
             .sheet(isPresented: $showingLibraryCustomSort) {
                 LibraryCustomSortView(viewModel: viewModel)
@@ -947,6 +951,15 @@ struct MediaLibraryView: View {
         .disabled(album.usesRowStyle)
 
         if album.allowsDeletion {
+            Button(String(localized: "相册颜色")) {
+                colorPickerAlbum = album
+            }
+            if album.color != nil {
+                Button(String(localized: "无颜色")) {
+                    viewModel.setAlbumColor(id: album.id, color: nil)
+                }
+            }
+
             Button(String(localized: "重命名")) {
                 editingAlbumID = album.id
                 renamingAlbumName = album.title

@@ -30,7 +30,8 @@ struct AlbumCustomSortView: View {
                                 item: item,
                                 isSelected: false,
                                 isSelecting: false,
-                                displayStyle: .secureRow
+                                displayStyle: .secureRow,
+                                currentAlbumID: albumID
                             )
                         }
                         .onMove { source, destination in
@@ -67,7 +68,8 @@ struct AlbumCustomSortView: View {
             MediaItemTileView(
                 item: item,
                 isSelected: false,
-                isSelecting: false
+                isSelecting: false,
+                currentAlbumID: albumID
             )
 
             Text(item.name)

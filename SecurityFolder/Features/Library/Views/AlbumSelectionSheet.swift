@@ -6,7 +6,7 @@ struct AlbumSelectionSheet: View {
     let selectedItemIDs: Set<UUID>
 
     @Environment(\.dismiss) private var dismiss
-    @State private var draftSelectedAlbumIDs = Set<UUID>()
+    @State private var changes: [UUID: Bool] = [:]
 
     var body: some View {
         NavigationStack {
@@ -18,41 +18,36 @@ struct AlbumSelectionSheet: View {
                         Text(option.title)
                             .foregroundStyle(.primary)
                         Spacer()
-                        if draftSelectedAlbumIDs.contains(option.id) {
+                        if let color = option.color { AlbumColorDot(color: color) }
+                        if changes[option.id] ?? option.isSelected {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(.tint)
+                        } else if changes[option.id] == nil && option.isMixed {
+                            Image(systemName: "minus").foregroundStyle(.secondary)
+                                .accessibilityLabel(String(localized: "部分项目已加入"))
                         }
                     }
                 }
             }
-            .navigationTitle(String(localized: "添加到相册"))
+            .navigationTitle(String(localized: "管理相册"))
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                draftSelectedAlbumIDs = Set(
-                    viewModel.albumSelectionOptions(for: selectedItemIDs, currentAlbumID: currentAlbumID)
-                        .filter(\.isSelected)
-                        .map(\.id)
-                )
-            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        viewModel.setMembership(of: selectedItemIDs, selectedAlbumIDs: draftSelectedAlbumIDs, currentAlbumID: currentAlbumID)
+                        viewModel.setMembership(of: selectedItemIDs, changes: changes, currentAlbumID: currentAlbumID)
                         dismiss()
                     } label: {
                         Image(systemName: "checkmark")
                     }
+                    .accessibilityLabel(String(localized: "完成"))
                 }
             }
         }
     }
 
     private func toggleDraftSelection(for albumID: UUID) {
-        if draftSelectedAlbumIDs.contains(albumID) {
-            draftSelectedAlbumIDs.remove(albumID)
-        } else {
-            draftSelectedAlbumIDs.insert(albumID)
-        }
+        let option = viewModel.albumSelectionOptions(for: selectedItemIDs, currentAlbumID: currentAlbumID).first { $0.id == albumID }
+        changes[albumID] = !(changes[albumID] ?? option?.isSelected ?? false)
     }
 }
 

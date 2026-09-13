@@ -49,7 +49,8 @@ final class EncryptedMetadataStore {
                     sortOptionRawValue: album.sortOptionRawValue,
                     customOrderedItemIDs: album.customOrderedUUIDs,
                     showsCover: album.showsCover,
-                    libraryOrderIndex: album.libraryOrderIndex
+                    libraryOrderIndex: album.libraryOrderIndex,
+                    colorRawValue: album.colorRawValue
                 )
             },
             items: items.map { item in
@@ -61,6 +62,7 @@ final class EncryptedMetadataStore {
                     lastExportedAt: item.lastExportedAt,
                     originalCapturedAt: item.originalCapturedAt,
                     updatedAt: item.updatedAt,
+                    videoDuration: item.videoDuration,
                     mediaKindRawValue: item.mediaKindRawValue,
                     isInTrash: item.isInTrash,
                     isArchived: item.isArchived,
@@ -105,7 +107,8 @@ final class EncryptedMetadataStore {
                 sortOption: AlbumSortOption(rawValue: $0.sortOptionRawValue) ?? .newestFirst,
                 customOrderedItemIDs: $0.customOrderedItemIDs,
                 showsCover: $0.showsCover,
-                libraryOrderIndex: $0.libraryOrderIndex
+                libraryOrderIndex: $0.libraryOrderIndex,
+                colorRawValue: $0.colorRawValue
             )
         }
         let albumsByID = Dictionary(uniqueKeysWithValues: albums.map { ($0.id, $0) })
@@ -130,7 +133,8 @@ final class EncryptedMetadataStore {
                 locationLatitude: record.locationLatitude,
                 locationLongitude: record.locationLongitude,
                 albums: record.albumIDs.compactMap { albumsByID[$0] },
-                livePhotoCompanionRelativePath: record.livePhotoCompanionRelativePath
+                livePhotoCompanionRelativePath: record.livePhotoCompanionRelativePath,
+                videoDuration: record.videoDuration
             )
         }
 
@@ -195,6 +199,7 @@ private struct EncryptedAlbumRecord: Codable {
     let customOrderedItemIDs: [UUID]
     let showsCover: Bool
     let libraryOrderIndex: Int
+    let colorRawValue: String?
 }
 
 private struct EncryptedItemRecord: Codable {
@@ -205,6 +210,7 @@ private struct EncryptedItemRecord: Codable {
     let lastExportedAt: Date?
     let originalCapturedAt: Date?
     let updatedAt: Date
+    let videoDuration: Double?
     let mediaKindRawValue: String
     let isInTrash: Bool
     let isArchived: Bool

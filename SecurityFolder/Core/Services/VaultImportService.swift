@@ -647,7 +647,8 @@ struct VaultImportService {
                 coverSymbolName: albumRecord.coverSymbolName,
                 sortOption: AlbumSortOption(rawValue: albumRecord.sortOptionRawValue) ?? .newestFirst,
                 showsCover: albumRecord.showsCover,
-                libraryOrderIndex: nextLibraryOrderIndex(existingAlbums: existingAlbums, importedCount: importedAlbumsByOldID.count)
+                libraryOrderIndex: nextLibraryOrderIndex(existingAlbums: existingAlbums, importedCount: importedAlbumsByOldID.count),
+                colorRawValue: albumRecord.colorRawValue
             )
             existingAlbums.append(album)
             importedAlbumsByOldID[albumRecord.id] = album
@@ -678,7 +679,8 @@ struct VaultImportService {
                 contentTypeIdentifier: itemRecord.contentTypeIdentifier,
                 locationLatitude: itemRecord.locationLatitude,
                 locationLongitude: itemRecord.locationLongitude,
-                albums: itemAlbums
+                albums: itemAlbums,
+                videoDuration: itemRecord.videoDuration
             )
             existingItems.append(item)
             importedItemsByOldID[itemRecord.id] = item
@@ -953,6 +955,7 @@ private struct VaultBackupAlbumRecord: Codable {
     let customOrderedItemIDs: [String]
     let showsCover: Bool
     let libraryOrderIndex: Int
+    let colorRawValue: String?
 }
 
 private struct VaultBackupItemRecord: Codable {
@@ -963,6 +966,7 @@ private struct VaultBackupItemRecord: Codable {
     let lastExportedAt: Date?
     let originalCapturedAt: Date?
     let updatedAt: Date
+    let videoDuration: Double?
     let mediaKindRawValue: String
     let isInTrash: Bool
     let isArchived: Bool

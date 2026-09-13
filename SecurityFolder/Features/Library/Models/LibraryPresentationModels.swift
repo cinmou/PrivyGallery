@@ -12,12 +12,15 @@ struct AlbumCellModel: Identifiable {
     let allowsDeletion: Bool
     let usesRowStyle: Bool
     let isSecureAlbum: Bool
+    var color: AlbumColor? = nil
 }
 
 struct AlbumSelectionOption: Identifiable {
     let id: UUID
     let title: String
     let isSelected: Bool
+    var color: AlbumColor? = nil
+    var isMixed: Bool = false
 }
 
 struct MediaItemsPage {

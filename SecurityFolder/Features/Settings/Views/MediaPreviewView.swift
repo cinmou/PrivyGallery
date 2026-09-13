@@ -9,6 +9,7 @@ struct MediaPreviewView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pendingDeletion: PendingPreviewDeletion?
     @State private var detailItemID: UUID?
+    @State private var albumSelectionItem: VaultItem?
 
     var body: some View {
         MediaViewerView(
@@ -23,6 +24,9 @@ struct MediaPreviewView: View {
             ),
             onDismiss: { dismiss() }
         )
+        .sheet(item: $albumSelectionItem) { item in
+            AlbumSelectionSheet(viewModel: viewModel, currentAlbumID: albumID, selectedItemIDs: [item.id])
+        }
         .sheet(item: detailItemBinding) { detail in
             NavigationStack {
                 MediaItemInfoView(detail: detail)
@@ -63,6 +67,11 @@ struct MediaPreviewView: View {
                 Label(String(localized: "彻底删除"), systemImage: "trash")
             }
         } else {
+            Button {
+                albumSelectionItem = item
+            } label: {
+                Label(String(localized: "管理相册"), systemImage: "rectangle.stack")
+            }
             Button {
                 viewModel.duplicate(itemIDs: Set([item.id]))
             } label: {

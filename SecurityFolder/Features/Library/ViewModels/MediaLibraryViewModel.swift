@@ -20,6 +20,7 @@ final class MediaLibraryViewModel: ObservableObject {
 
     let space: VaultSpaceKind
 
+    @Published private(set) var mediaPresentationRevision = 0
     @Published var albums: [VaultAlbum] = []
     @Published var items: [VaultItem] = []
     @Published var librarySortOption: LibraryAlbumSortOption = .manual
@@ -87,6 +88,7 @@ final class MediaLibraryViewModel: ObservableObject {
     private let metadataStore: EncryptedMetadataStore
     private let fileStorage: VaultFileStorageService
     private var activeImportTask: Task<Void, Never>?
+    private var durationReadAttempts = Set<UUID>()
 
     init(
         space: VaultSpaceKind,
@@ -136,7 +138,8 @@ final class MediaLibraryViewModel: ObservableObject {
                 systemImage: cover.systemImage ?? defaultSystemImage(for: album),
                 allowsDeletion: !album.isSystemAlbum,
                 usesRowStyle: false,
-                isSecureAlbum: album.isSecureAlbum
+                isSecureAlbum: album.isSecureAlbum,
+                color: album.color
             )
         }
     }
@@ -185,6 +188,7 @@ final class MediaLibraryViewModel: ObservableObject {
         do {
             let snapshot = try metadataStore.loadSnapshot(for: space)
             albums = snapshot.albums
+            mediaPresentationRevision &+= 1
             let insertedRequiredAlbums = ensureRequiredAlbumsPresent()
             let fetchedItems = snapshot.items
             items = fetchedItems
@@ -316,6 +320,48 @@ final class MediaLibraryViewModel: ObservableObject {
         saveAndRefresh()
     }
 
+    func loadMissingVideoDurations(itemIDs: [UUID]) async {
+        var didChange = false
+        defer {
+            if didChange {
+                do { try persistCurrentState() }
+                catch { lastErrorMessage = error.localizedDescription }
+            }
+        }
+        for id in itemIDs {
+            guard !Task.isCancelled else { return }
+            guard let item = items.first(where: { $0.id == id }),
+                  item.mediaKind == .video, item.videoDuration == nil,
+                  !item.isStrongProtected, !durationReadAttempts.contains(id) else { continue }
+            durationReadAttempts.insert(id)
+            let path = item.relativePath
+            let duration = await VideoDurationReader.read(relativePath: path, originalFilename: item.originalFilename, space: space)
+            guard !Task.isCancelled else {
+                durationReadAttempts.remove(id)
+                return
+            }
+            guard let duration, let currentItem = items.first(where: { $0.id == id }),
+                  currentItem.relativePath == path, !currentItem.isStrongProtected else { continue }
+            currentItem.videoDuration = duration
+            mediaPresentationRevision &+= 1
+            didChange = true
+        }
+    }
+
+    func setAlbumColor(id: UUID, color: AlbumColor?) {
+        guard let album = album(for: id), !album.isSystemAlbum,
+              album.colorRawValue != color?.rawValue else { return }
+        let previousColor = album.colorRawValue
+        album.colorRawValue = color?.rawValue
+        do {
+            try persistCurrentState()
+            refresh()
+        } catch {
+            album.colorRawValue = previousColor
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
     func duplicateAlbum(id: UUID) {
         guard let sourceAlbum = album(for: id),
               sourceAlbum.kind == .custom || sourceAlbum.kind == .secureCustom else { return }
@@ -330,10 +376,14 @@ final class MediaLibraryViewModel: ObservableObject {
             sortOption: sourceAlbum.sortOption,
             customOrderedItemIDs: sourceAlbum.customOrderedUUIDs,
             showsCover: sourceAlbum.showsCover,
-            libraryOrderIndex: (albums.map(\.libraryOrderIndex).max() ?? 0) + 1
+            libraryOrderIndex: (albums.map(\.libraryOrderIndex).max() ?? 0) + 1,
+            colorRawValue: sourceAlbum.colorRawValue
         )
 
-        duplicatedAlbum.items = sourceAlbum.items
+        for item in items where item.albums.contains(where: { $0.id == sourceAlbum.id }) {
+            item.albums.append(duplicatedAlbum)
+        }
+        duplicatedAlbum.items = items.filter { $0.albums.contains(where: { $0.id == duplicatedAlbum.id }) }
         albums.append(duplicatedAlbum)
         saveAndRefresh()
     }
@@ -755,7 +805,8 @@ final class MediaLibraryViewModel: ObservableObject {
                     contentTypeIdentifier: sourceItem.contentTypeIdentifier,
                     locationLatitude: sourceItem.locationLatitude,
                     locationLongitude: sourceItem.locationLongitude,
-                    albums: sourceItem.albums
+                    albums: sourceItem.albums,
+                    videoDuration: sourceItem.videoDuration
                 )
                 items.append(duplicate)
             }
@@ -768,12 +819,10 @@ final class MediaLibraryViewModel: ObservableObject {
     func albumSelectionOptions(for itemIDs: Set<UUID>, currentAlbumID: UUID) -> [AlbumSelectionOption] {
         guard let currentAlbum = album(for: currentAlbumID) else { return [] }
         let selectedItems = items.filter { itemIDs.contains($0.id) }
-        let selectedAlbumNames = Set(selectedItems.flatMap { $0.albums.map(\.name) })
         let canTargetSecureAlbums = currentAlbum.kind == .secureLibrary || currentAlbum.kind == .secureCustom
 
         return albums
             .filter { candidate in
-                guard candidate.id != currentAlbum.id else { return false }
                 guard candidate.kind == .custom || candidate.kind == .secureCustom else { return false }
                 guard secureFeatureEnabled || candidate.kind == .custom else { return false }
                 if canTargetSecureAlbums {
@@ -786,39 +835,15 @@ final class MediaLibraryViewModel: ObservableObject {
                 AlbumSelectionOption(
                     id: album.id,
                     title: album.displayName,
-                    isSelected: selectedAlbumNames.contains(album.name)
+                    isSelected: !selectedItems.isEmpty && selectedItems.allSatisfy { item in item.albums.contains { $0.id == album.id } },
+                    color: album.color,
+                    isMixed: selectedItems.contains { item in item.albums.contains { $0.id == album.id } } && !selectedItems.allSatisfy { item in item.albums.contains { $0.id == album.id } }
                 )
             }
     }
 
-    func toggleMembership(of itemIDs: Set<UUID>, in destinationAlbumID: UUID) {
-        guard let targetAlbum = album(for: destinationAlbumID),
-              targetAlbum.kind == .custom || targetAlbum.kind == .secureCustom else { return }
-
-        for item in items where itemIDs.contains(item.id) {
-            if targetAlbum.kind == .secureCustom {
-                guard item.isStrongProtected else { continue }
-                if item.albums.contains(where: { $0.id == targetAlbum.id }) {
-                    item.albums.removeAll { $0.id == targetAlbum.id }
-                } else {
-                    item.albums.append(targetAlbum)
-                }
-            } else {
-                guard !item.isStrongProtected else { continue }
-                if item.albums.contains(where: { $0.id == targetAlbum.id }) {
-                    item.albums.removeAll { $0.id == targetAlbum.id }
-                } else {
-                    item.albums.append(targetAlbum)
-                }
-            }
-            item.updatedAt = .now
-        }
-
-        saveAndRefresh()
-    }
-
-    func setMembership(of itemIDs: Set<UUID>, selectedAlbumIDs: Set<UUID>, currentAlbumID: UUID) {
-        guard let currentAlbum = album(for: currentAlbumID) else { return }
+    func setMembership(of itemIDs: Set<UUID>, changes: [UUID: Bool], currentAlbumID: UUID) {
+        guard !changes.isEmpty, let currentAlbum = album(for: currentAlbumID) else { return }
 
         let availableAlbumIDs = Set(
             albumSelectionOptions(for: itemIDs, currentAlbumID: currentAlbumID)
@@ -829,7 +854,8 @@ final class MediaLibraryViewModel: ObservableObject {
             let mutableAlbumIDs = Set(item.albums.map(\.id))
 
             for album in albums where availableAlbumIDs.contains(album.id) {
-                if selectedAlbumIDs.contains(album.id) {
+                guard let shouldInclude = changes[album.id] else { continue }
+                if shouldInclude {
                     guard mutableAlbumIDs.contains(album.id) == false else { continue }
 
                     if currentAlbum.kind == .secureLibrary || currentAlbum.kind == .secureCustom {
@@ -1108,7 +1134,8 @@ final class MediaLibraryViewModel: ObservableObject {
                 originalFilename: storedFile.originalFilename,
                 contentTypeIdentifier: storedFile.contentTypeIdentifier,
                 locationLatitude: storedFile.locationLatitude,
-                locationLongitude: storedFile.locationLongitude
+                locationLongitude: storedFile.locationLongitude,
+                videoDuration: storedFile.videoDuration
             )
 
             if let targetAlbum {
@@ -1185,7 +1212,8 @@ final class MediaLibraryViewModel: ObservableObject {
                 contentTypeIdentifier: storedFile.contentTypeIdentifier,
                 locationLatitude: storedFile.locationLatitude,
                 locationLongitude: storedFile.locationLongitude,
-                livePhotoCompanionRelativePath: companionRelativePath
+                livePhotoCompanionRelativePath: companionRelativePath,
+                videoDuration: storedFile.videoDuration
             )
 
             if let targetAlbum {

@@ -130,6 +130,9 @@ struct AlbumDetailView: View {
             }
             #endif
         }
+        .task(id: items.map(\.id)) {
+            await viewModel.loadMissingVideoDurations(itemIDs: items.map(\.id))
+        }
         .onAppear {
             #if DEBUG
             if !isSecureAlbum {
@@ -353,7 +356,8 @@ struct AlbumDetailView: View {
             items: items,
             columnCount: $regularGridColumnCount,
             contentInsetBottom: selectionBottomInset,
-            renderToken: 0,
+            renderToken: viewModel.mediaPresentationRevision,
+            currentAlbumID: albumID,
             selectedItemIDs: selectedItemIDs,
             isSelecting: isSelecting,
             onReachEnd: { item in
@@ -443,7 +447,7 @@ struct AlbumDetailView: View {
             actions.append(UIAction(title: String(localized: "复制"), image: UIImage(systemName: "plus.square.on.square")) { _ in
                 viewModel.duplicate(itemIDs: Set([item.id]))
             })
-            actions.append(UIAction(title: String(localized: "添加到相册"), image: UIImage(systemName: "text.badge.plus")) { _ in
+            actions.append(UIAction(title: String(localized: "管理相册"), image: UIImage(systemName: "rectangle.stack")) { _ in
                 selectedItemIDs = [item.id]
                 showingAlbumPicker = true
             })
@@ -472,6 +476,8 @@ struct AlbumDetailView: View {
     ) -> some View {
         SecureMediaListView(
             items: items,
+            currentAlbumID: albumID,
+            renderToken: viewModel.mediaPresentationRevision,
             albumKind: albumKind,
             selectedItemIDs: selectedItemIDs,
             isSelecting: isSelecting,
@@ -501,7 +507,7 @@ struct AlbumDetailView: View {
             onShowDetails: { item in
                 detailItemID = item.id
             },
-            onAddToSecureAlbum: { item in
+            onManageAlbums: { item in
                 selectedItemIDs = [item.id]
                 showingAlbumPicker = true
             },
@@ -708,8 +714,8 @@ struct AlbumDetailView: View {
 
             if albumKind != .trash && albumKind != .archive {
                 selectionActionButton(
-                    title: String(localized: "添加到"),
-                    systemImage: "text.badge.plus",
+                    title: String(localized: "相册", comment: "Short album-management label in the bottom action bar"),
+                    systemImage: "rectangle.stack",
                     role: nil,
                     isDisabled: selectedItemIDs.isEmpty
                 ) {
@@ -941,7 +947,7 @@ struct AlbumDetailView: View {
                     selectedItemIDs = [item.id]
                     showingAlbumPicker = true
                 } label: {
-                    Label(String(localized: "添加到强加密相册"), systemImage: "lock.rectangle.stack")
+                    Label(String(localized: "管理相册"), systemImage: "lock.rectangle.stack")
                 }
                 Button(role: .destructive) {
                     requestRemoveFromStrongProtection(for: Set([item.id]))
@@ -966,7 +972,7 @@ struct AlbumDetailView: View {
                     selectedItemIDs = [item.id]
                     showingAlbumPicker = true
                 } label: {
-                    Label(String(localized: "添加到强加密相册"), systemImage: "lock.rectangle.stack")
+                    Label(String(localized: "管理相册"), systemImage: "lock.rectangle.stack")
                 }
                 Button(role: .destructive) {
                     requestDestructiveOperation(for: Set([item.id]), albumKind: albumKind)
@@ -996,7 +1002,7 @@ struct AlbumDetailView: View {
                 selectedItemIDs = [item.id]
                 showingAlbumPicker = true
             } label: {
-                Label(String(localized: "添加到相册"), systemImage: "text.badge.plus")
+                Label(String(localized: "管理相册"), systemImage: "rectangle.stack")
             }
 
             if advancedDataProtectionEnabled {
@@ -1395,6 +1401,8 @@ private struct ItemContextMenuModifier<MenuContent: View>: ViewModifier {
 
 private struct SecureMediaListView: UIViewControllerRepresentable {
     let items: [VaultItem]
+    let currentAlbumID: UUID
+    let renderToken: Int
     let albumKind: MediaAlbumKind?
     let selectedItemIDs: Set<UUID>
     let isSelecting: Bool
@@ -1406,7 +1414,7 @@ private struct SecureMediaListView: UIViewControllerRepresentable {
     let onSelectionModeChanged: (Bool) -> Void
     let onRenameItem: (VaultItem) -> Void
     let onShowDetails: (VaultItem) -> Void
-    let onAddToSecureAlbum: (VaultItem) -> Void
+    let onManageAlbums: (VaultItem) -> Void
     let onRemoveFromStrongProtection: (VaultItem) -> Void
     let onDeleteItem: (VaultItem) -> Void
     let onPermanentDeleteItem: (VaultItem) -> Void
@@ -1414,6 +1422,8 @@ private struct SecureMediaListView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> SecureMediaListViewController {
         let controller = SecureMediaListViewController()
         controller.items = items
+        controller.currentAlbumID = currentAlbumID
+        controller.renderToken = renderToken
         controller.albumKind = albumKind
         controller.selectedItemIDs = selectedItemIDs
         controller.isSelecting = isSelecting
@@ -1425,7 +1435,7 @@ private struct SecureMediaListView: UIViewControllerRepresentable {
         controller.onSelectionModeChanged = onSelectionModeChanged
         controller.onRenameItem = onRenameItem
         controller.onShowDetails = onShowDetails
-        controller.onAddToSecureAlbum = onAddToSecureAlbum
+        controller.onManageAlbums = onManageAlbums
         controller.onRemoveFromStrongProtection = onRemoveFromStrongProtection
         controller.onDeleteItem = onDeleteItem
         controller.onPermanentDeleteItem = onPermanentDeleteItem
@@ -1435,6 +1445,8 @@ private struct SecureMediaListView: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: SecureMediaListViewController, context: Context) {
         let previousSelectedItemIDs = controller.selectedItemIDs
         let previousIsSelecting = controller.isSelecting
+        controller.currentAlbumID = currentAlbumID
+        controller.renderToken = renderToken
         controller.albumKind = albumKind
         controller.contentInsetBottom = contentInsetBottom
         controller.footerText = footerText
@@ -1444,7 +1456,7 @@ private struct SecureMediaListView: UIViewControllerRepresentable {
         controller.onSelectionModeChanged = onSelectionModeChanged
         controller.onRenameItem = onRenameItem
         controller.onShowDetails = onShowDetails
-        controller.onAddToSecureAlbum = onAddToSecureAlbum
+        controller.onManageAlbums = onManageAlbums
         controller.onRemoveFromStrongProtection = onRemoveFromStrongProtection
         controller.onDeleteItem = onDeleteItem
         controller.onPermanentDeleteItem = onPermanentDeleteItem
@@ -1457,6 +1469,9 @@ private struct SecureMediaListView: UIViewControllerRepresentable {
 
 private final class SecureMediaListViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UIGestureRecognizerDelegate {
     var items: [VaultItem] = []
+    var currentAlbumID: UUID?
+    var renderToken = 0
+    private var lastRenderToken = -1
     var albumKind: MediaAlbumKind?
     var selectedItemIDs: Set<UUID> = []
     var isSelecting = false
@@ -1473,7 +1488,7 @@ private final class SecureMediaListViewController: UIViewController, UITableView
     var onSelectionModeChanged: ((Bool) -> Void)?
     var onRenameItem: ((VaultItem) -> Void)?
     var onShowDetails: ((VaultItem) -> Void)?
-    var onAddToSecureAlbum: ((VaultItem) -> Void)?
+    var onManageAlbums: ((VaultItem) -> Void)?
     var onRemoveFromStrongProtection: ((VaultItem) -> Void)?
     var onDeleteItem: ((VaultItem) -> Void)?
     var onPermanentDeleteItem: ((VaultItem) -> Void)?
@@ -1516,7 +1531,8 @@ private final class SecureMediaListViewController: UIViewController, UITableView
 
     func updateItems(_ nextItems: [VaultItem]) {
         let nextIDs = nextItems.map(\.id)
-        let shouldReloadAll = nextIDs != lastRenderedItemIDs
+        let shouldReloadAll = nextIDs != lastRenderedItemIDs || renderToken != lastRenderToken
+        lastRenderToken = renderToken
         items = nextItems
         guard shouldReloadAll else { return }
         lastRenderedItemIDs = nextIDs
@@ -1605,11 +1621,29 @@ private final class SecureMediaListViewController: UIViewController, UITableView
         content.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0)
         cell.contentConfiguration = content
 
+        cell.accessoryView = nil
         if isSelecting {
             cell.accessoryType = selectedItemIDs.contains(item.id) ? .checkmark : .none
             cell.tintColor = .systemBlue
         } else {
             cell.accessoryType = .disclosureIndicator
+            let colors = MediaAlbumColorsView()
+            colors.configure(item: item, currentAlbumID: currentAlbumID, isSelecting: false)
+            if !colors.isHidden {
+                // A custom accessoryView replaces accessoryType, so draw the chevron alongside the colors.
+                let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
+                chevron.preferredSymbolConfiguration = UIImage.SymbolConfiguration(textStyle: .footnote, scale: .default)
+                    .applying(UIImage.SymbolConfiguration(weight: .semibold))
+                chevron.tintColor = .tertiaryLabel
+                chevron.contentMode = .center
+                let accessory = UIStackView(arrangedSubviews: [colors, chevron])
+                accessory.axis = .horizontal
+                accessory.alignment = .center
+                accessory.spacing = 8
+                accessory.isUserInteractionEnabled = false
+                accessory.frame.size = accessory.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+                cell.accessoryView = accessory
+            }
         }
     }
 
@@ -1617,7 +1651,7 @@ private final class SecureMediaListViewController: UIViewController, UITableView
         if let footer = footerText?(item), !footer.isEmpty {
             return footer
         }
-        return ""
+        return item.mediaKind == .video ? item.videoDurationText : ""
     }
 
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
@@ -1730,8 +1764,8 @@ private final class SecureMediaListViewController: UIViewController, UITableView
         var actions: [UIMenuElement] = [select, rename, details]
         switch albumKind {
         case .secureLibrary:
-            actions.append(UIAction(title: String(localized: "添加到强加密相册"), image: UIImage(systemName: "lock.rectangle.stack")) { [weak self] _ in
-                self?.onAddToSecureAlbum?(item)
+            actions.append(UIAction(title: String(localized: "管理相册"), image: UIImage(systemName: "lock.rectangle.stack")) { [weak self] _ in
+                self?.onManageAlbums?(item)
             })
             actions.append(UIAction(title: String(localized: "移出强加密媒体库"), image: UIImage(systemName: "lock.open"), attributes: .destructive) { [weak self] _ in
                 self?.onRemoveFromStrongProtection?(item)
@@ -1740,8 +1774,8 @@ private final class SecureMediaListViewController: UIViewController, UITableView
                 self?.onPermanentDeleteItem?(item)
             })
         case .secureCustom:
-            actions.append(UIAction(title: String(localized: "添加到强加密相册"), image: UIImage(systemName: "lock.rectangle.stack")) { [weak self] _ in
-                self?.onAddToSecureAlbum?(item)
+            actions.append(UIAction(title: String(localized: "管理相册"), image: UIImage(systemName: "lock.rectangle.stack")) { [weak self] _ in
+                self?.onManageAlbums?(item)
             })
             actions.append(UIAction(title: String(localized: "移出相册"), image: UIImage(systemName: "minus.circle"), attributes: .destructive) { [weak self] _ in
                 self?.onDeleteItem?(item)
@@ -1905,6 +1939,7 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
     @Binding var columnCount: Int
     let contentInsetBottom: CGFloat
     let renderToken: Int
+    let currentAlbumID: UUID
     let selectedItemIDs: Set<UUID>
     let isSelecting: Bool
     let onReachEnd: (VaultItem) -> Void
@@ -1927,6 +1962,7 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
         MediaPerformanceLog.mark("grid.makeUIViewController.input", "items=\(items.count) columns=\(columnCount) selecting=\(isSelecting)")
         #endif
         let controller = ZoomableMediaGridViewController()
+        controller.currentAlbumID = currentAlbumID
         controller.items = items
         controller.columnCount = columnCount
         controller.contentInsetBottom = contentInsetBottom
@@ -1955,6 +1991,7 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
         context.coordinator.columnCount = $columnCount
         let previousSelectedItemIDs = controller.selectedItemIDs
         let previousIsSelecting = controller.isSelecting
+        controller.currentAlbumID = currentAlbumID
         controller.items = items
         controller.columnCount = columnCount
         controller.contentInsetBottom = contentInsetBottom
@@ -1993,6 +2030,7 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
 
 private final class ZoomableMediaGridViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout, UICollectionViewDataSourcePrefetching, UIGestureRecognizerDelegate {
     var items: [VaultItem] = []
+    var currentAlbumID: UUID?
     var columnCount: Int = 5 {
         didSet {
             effectiveColumnCount = CGFloat(columnCount)
@@ -2132,7 +2170,12 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
     @discardableResult
     func reloadKeepingPositionIfNeeded() -> Bool {
         let nextItemIDs = items.map(\.id)
-        guard nextItemIDs != lastRenderedItemIDs || renderToken != lastRenderToken else {
+        guard nextItemIDs != lastRenderedItemIDs else {
+            if renderToken != lastRenderToken {
+                lastRenderToken = renderToken
+                let visible = collectionView.indexPathsForVisibleItems.filter { $0.item < items.count }
+                collectionView.reconfigureItems(at: visible)
+            }
             #if DEBUG
             MediaPerformanceLog.mark("grid.reload.skip", "items=\(items.count)")
             #endif
@@ -2245,7 +2288,8 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
                 item: item,
                 isSelected: selectedItemIDs.contains(item.id),
                 isSelecting: isSelecting,
-                footerText: footerText?(item)
+                footerText: footerText?(item),
+                currentAlbumID: currentAlbumID
             )
         }
 
@@ -3003,18 +3047,35 @@ private final class MediaGridCell: UICollectionViewCell {
         return v
     }()
 
-    private let kindBadgeView: UIImageView = {
-        let v = UIImageView()
-        v.contentMode = .center
-        v.tintColor = .white
-        v.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 10, weight: .bold)
-        v.layer.shadowColor = UIColor.black.cgColor
-        v.layer.shadowOpacity = 0.6
-        v.layer.shadowRadius = 2
-        v.layer.shadowOffset = CGSize(width: 0, height: 1)
-        v.translatesAutoresizingMaskIntoConstraints = false
-        return v
+    private let livePhotoBadgeView: UIImageView = {
+        let view = UIImageView(image: UIImage(systemName: "livephoto"))
+        view.contentMode = .center
+        view.tintColor = .white
+        view.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOpacity = 0.6
+        view.layer.shadowRadius = 2
+        view.layer.shadowOffset = CGSize(width: 0, height: 1)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
     }()
+
+    private let durationLabel: UILabel = {
+        let label = UILabel()
+        label.font = .monospacedDigitSystemFont(ofSize: 10, weight: .semibold)
+        label.textAlignment = .center
+        label.textColor = .white
+        label.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        label.layer.cornerRadius = 4
+        label.clipsToBounds = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.adjustsFontSizeToFitWidth = true
+        label.minimumScaleFactor = 0.5
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return label
+    }()
+
+    private let albumColorsView = MediaAlbumColorsView()
 
     private let selectionRing: UIView = {
         let v = UIView()
@@ -3092,7 +3153,10 @@ private final class MediaGridCell: UICollectionViewCell {
         selectionRing.frame = contentView.bounds
         contentView.addSubview(selectionRing)
 
-        contentView.addSubview(kindBadgeView)
+        contentView.addSubview(livePhotoBadgeView)
+        contentView.addSubview(durationLabel)
+        albumColorsView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(albumColorsView)
         contentView.addSubview(selectionBadgeContainer)
         selectionBadgeContainer.addSubview(selectionCircleView)
         selectionBadgeContainer.addSubview(selectionCheckmarkView)
@@ -3104,10 +3168,17 @@ private final class MediaGridCell: UICollectionViewCell {
             placeholderIconView.centerXAnchor.constraint(equalTo: placeholderView.centerXAnchor),
             placeholderIconView.centerYAnchor.constraint(equalTo: placeholderView.centerYAnchor),
 
-            kindBadgeView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            kindBadgeView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
-            kindBadgeView.widthAnchor.constraint(equalToConstant: 20),
-            kindBadgeView.heightAnchor.constraint(equalToConstant: 20),
+            durationLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 6),
+            durationLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -6),
+            durationLabel.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -4),
+            durationLabel.heightAnchor.constraint(equalToConstant: 18),
+            albumColorsView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
+            albumColorsView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+
+            livePhotoBadgeView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
+            livePhotoBadgeView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            livePhotoBadgeView.widthAnchor.constraint(equalToConstant: 20),
+            livePhotoBadgeView.heightAnchor.constraint(equalToConstant: 20),
 
             selectionBadgeContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
             selectionBadgeContainer.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
@@ -3115,7 +3186,7 @@ private final class MediaGridCell: UICollectionViewCell {
             selectionBadgeContainer.heightAnchor.constraint(equalToConstant: 24),
 
             footerPillView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            footerPillView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            footerPillView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -28),
 
             footerLabel.topAnchor.constraint(equalTo: footerPillView.topAnchor, constant: 4),
             footerLabel.bottomAnchor.constraint(equalTo: footerPillView.bottomAnchor, constant: -4),
@@ -3129,7 +3200,7 @@ private final class MediaGridCell: UICollectionViewCell {
         footerPillView.layer.cornerRadius = footerPillView.bounds.height / 2
     }
 
-    func configure(item: VaultItem, isSelected: Bool, isSelecting: Bool, footerText: String?) {
+    func configure(item: VaultItem, isSelected: Bool, isSelecting: Bool, footerText: String?, currentAlbumID: UUID?) {
         let itemChanged = currentItemID != item.id
         currentItemID = item.id
 
@@ -3140,7 +3211,10 @@ private final class MediaGridCell: UICollectionViewCell {
             placeholderView.isHidden = false
         }
 
-        kindBadgeView.image = UIImage(systemName: item.mediaKind.symbolName)
+        livePhotoBadgeView.isHidden = item.mediaKind != .livePhoto
+        durationLabel.isHidden = item.mediaKind != .video
+        durationLabel.text = " \(item.videoDurationText) "
+        albumColorsView.configure(item: item, currentAlbumID: currentAlbumID, isSelecting: isSelecting)
 
         selectionBadgeContainer.isHidden = !isSelecting
         selectionRing.layer.borderColor = isSelected ? UIColor.tintColor.cgColor : UIColor.clear.cgColor

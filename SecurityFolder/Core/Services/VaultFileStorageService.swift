@@ -14,6 +14,7 @@ struct StoredMediaFile {
     let originalCapturedAt: Date?
     let locationLatitude: Double?
     let locationLongitude: Double?
+    var videoDuration: Double? = nil
 }
 
 enum VaultFileStorageError: LocalizedError {
@@ -122,7 +123,8 @@ final class VaultFileStorageService {
             byteCount: byteCount,
             originalCapturedAt: metadata.originalCapturedAt,
             locationLatitude: metadata.locationLatitude,
-            locationLongitude: metadata.locationLongitude
+            locationLongitude: metadata.locationLongitude,
+            videoDuration: metadata.videoDuration
         )
     }
 
@@ -355,6 +357,7 @@ private struct ImportedMediaMetadata {
     let originalCapturedAt: Date?
     let locationLatitude: Double?
     let locationLongitude: Double?
+    var videoDuration: Double? = nil
 
     static let empty = ImportedMediaMetadata(
         originalCapturedAt: nil,
@@ -407,6 +410,8 @@ private enum ImportedMediaMetadataExtractor {
 
     private static func metadataFromVideo(url: URL) async -> ImportedMediaMetadata {
         let asset = AVURLAsset(url: url)
+        let duration = try? await asset.load(.duration).seconds
+        let videoDuration = duration.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
         var originalCapturedAt: Date?
         var latitude: Double?
         var longitude: Double?
@@ -434,13 +439,14 @@ private enum ImportedMediaMetadataExtractor {
                 }
             }
         } catch {
-            return .empty
+            return ImportedMediaMetadata(originalCapturedAt: originalCapturedAt, locationLatitude: latitude, locationLongitude: longitude, videoDuration: videoDuration)
         }
 
         return ImportedMediaMetadata(
             originalCapturedAt: originalCapturedAt,
             locationLatitude: latitude,
-            locationLongitude: longitude
+            locationLongitude: longitude,
+            videoDuration: videoDuration
         )
     }
 
