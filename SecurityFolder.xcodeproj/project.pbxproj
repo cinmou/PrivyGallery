@@ -61,6 +61,7 @@
 				Assets.xcassets,
 				Info.plist,
 				InfoPlist.xcstrings,
+				Localizable.xcstrings,
 				ShareViewController.swift,
 			);
 			target = F9B3BCB62F9AC2D800B593BE /* SecurityFolder */;
@@ -203,6 +204,11 @@
 				"en-GB",
 				"zh-HK",
 				"zh-Hant-TW",
+				de,
+				es,
+				fr,
+				it,
+				ru,
 			);
 			mainGroup = F9B3BCAE2F9AC2D800B593BE;
 			minimizedProjectReferenceProxies = 1;
@@ -394,7 +400,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SecurityFolder/SecurityFolder.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 37;
 				DEVELOPMENT_LANGUAGE = "zh-Hans";
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -448,7 +454,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SecurityFolder/SecurityFolder.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 37;
 				DEVELOPMENT_LANGUAGE = "zh-Hans";
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -500,7 +506,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Share/Share.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 37;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
@@ -544,7 +550,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Share/Share.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 37;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;

@@ -53,7 +53,7 @@ final class ShareViewController: UIViewController {
         titleStack.axis = .vertical
         titleStack.spacing = 4
 
-        titleLabel.text = String(localized: "保存到 Privé Media")
+        titleLabel.text = String(localized: "保存到私影相册")
         titleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
         titleLabel.textAlignment = .center
 
