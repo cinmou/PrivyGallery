@@ -1,19 +1,25 @@
 import Foundation
 import Combine
+import LocalAuthentication
+import OSLog
 
 @MainActor
 final class AppSessionViewModel: ObservableObject {
     @Published var activeSpace: VaultSpaceKind?
     @Published var selectedTab: AppTab = .media
-    @Published var isSnapshotObscured = false
-    @Published private(set) var isSceneActive = true
+    @Published private(set) var isSceneActive = false
+    @Published private(set) var isAuthenticating = false
     @Published private(set) var pendingUnlockMessage: String?
 
     private let lockService = AppLockService()
+    private var authenticationID: UUID?
+    private var authenticationContext: LAContext?
+    private var authenticationCompletion: (@MainActor (Bool) -> Void)?
+    private var hasEnteredBackground = false
+    private let logger = Logger(subsystem: "com.cinmouice.SecurityFolder", category: "AppLock")
     private var autoLockTimer: AnyCancellable?
     private var lastInteractionAt = Date()
     private var shouldAutomaticallyAttemptBiometricUnlock = true
-    private var shouldSuppressAutomaticBiometricErrors = false
     private var consecutiveBiometricFailureCount = 0
 
     var isUnlocked: Bool {
@@ -33,7 +39,7 @@ final class AppSessionViewModel: ObservableObject {
     }
 
     var canAutomaticallyAttemptBiometricUnlock: Bool {
-        shouldAutomaticallyAttemptBiometricUnlock
+        shouldAutomaticallyAttemptBiometricUnlock && !isAuthenticating
     }
 
     var requiresPasscodeAfterBiometricFailures: Bool {
@@ -80,15 +86,88 @@ final class AppSessionViewModel: ObservableObject {
     }
 
     func unlock(space: VaultSpaceKind, using passcode: String) -> UnlockAttemptResult {
-        applyUnlockResult(lockService.validate(passcode: passcode, for: space, allowCoercionTrigger: true))
+        guard !hasEnteredBackground else { return .failure(message: String(localized: "生物识别已取消。")) }
+        cancelAuthentication()
+        return applyUnlockResult(lockService.validate(passcode: passcode, for: space, allowCoercionTrigger: true))
     }
 
     func unlock(using passcode: String) -> UnlockAttemptResult {
-        applyUnlockResult(lockService.validate(passcode: passcode, allowCoercionTrigger: true))
+        guard !hasEnteredBackground else { return .failure(message: String(localized: "生物识别已取消。")) }
+        cancelAuthentication()
+        return applyUnlockResult(lockService.validate(passcode: passcode, allowCoercionTrigger: true))
     }
 
-    func unlockPrimaryWithBiometrics() -> UnlockAttemptResult {
-        applyUnlockResult(lockService.unlockPrimaryWithBiometrics())
+    func unlockPrimaryWithBiometrics(isAutomaticAttempt: Bool) async -> UnlockAttemptResult? {
+        guard !isUnlocked, isSceneActive, !hasEnteredBackground, !isAuthenticating,
+              !requiresPasscodeAfterBiometricFailures,
+              !isAutomaticAttempt || shouldAutomaticallyAttemptBiometricUnlock else { return nil }
+        let id = UUID()
+        let context = LAContext()
+        authenticationID = id
+        authenticationContext = context
+        isAuthenticating = true
+        shouldAutomaticallyAttemptBiometricUnlock = false
+        logger.debug("Biometric unlock started")
+        let result = await lockService.biometricKey(context: context)
+        // A background event, screenshot lock or passcode unlock invalidates this request.
+        // Never install key material returned by a stale authentication.
+        guard authenticationID == id, !hasEnteredBackground else {
+            logger.debug("Discarded stale biometric result")
+            return nil
+        }
+        authenticationID = nil
+        authenticationContext = nil
+        isAuthenticating = false
+        switch result {
+        case let .success(space, data):
+            lockService.activateBiometricKey(data, for: space)
+            logger.debug("Biometric unlock succeeded")
+            return applyUnlockResult(.success(space))
+        case let .failure(message):
+            logger.debug("Biometric unlock ended without unlocking")
+            return .failure(message: message)
+        }
+    }
+
+    func authenticateOwner(
+        policy: LAPolicy = .deviceOwnerAuthentication,
+        reason: String,
+        completion: @escaping @MainActor (Bool) -> Void
+    ) {
+        guard isSceneActive, !hasEnteredBackground, !isAuthenticating else {
+            completion(false)
+            return
+        }
+        let context = LAContext()
+        guard context.canEvaluatePolicy(policy, error: nil) else {
+            completion(false)
+            return
+        }
+        let id = UUID()
+        authenticationID = id
+        authenticationContext = context
+        isAuthenticating = true
+        authenticationCompletion = completion
+        context.evaluatePolicy(policy, localizedReason: reason) { [weak self] success, _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.authenticationID == id else { return }
+                self.authenticationID = nil
+                self.authenticationContext = nil
+                self.isAuthenticating = false
+                self.authenticationCompletion = nil
+                completion(success)
+            }
+        }
+    }
+
+    private func cancelAuthentication() {
+        let completion = authenticationCompletion
+        authenticationCompletion = nil
+        authenticationID = nil
+        authenticationContext?.invalidate()
+        authenticationContext = nil
+        isAuthenticating = false
+        completion?(false)
     }
 
     private func applyUnlockResult(_ result: UnlockAttemptResult) -> UnlockAttemptResult {
@@ -98,9 +177,7 @@ final class AppSessionViewModel: ObservableObject {
             syncSharedImportAppState()
             registerInteraction()
             startAutoLockMonitoring()
-            isSnapshotObscured = false
             shouldAutomaticallyAttemptBiometricUnlock = false
-            shouldSuppressAutomaticBiometricErrors = false
             consecutiveBiometricFailureCount = 0
         }
         return result
@@ -187,26 +264,30 @@ final class AppSessionViewModel: ObservableObject {
     }
 
     func lock(withMessage message: String? = nil, allowAutomaticBiometricRetry: Bool) {
+        cancelAuthentication()
         autoLockTimer?.cancel()
         autoLockTimer = nil
         lockService.lock()
         activeSpace = nil
         selectedTab = .media
-        isSnapshotObscured = true
         pendingUnlockMessage = message
         shouldAutomaticallyAttemptBiometricUnlock = allowAutomaticBiometricRetry && !requiresPasscodeAfterBiometricFailures
-        shouldSuppressAutomaticBiometricErrors = allowAutomaticBiometricRetry
+        NotificationCenter.default.post(name: .vaultDidLock, object: self)
     }
 
     func handleDidEnterBackground() {
-        isSnapshotObscured = true
-        guard isUnlocked else { return }
+        guard !hasEnteredBackground else { return }
+        hasEnteredBackground = true
+        isSceneActive = false
+        logger.debug("Scene entered background")
+        // Rearm once for the next foreground visit, including when authentication was interrupted.
         lock(allowAutomaticBiometricRetry: true)
     }
 
     func handleScenePhaseChange(isActive: Bool) {
         isSceneActive = isActive
-        isSnapshotObscured = !isActive
+        if isActive { hasEnteredBackground = false }
+        logger.debug("Scene active: \(isActive)")
     }
 
     func registerInteraction() {
@@ -220,16 +301,6 @@ final class AppSessionViewModel: ObservableObject {
         return message
     }
 
-    func markAutomaticBiometricUnlockAttempted() {
-        shouldAutomaticallyAttemptBiometricUnlock = false
-    }
-
-    func consumeSuppressAutomaticBiometricErrors() -> Bool {
-        let shouldSuppress = shouldSuppressAutomaticBiometricErrors
-        shouldSuppressAutomaticBiometricErrors = false
-        return shouldSuppress
-    }
-
     func recordBiometricFailure(message: String) {
         guard message == String(localized: "生物识别验证失败。") else { return }
         consecutiveBiometricFailureCount += 1
@@ -237,15 +308,14 @@ final class AppSessionViewModel: ObservableObject {
         if requiresPasscodeAfterBiometricFailures {
             pendingUnlockMessage = String(localized: "生物识别已连续验证失败两次，请输入密码解锁。")
             shouldAutomaticallyAttemptBiometricUnlock = false
-            shouldSuppressAutomaticBiometricErrors = false
         }
     }
 
     func clearAllState() {
+        cancelAuthentication()
         lockService.wipeAllSecurityStateForTesting()
         activeSpace = nil
         shouldAutomaticallyAttemptBiometricUnlock = false
-        shouldSuppressAutomaticBiometricErrors = false
         consecutiveBiometricFailureCount = 0
         pendingUnlockMessage = nil
         syncSharedImportAppState()

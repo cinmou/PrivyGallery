@@ -296,7 +296,7 @@ struct PasswordSettingsView: View {
     private func saveBiometricSettings() {
         savingSensitiveSettings = true
 
-        settingsViewModel.authenticateForSensitiveSettings(reason: String.localizedStringWithFormat(String(localized: "修改 %@ 解锁设置"), currentBiometricDisplayName())) { success in
+        session.authenticateOwner(reason: String.localizedStringWithFormat(String(localized: "修改 %@ 解锁设置"), currentBiometricDisplayName())) { success in
             savingSensitiveSettings = false
             if success {
                 let adjusted = adjustedBiometricSettings(biometricSettings)
@@ -312,7 +312,7 @@ struct PasswordSettingsView: View {
 
     private func requestEnableBiometricUnlock() {
         savingSensitiveSettings = true
-        requestFaceIDUnlockPermission(reason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), currentBiometricDisplayName())) { success in
+        session.authenticateOwner(policy: .deviceOwnerAuthenticationWithBiometrics, reason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), currentBiometricDisplayName())) { success in
             savingSensitiveSettings = false
             session.setBiometricUnlockEnabled(success)
             reloadSpaceSettingsState()
@@ -369,26 +369,6 @@ private func currentBiometricDisplayName() -> String {
         return String(localized: "Optic ID")
     default:
         return String(localized: "生物识别")
-    }
-}
-
-private func requestFaceIDUnlockPermission(
-    reason: String,
-    completion: @escaping @MainActor (Bool) -> Void
-) {
-    let context = LAContext()
-    var error: NSError?
-    guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-        Task { @MainActor in
-            completion(false)
-        }
-        return
-    }
-
-    context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, _ in
-        Task { @MainActor in
-            completion(success)
-        }
     }
 }
 

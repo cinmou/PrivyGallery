@@ -6,6 +6,13 @@ final class MediaViewerController: UIViewController {
     let provider: MediaAssetProvider
     let initialItemID: UUID
     var protectsMediaContentFromCapture = false
+    var photoTransitionSource: PhotoPreviewTransitionSource?
+
+    var canInteractivelyDismissPhoto: Bool {
+        currentPage?.item.mediaKind != .video && currentPage != nil
+            && currentPage?.isImageZoomed != true
+            && !isDetailVisible && !isMenuVisible && !isScrubbing
+    }
     var onDismiss: (() -> Void)?
     var onShowDetails: ((VaultItem) -> Void)?
     var detailInfo: ((VaultItem) -> MediaItemDetailInfo?)?
@@ -292,6 +299,8 @@ final class MediaViewerController: UIViewController {
             return cached
         }
         let page = MediaPageController(item: item, provider: provider, protectsContentFromCapture: protectsMediaContentFromCapture)
+        page.usesSystemPhotoDismissal = photoTransitionSource != nil
+        page.initialPreviewImage = photoTransitionSource?.image(for: item.id)
         page.onTap = { [weak self] in self?.toggleControls() }
         page.onDismiss = { [weak self] in self?.closeTapped() }
         page.onPlaybackStateChanged = { [weak self, weak page] in
@@ -308,6 +317,7 @@ final class MediaViewerController: UIViewController {
     private func activate(_ page: MediaPageController, revealControls: Bool) {
         currentPage?.setActive(false)
         currentPage = page
+        photoTransitionSource?.currentItemID = page.item.id
         currentIndex = items.firstIndex(of: page.item) ?? currentIndex
         page.setActive(true)
         topOverlay.update(title: page.item.name, subtitle: items.count > 1 ? "\(currentIndex + 1) / \(items.count)" : nil)
@@ -705,6 +715,7 @@ extension MediaViewerController: UIAdaptivePresentationControllerDelegate {
 extension MediaViewerController: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         if gestureRecognizer === pointerPanRecognizer {
+            if photoTransitionSource != nil, currentPage?.item.mediaKind != .video { return false }
             return touch.type == .direct
         }
 

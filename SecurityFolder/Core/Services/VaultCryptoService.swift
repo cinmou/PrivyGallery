@@ -1,6 +1,6 @@
 import CryptoKit
 import Foundation
-import LocalAuthentication
+@preconcurrency import LocalAuthentication
 import Security
 
 enum VaultCryptoError: LocalizedError {
@@ -66,23 +66,47 @@ final class VaultCryptoService {
         keychainItemExists(for: wrappedAccount(for: space))
     }
 
-    /// 使用当前空间绑定的生物识别保护密钥直接解锁，不再依赖明文密码。
-    func unlockWithBiometrics(space: VaultSpaceKind) throws {
+    /// 认证后返回空间密钥；由 Session 确认请求仍有效后再激活密钥。
+    func biometricKeyData(space: VaultSpaceKind, context: LAContext) async throws -> Data {
         guard biometricUnlockAvailable else {
             throw VaultCryptoError.biometricUnavailable
         }
-
-        let context = LAContext()
         context.localizedReason = String.localizedStringWithFormat(
             String(localized: "使用 %@ 解锁%@"),
             biometricDisplayName,
             SpaceDisplaySettings.displayName(for: space)
         )
-        guard let keyData = try keychainData(for: biometricAccount(for: space), authenticationContext: context) else {
-            throw VaultCryptoError.biometricKeyMissing
+        let account = biometricAccount(for: space)
+        let service = keychainService
+        // Keychain waits synchronously for Face ID. Keep that wait off the UI thread,
+        // and return only the key bytes; the session decides whether the request is still valid.
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let query: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: service,
+                    kSecAttrAccount as String: account,
+                    kSecReturnData as String: true,
+                    kSecMatchLimit as String: kSecMatchLimitOne,
+                    kSecUseAuthenticationContext as String: context
+                ]
+                var item: CFTypeRef?
+                let status = SecItemCopyMatching(query as CFDictionary, &item)
+                if status == errSecItemNotFound {
+                    continuation.resume(throwing: VaultCryptoError.biometricKeyMissing)
+                } else if status != errSecSuccess {
+                    continuation.resume(throwing: NSError(domain: NSOSStatusErrorDomain, code: Int(status)))
+                } else if let data = item as? Data {
+                    continuation.resume(returning: data)
+                } else {
+                    continuation.resume(throwing: VaultCryptoError.biometricKeyMissing)
+                }
+            }
         }
+    }
 
-        setActiveKey(SymmetricKey(data: keyData), for: space)
+    func activateBiometricKey(_ data: Data, for space: VaultSpaceKind) {
+        setActiveKey(SymmetricKey(data: data), for: space)
     }
 
     /// 使用密码解锁空间；如果该空间首次配置密码，会同步生成该空间的 DEK 与生物识别入口。

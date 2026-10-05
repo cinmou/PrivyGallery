@@ -50,7 +50,7 @@ struct AppInformationView: View {
                 )
                 guideRow(
                     title: String(localized: "屏幕隐私与录屏防窥"),
-                    detail: String(localized: "应用会自动监控系统行为，当你切换到多任务界面或回到桌面时，会自动显示隐私遮罩层。此外，开启屏幕隐私保护后，若系统检测到正在进行录屏或截屏，应用会在监测到的第一时间自动锁定，尽可能防止隐私内容被非法记录。")
+                    detail: String(localized: "切换到后台或多任务界面时，应用会遮挡内容；录屏或投屏期间也会隐藏内容。开启“侦测到截屏后锁定”后，应用会在收到截屏通知时锁定，已经保存的截图不会被撤回。")
                 )
                 guideRow(
                     title: String(localized: "高级数据保护"),

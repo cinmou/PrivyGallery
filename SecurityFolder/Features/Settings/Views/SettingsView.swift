@@ -22,7 +22,7 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKey.advancedDataProtectionEnabled)
     private var advancedDataProtectionEnabled = AppSettingsKey.defaultAdvancedDataProtectionEnabled
     @AppStorage(AppSettingsKey.screenPrivacyProtectionEnabled)
-    private var screenPrivacyProtectionEnabled = AppSettingsKey.defaultScreenPrivacyProtectionEnabled
+    private var lockAfterScreenshotEnabled = AppSettingsKey.defaultScreenPrivacyProtectionEnabled
     @AppStorage(AppSettingsKey.deleteImportedSystemAssetsAfterImport)
     private var deleteImportedSystemAssetsAfterImport = AppSettingsKey.defaultDeleteImportedSystemAssetsAfterImport
 
@@ -231,7 +231,7 @@ struct SettingsView: View {
             )
 
             SettingsPrivacySectionView(
-                screenPrivacyProtectionEnabled: $screenPrivacyProtectionEnabled,
+                lockAfterScreenshotEnabled: $lockAfterScreenshotEnabled,
                 deleteImportedSystemAssetsAfterImport: $deleteImportedSystemAssetsAfterImport,
                 advancedProtectionBinding: advancedProtectionBinding,
                 advancedProtectionEnabled: advancedDataProtectionEnabled,

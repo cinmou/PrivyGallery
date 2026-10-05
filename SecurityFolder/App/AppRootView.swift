@@ -4,62 +4,17 @@ import UIKit
 struct AppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var session: AppSessionViewModel
-    @State private var isScreenCaptured = UIScreen.main.isCaptured
 
     @AppStorage(AppSettingsKey.appTheme)
     private var appTheme = ThemeOption.system.rawValue
     @AppStorage(AppSettingsKey.screenPrivacyProtectionEnabled)
-    private var screenPrivacyProtectionEnabled = AppSettingsKey.defaultScreenPrivacyProtectionEnabled
+    private var lockAfterScreenshotEnabled = AppSettingsKey.defaultScreenPrivacyProtectionEnabled
 
     var body: some View {
-        ZStack {
-            rootContent
-
-            // 当 App 进入切后台 / 多任务切换时，先盖一层原生材质，
-            // 避免系统抓取到未锁定的媒体内容快照。
-            if session.isSnapshotObscured && session.isUnlocked {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .ignoresSafeArea()
-                    // Purely visual — must never consume touches so that
-                    // the lock screen below remains interactive.
-                    .allowsHitTesting(false)
-                    .overlay {
-                        VStack(spacing: 12) {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 28, weight: .semibold))
-                            Text(String(localized: "已锁定"))
-                                .font(.headline)
-                        }
-                        .foregroundStyle(.secondary)
-                        .allowsHitTesting(false)
-                    }
-            }
-
-            if shouldObscureForCapture {
-                Rectangle()
-                    .fill(.thickMaterial)
-                    .ignoresSafeArea()
-                    // Purely visual privacy screen — must never consume touches.
-                    // Without this, the material fill blocks all taps on every
-                    // screen (including locked/onboarding) on iOS 17 when
-                    // screen capture is active or isCaptured returns true.
-                    .allowsHitTesting(false)
-                    .overlay {
-                        VStack(spacing: 12) {
-                            Image(systemName: "record.circle")
-                                .font(.system(size: 28, weight: .semibold))
-                            Text(String(localized: "已隐藏内容"))
-                                .font(.headline)
-                            Text(String(localized: "检测到录屏或投屏，屏幕隐私保护已生效。"))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                        .allowsHitTesting(false)
-                    }
-            }
+        rootContent
+        .background {
+            ScreenPrivacyCover(session: session)
+                .frame(width: 0, height: 0)
         }
         .preferredColorScheme(ThemeOption(rawValue: appTheme)?.colorScheme)
         .overlay {
@@ -78,7 +33,6 @@ struct AppRootView: View {
             if newPhase == .active {
                 StoreKitManager.shared.activate()
             }
-            session.handleScenePhaseChange(isActive: newPhase == .active)
         }
         .task {
             StoreKitManager.shared.activate()
@@ -88,14 +42,8 @@ struct AppRootView: View {
             configureMacWindow()
         }
         #endif
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
-            session.handleDidEnterBackground()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIScreen.capturedDidChangeNotification)) { _ in
-            isScreenCaptured = UIScreen.main.isCaptured
-        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.userDidTakeScreenshotNotification)) { _ in
-            guard screenPrivacyProtectionEnabled else { return }
+            guard lockAfterScreenshotEnabled else { return }
             session.lock(withMessage: String(localized: "检测到截屏，应用已锁定。"))
         }
         #if targetEnvironment(macCatalyst)
@@ -160,10 +108,6 @@ struct AppRootView: View {
 
     private static var didSetInitialMacWindowSize = false
     #endif
-
-    private var shouldObscureForCapture: Bool {
-        screenPrivacyProtectionEnabled && isScreenCaptured
-    }
 
     #if targetEnvironment(macCatalyst)
     private var macUnlockPresentationBinding: Binding<Bool> {

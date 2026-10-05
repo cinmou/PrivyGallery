@@ -36,15 +36,12 @@ final class UnlockViewModel: ObservableObject {
     @Published var stage: UnlockStage = .locked
     @Published var onboardingBiometricsEnabled = AppSettingsKey.defaultBiometricUnlockEnabled
     @Published var errorMessage: String?
-    @Published var hasAttemptedAutomaticBiometricUnlock = false
 
     private(set) var recentPrimaryPasscode = ""
     private(set) var recentPrimaryKind: AppPasscodeKind = .fourDigits
 
     /// 根据当前会话状态，决定显示首次引导还是普通锁定页。
     func prepare(using session: AppSessionViewModel) {
-        hasAttemptedAutomaticBiometricUnlock = false
-
         if session.shouldRunPrimaryOnboarding {
             stage = .onboardingWelcome
             onboardingBiometricsEnabled = session.isBiometricUnlockEnabled
@@ -192,19 +189,15 @@ final class UnlockViewModel: ObservableObject {
     }
 
     func unlockWithBiometrics(using session: AppSessionViewModel, isAutomaticAttempt: Bool) {
-        switch session.unlockPrimaryWithBiometrics() {
-        case .success:
-            errorMessage = nil
-        case let .failure(message):
-            let shouldSuppress = isAutomaticAttempt
-                && session.consumeSuppressAutomaticBiometricErrors()
-                && isSilentBiometricFailureMessage(message)
-
-            session.recordBiometricFailure(message: message)
-
-            if shouldSuppress {
+        // This task belongs to the session request, not SwiftUI's changing task(id:).
+        Task { @MainActor in
+            guard let result = await session.unlockPrimaryWithBiometrics(isAutomaticAttempt: isAutomaticAttempt) else { return }
+            switch result {
+            case .success:
                 errorMessage = nil
-            } else {
+            case let .failure(message):
+                session.recordBiometricFailure(message: message)
+                // Cancellation leaves an explicit Face ID button and passcode fallback.
                 errorMessage = session.consumePendingUnlockMessage() ?? message
             }
         }
@@ -220,9 +213,5 @@ final class UnlockViewModel: ObservableObject {
         }
 
         return .fourDigits
-    }
-
-    private func isSilentBiometricFailureMessage(_ message: String) -> Bool {
-        message == String(localized: "生物识别已取消。")
     }
 }

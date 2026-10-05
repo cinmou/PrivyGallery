@@ -5,6 +5,8 @@ struct MediaPreviewView: View {
     let albumID: UUID
     let items: [VaultItem]
     let initialItemID: UUID
+    var photoTransitionSource: PhotoPreviewTransitionSource? = nil
+    var onDismissOverride: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var pendingDeletion: PendingPreviewDeletion?
@@ -16,13 +18,14 @@ struct MediaPreviewView: View {
             items: items,
             initialItemID: initialItemID,
             policy: .regular,
+            photoTransitionSource: photoTransitionSource,
             actions: MediaViewerActions(
                 exportURL: { item in viewModel.exportURL(for: item.id) },
                 showDetails: { item in detailItemID = item.id },
                 detailInfo: { item in viewModel.details(for: item.id) },
                 menuContent: { item in menuContent(for: item) }
             ),
-            onDismiss: { dismiss() }
+            onDismiss: { closePreview() }
         )
         .sheet(item: $albumSelectionItem) { item in
             AlbumSelectionSheet(viewModel: viewModel, currentAlbumID: albumID, selectedItemIDs: [item.id])
@@ -38,11 +41,15 @@ struct MediaPreviewView: View {
                 message: Text(pendingDeletion.message),
                 primaryButton: .destructive(Text(String(localized: "确认"))) {
                     viewModel.handleDeletion(of: pendingDeletion.itemID, from: albumID)
-                    dismiss()
+                    closePreview()
                 },
                 secondaryButton: .cancel()
             )
         }
+    }
+
+    private func closePreview() {
+        if let onDismissOverride { onDismissOverride() } else { dismiss() }
     }
 
     @ViewBuilder
@@ -56,7 +63,7 @@ struct MediaPreviewView: View {
         if currentAlbumKind == .trash {
             Button {
                 viewModel.restoreFromTrash(itemID: item.id)
-                dismiss()
+                closePreview()
             } label: {
                 Label(String(localized: "恢复"), systemImage: "arrow.uturn.backward")
             }
@@ -81,21 +88,21 @@ struct MediaPreviewView: View {
             if currentAlbumKind == .archive {
                 Button {
                     viewModel.unarchive(itemID: item.id)
-                    dismiss()
+                    closePreview()
                 } label: {
                     Label(String(localized: "放回"), systemImage: "arrow.uturn.backward.circle")
                 }
             } else if currentAlbumKind == .secureLibrary {
                 Button {
                     viewModel.removeFromStrongProtection(itemIDs: Set([item.id]))
-                    dismiss()
+                    closePreview()
                 } label: {
                     Label(String(localized: "移出强加密媒体库"), systemImage: "lock.open")
                 }
             } else if currentAlbumKind != .secureCustom {
                 Button {
                     viewModel.archive(itemIDs: Set([item.id]))
-                    dismiss()
+                    closePreview()
                 } label: {
                     Label(String(localized: "归档"), systemImage: "archivebox")
                 }

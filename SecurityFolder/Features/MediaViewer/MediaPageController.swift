@@ -14,6 +14,8 @@ struct VideoPlaybackState {
 
 final class MediaPageController: UIViewController {
     let item: VaultItem
+    var usesSystemPhotoDismissal = false
+    var initialPreviewImage: UIImage?
     var onTap: (() -> Void)?
     var onDismiss: (() -> Void)?
     var onPlaybackStateChanged: (() -> Void)?
@@ -104,10 +106,12 @@ final class MediaPageController: UIViewController {
         switch item.mediaKind {
         case .photo:
             let child = ImagePageController()
+            child.usesSystemDismissal = usesSystemPhotoDismissal
             child.onTap = onTap
             child.onDismiss = onDismiss
             embed(child)
             imageController = child
+            if let initialPreviewImage { child.setImage(initialPreviewImage) }
             loadTask = Task { [weak self, weak child] in
                 guard let self else { return }
                 do {
@@ -139,10 +143,12 @@ final class MediaPageController: UIViewController {
             }
         case .livePhoto:
             let child = LivePhotoPageController()
+            child.usesSystemDismissal = usesSystemPhotoDismissal
             child.onTap = onTap
             child.onDismiss = onDismiss
             embed(child)
             livePhotoController = child
+            if let initialPreviewImage { child.setFallbackImage(initialPreviewImage) }
             loadTask = Task { [weak self, weak child] in
                 guard let self else { return }
                 do {
@@ -218,6 +224,7 @@ final class MediaPageController: UIViewController {
 // MARK: - Live Photo page
 
 final class LivePhotoPageController: UIViewController {
+    var usesSystemDismissal = false
     var onTap: (() -> Void)?
     var onDismiss: (() -> Void)?
 
@@ -263,9 +270,11 @@ final class LivePhotoPageController: UIViewController {
         singleTap.require(toFail: longPress)
         view.addGestureRecognizer(singleTap)
 
-        let swipeDown = UISwipeGestureRecognizer(target: self, action: #selector(dismissGesture))
-        swipeDown.direction = .down
-        view.addGestureRecognizer(swipeDown)
+        if !usesSystemDismissal {
+            let swipeDown = UISwipeGestureRecognizer(target: self, action: #selector(dismissGesture))
+            swipeDown.direction = .down
+            view.addGestureRecognizer(swipeDown)
+        }
     }
 
     override func viewDidLayoutSubviews() {
@@ -367,6 +376,7 @@ private final class SecureMediaContentHostView: UIView {
 }
 
 final class ImagePageController: UIViewController, UIScrollViewDelegate {
+    var usesSystemDismissal = false
     var onTap: (() -> Void)?
     var onDismiss: (() -> Void)?
 
@@ -404,9 +414,11 @@ final class ImagePageController: UIViewController, UIScrollViewDelegate {
         let singleTap = UITapGestureRecognizer(target: self, action: #selector(singleTapped))
         singleTap.require(toFail: doubleTap)
         view.addGestureRecognizer(singleTap)
-        let swipeDown = UISwipeGestureRecognizer(target: self, action: #selector(dismissGesture))
-        swipeDown.direction = .down
-        view.addGestureRecognizer(swipeDown)
+        if !usesSystemDismissal {
+            let swipeDown = UISwipeGestureRecognizer(target: self, action: #selector(dismissGesture))
+            swipeDown.direction = .down
+            view.addGestureRecognizer(swipeDown)
+        }
     }
 
     override func viewDidLayoutSubviews() {
@@ -417,8 +429,11 @@ final class ImagePageController: UIViewController, UIScrollViewDelegate {
     }
 
     func setImage(_ image: UIImage) {
+        let keepZoom = imageView.image != nil && isZoomed
         spinner.stopAnimating()
         imageView.image = image
+        // Replacing the opening thumbnail with the full image must not undo a pinch.
+        guard !keepZoom else { return }
         imageView.frame = scrollView.bounds
         scrollView.zoomScale = 1
         #if targetEnvironment(macCatalyst)

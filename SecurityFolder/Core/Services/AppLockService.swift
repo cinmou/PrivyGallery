@@ -7,6 +7,11 @@ enum UnlockAttemptResult {
     case failure(message: String)
 }
 
+enum BiometricKeyResult {
+    case success(VaultSpaceKind, Data)
+    case failure(message: String)
+}
+
 enum PasscodeUpdateResult {
     case success
     case failure(message: String)
@@ -53,7 +58,7 @@ struct AppLockService {
         return defaults.string(forKey: key).flatMap(AppPasscodeKind.init(rawValue:)) ?? .fourDigits
     }
 
-    func unlockPrimaryWithBiometrics() -> UnlockAttemptResult {
+    func biometricKey(context: LAContext) async -> BiometricKeyResult {
         guard biometricUnlockEnabled else {
             return .failure(message: String(localized: "生物识别已在设置中关闭。"))
         }
@@ -70,12 +75,16 @@ struct AppLockService {
                 )
             }
 
-            try cryptoService.unlockWithBiometrics(space: targetSpace)
-            resetUnlockThrottle()
-            return .success(targetSpace)
+            let data = try await cryptoService.biometricKeyData(space: targetSpace, context: context)
+            return .success(targetSpace, data)
         } catch {
             return .failure(message: unlockErrorMessage(for: error))
         }
+    }
+
+    func activateBiometricKey(_ data: Data, for space: VaultSpaceKind) {
+        cryptoService.activateBiometricKey(data, for: space)
+        resetUnlockThrottle()
     }
 
     func validate(
@@ -314,19 +323,6 @@ struct AppLockService {
         deleteKeychainItem(account: unlockThrottleAccount)
     }
 
-    func authenticateOwner(reason: String, completion: @escaping (Bool) -> Void) {
-        let context = LAContext()
-        var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-            completion(false)
-            return
-        }
-
-        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, _ in
-            completion(success)
-        }
-    }
-    
     func wipeAllSecurityStateForTesting() {
         wipeAllSecurityState()
     }

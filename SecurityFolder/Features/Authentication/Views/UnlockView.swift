@@ -66,14 +66,12 @@ struct UnlockView: View {
                       session.isBiometricUnlockEnabled,
                       session.canAutomaticallyAttemptBiometricUnlock,
                       !session.requiresPasscodeAfterBiometricFailures,
-                      !viewModel.hasAttemptedAutomaticBiometricUnlock,
                       !viewModel.availableSpaces(using: session).isEmpty else {
                     return
                 }
 
-                // 热启动时给系统一点恢复时间，避免 scene 刚回到前台就立刻 evaluatePolicy，
-                // 导致 Face ID 还没准备好便直接返回失败。
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                // Let the lock screen finish mounting before requesting system authentication.
+                await Task.yield()
 
                 guard !Task.isCancelled,
                       viewModel.stage == .locked,
@@ -83,13 +81,10 @@ struct UnlockView: View {
                       session.isBiometricUnlockEnabled,
                       session.canAutomaticallyAttemptBiometricUnlock,
                       !session.requiresPasscodeAfterBiometricFailures,
-                      !viewModel.hasAttemptedAutomaticBiometricUnlock,
                       !viewModel.availableSpaces(using: session).isEmpty else {
                     return
                 }
 
-                viewModel.hasAttemptedAutomaticBiometricUnlock = true
-                session.markAutomaticBiometricUnlockAttempted()
                 viewModel.unlockWithBiometrics(using: session, isAutomaticAttempt: true)
             }
             .task(id: viewModel.stage == .onboardingComplete) {
@@ -631,7 +626,7 @@ struct UnlockView: View {
             unlockKind: unlockKind,
             unlockInput: $unlockInput,
             autoSubmitNumericPasscode: autoSubmitNumericPasscode,
-            isSubmittingUnlock: isSubmittingUnlock,
+            isSubmittingUnlock: isSubmittingUnlock || session.isAuthenticating,
             errorMessage: viewModel.errorMessage,
             lockoutMessage: lockoutMessage,
             expectedLength: expectedLength(for: unlockKind),
@@ -734,29 +729,20 @@ struct UnlockView: View {
     private func requestOnboardingBiometrics() {
         guard !isRequestingOnboardingBiometrics else { return }
 
-        let context = LAContext()
-        var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            viewModel.errorMessage = String.localizedStringWithFormat(String(localized: "%@ 验证失败，请继续使用密码解锁"), biometricDisplayName)
-            return
-        }
-
         isRequestingOnboardingBiometrics = true
-        context.evaluatePolicy(
-            .deviceOwnerAuthenticationWithBiometrics,
-            localizedReason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), biometricDisplayName)
-        ) { success, _ in
-            Task { @MainActor in
-                isRequestingOnboardingBiometrics = false
-                if success {
-                    performOnboardingStageChange(direction: .forward) {
-                        viewModel.finishBiometricOnboarding(enabled: true, using: session)
-                    }
-                } else {
-                    session.setBiometricUnlockEnabled(false)
-                    viewModel.onboardingBiometricsEnabled = false
-                    viewModel.errorMessage = String.localizedStringWithFormat(String(localized: "%@ 验证失败，请继续使用密码解锁"), biometricDisplayName)
+        session.authenticateOwner(
+            policy: .deviceOwnerAuthenticationWithBiometrics,
+            reason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), biometricDisplayName)
+        ) { success in
+            isRequestingOnboardingBiometrics = false
+            if success {
+                performOnboardingStageChange(direction: .forward) {
+                    viewModel.finishBiometricOnboarding(enabled: true, using: session)
                 }
+            } else {
+                session.setBiometricUnlockEnabled(false)
+                viewModel.onboardingBiometricsEnabled = false
+                viewModel.errorMessage = String.localizedStringWithFormat(String(localized: "%@ 验证失败，请继续使用密码解锁"), biometricDisplayName)
             }
         }
     }
@@ -913,7 +899,7 @@ private struct LockScreenContent: View {
                         textContentType: .password
                     )
                     .padding(.horizontal)
-                    .disabled(lockoutMessage != nil)
+                    .disabled(lockoutMessage != nil || isSubmittingUnlock)
                 } else {
                     NativeNumericPasscodeField(
                         title: "",
@@ -924,7 +910,7 @@ private struct LockScreenContent: View {
                         onCompleted: autoSubmitNumericPasscode ? { performUnlockWithIconAnimation() } : nil
                     )
                     .padding(.vertical, 8)
-                    .disabled(lockoutMessage != nil)
+                    .disabled(lockoutMessage != nil || isSubmittingUnlock)
                     
                 }
             }

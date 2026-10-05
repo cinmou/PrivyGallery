@@ -16461,78 +16461,78 @@
         }
       }
     },
-    "屏幕隐私保护" : {
+    "侦测到截屏后锁定" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Schutz der Privatsphäre des Bildschirms"
+            "value" : "Nach erkanntem Screenshot sperren"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Screen Privacy Protection"
+            "value" : "Lock After Screenshot Detection"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Screen Privacy Protection"
+            "value" : "Lock After Screenshot Detection"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Protección de la privacidad de la pantalla"
+            "value" : "Bloquear al detectar una captura"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Protection de la confidentialité de l'écran"
+            "value" : "Verrouiller après une capture d’écran"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Protezione della privacy dello schermo"
+            "value" : "Blocca dopo una cattura dello schermo"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "画面のプライバシー保護"
+            "value" : "スクリーンショット検出後にロック"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "화면 개인 정보 보호"
+            "value" : "스크린샷 감지 후 잠금"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Защита конфиденциальности экрана"
+            "value" : "Блокировать после снимка экрана"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "屏幕隐私保护"
+            "value" : "侦测到截屏后锁定"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "螢幕隱私保護"
+            "value" : "偵測到截圖後鎖定"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "螢幕隱私保護"
+            "value" : "偵測到截圖後鎖定"
           }
         }
       }
@@ -17221,78 +17221,78 @@
         }
       }
     },
-    "应用会自动监控系统行为，当你切换到多任务界面或回到桌面时，会自动显示隐私遮罩层。此外，开启屏幕隐私保护后，若系统检测到正在进行录屏或截屏，应用会在监测到的第一时间自动锁定，尽可能防止隐私内容被非法记录。" : {
+    "切换到后台或多任务界面时，应用会遮挡内容；录屏或投屏期间也会隐藏内容。开启“侦测到截屏后锁定”后，应用会在收到截屏通知时锁定，已经保存的截图不会被撤回。" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die App überwacht automatisch das Systemverhalten und zeigt automatisch die Privatsphärenmaske an, wenn Sie zur Multitasking-Oberfläche wechseln oder zum Desktop zurückkehren. Darüber hinaus wird die App nach dem Einschalten des Bildschirm-Datenschutzes automatisch gesperrt, wenn das System erkennt, dass Bildschirmaufzeichnungen oder Screenshots erstellt werden, sobald dies erkannt wird, um die illegale Aufzeichnung privater Inhalte so weit wie möglich zu verhindern."
+            "value" : "Beim Wechseln aus der App werden die Inhalte verdeckt. Bei Bildschirmaufnahme oder Bildschirmübertragung bleiben sie ausgeblendet. „Nach erkanntem Screenshot sperren“ sperrt die App nach einem Screenshot; der bereits gespeicherte Screenshot wird dadurch nicht entfernt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The app automatically monitors system state. When you switch to the app switcher or return to the Home Screen, it shows a privacy shield. If Screen Privacy Protection is enabled and iOS detects screen recording or screen capture, the app locks immediately to reduce the chance of private content being recorded."
+            "value" : "App content is covered when you leave the app and hidden during screen recording or mirroring. “Lock After Screenshot Detection” locks the app after a screenshot is taken; it does not remove the saved screenshot."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The app automatically monitors system state. When you switch to the app switcher or return to the Home Screen, it shows a privacy shield. If Screen Privacy Protection is enabled and iOS detects screen recording or screen capture, the app locks immediately to reduce the chance of private content being recorded."
+            "value" : "App content is covered when you leave the app and hidden during screen recording or mirroring. “Lock After Screenshot Detection” locks the app after a screenshot is taken; it does not remove the saved screenshot."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La aplicación monitorea automáticamente el comportamiento del sistema y muestra automáticamente la máscara de privacidad cuando cambia a la interfaz multitarea o regresa al escritorio. Además, después de activar la protección de privacidad de la pantalla, si el sistema detecta que se están tomando capturas de pantalla o capturas de pantalla, la aplicación se bloqueará automáticamente tan pronto como se detecte para evitar en la medida de lo posible que se grabe ilegalmente contenido privado."
+            "value" : "El contenido se cubre al salir de la app y se oculta durante la grabación o duplicación de pantalla. «Bloquear al detectar una captura» bloquea la app después de una captura; no elimina la captura guardada."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L'application surveille automatiquement le comportement du système et affiche automatiquement le masque de confidentialité lorsque vous passez à l'interface multitâche ou revenez au bureau. De plus, après avoir activé la protection de la confidentialité de l'écran, si le système détecte qu'un enregistrement d'écran ou des captures d'écran sont en cours, l'application se verrouille automatiquement dès qu'elle est détectée pour empêcher autant que possible l'enregistrement illégal de contenu privé."
+            "value" : "Le contenu est masqué lorsque vous quittez l’app et pendant l’enregistrement ou la recopie de l’écran. « Verrouiller après une capture d’écran » verrouille l’app après une capture ; la capture enregistrée reste disponible."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L'app monitora automaticamente il comportamento del sistema e visualizza automaticamente la maschera della privacy quando passi all'interfaccia multitasking o ritorni al desktop. Inoltre, dopo aver attivato la protezione della privacy dello schermo, se il sistema rileva la registrazione dello schermo o l'acquisizione di screenshot, l'app si bloccherà automaticamente non appena verrà rilevata per evitare il più possibile che i contenuti privati ​​vengano registrati illegalmente."
+            "value" : "Il contenuto viene coperto quando esci dall’app e nascosto durante la registrazione o duplicazione dello schermo. «Blocca dopo una cattura dello schermo» blocca l’app dopo una cattura; non elimina la cattura salvata."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "アプリはシステムの動作を自動的に監視し、マルチタスク インターフェイスに切り替えるかデスクトップに戻ると、プライバシー マスクを自動的に表示します。また、画面プライバシー保護をオンにした後、システムが画面録画やスクリーンショットの撮影を検知すると、検知次第アプリが自動的にロックされ、プライベートな内容が不正に記録されることを可能な限り防ぎます。"
+            "value" : "アプリを離れると内容を覆い、画面収録やミラーリング中は内容を非表示にします。「スクリーンショット検出後にロック」を有効にすると撮影後にアプリをロックします。保存済みのスクリーンショットは削除されません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "앱은 시스템 동작을 자동으로 모니터링하고 멀티태스킹 인터페이스로 전환하거나 데스크탑으로 돌아갈 때 자동으로 프라이버시 마스크를 표시합니다. 또한, 화면 개인 정보 보호 기능을 켠 후 시스템에서 화면 녹화 또는 스크린샷 촬영이 감지되는 경우 앱은 감지 즉시 자동으로 잠기므로 개인 콘텐츠가 불법적으로 녹화되는 것을 최대한 방지할 수 있습니다."
+            "value" : "앱을 나가면 내용을 가리고, 화면 녹화 또는 미러링 중에는 내용을 숨깁니다. “스크린샷 감지 후 잠금”을 켜면 촬영 후 앱이 잠깁니다. 이미 저장된 스크린샷은 삭제되지 않습니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Приложение автоматически отслеживает поведение системы и автоматически отображает маску конфиденциальности при переключении в многозадачный интерфейс или возврате на рабочий стол. Кроме того, если после включения защиты конфиденциальности экрана система обнаружит, что ведется запись экрана или снимки экрана, приложение автоматически заблокируется, как только это будет обнаружено, чтобы максимально предотвратить незаконную запись частного контента."
+            "value" : "При выходе из приложения содержимое закрывается, а при записи или трансляции экрана скрывается. «Блокировать после снимка экрана» блокирует приложение после снимка; сохранённый снимок не удаляется."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "应用会自动监控系统行为，当你切换到多任务界面或回到桌面时，会自动显示隐私遮罩层。此外，开启屏幕隐私保护后，若系统检测到正在进行录屏或截屏，应用会在监测到的第一时间自动锁定，尽可能防止隐私内容被非法记录。"
+            "value" : "切换到后台或多任务界面时，应用会遮挡内容；录屏或投屏期间也会隐藏内容。开启“侦测到截屏后锁定”后，应用会在收到截屏通知时锁定，已经保存的截图不会被撤回。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "應用會自動監控系統行為，當你切換到多任務介面或回到桌面時，會自動顯示隱私遮罩層。此外，開啟螢幕隱私保護後，若係統偵測到正在進行錄影或截圖，應用程式會在監測到的第一時間自動鎖定，盡可能防止隱私內容被非法記錄。"
+            "value" : "切換到背景或多工介面時，應用程式會遮擋內容；螢幕錄製或投放期間也會隱藏內容。開啟「偵測到截圖後鎖定」後，應用程式會在收到截圖通知時鎖定，已儲存的截圖不會被撤回。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "App會自動監控系統行為，當你切換到多任務介面或回到桌面時，會自動顯示隱私遮罩層。此外，開啟螢幕隱私保護後，若係統偵測到正在進行錄影或截圖，App會在監測到嘅第一時間自動鎖定，盡可能防止隱私內容被非法記錄。"
+            "value" : "切換到背景或多工介面時，應用程式會遮擋內容；螢幕錄製或投放期間也會隱藏內容。開啟「偵測到截圖後鎖定」後，應用程式會在收到截圖通知時鎖定，已儲存的截圖不會被撤回。"
           }
         }
       }
@@ -25583,78 +25583,78 @@
         }
       }
     },
-    "检测到录屏或投屏，屏幕隐私保护已生效。" : {
+    "检测到录屏或投屏，已隐藏应用内容。" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Es wurde eine Bildschirmaufzeichnung oder ein Screencasting erkannt und der Schutz der Privatsphäre des Bildschirms wurde wirksam."
+            "value" : "Bildschirmaufnahme oder Bildschirmübertragung erkannt. App-Inhalte sind ausgeblendet."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Screen recording or casting detected. Screen Privacy Protection activated."
+            "value" : "Screen recording or mirroring detected. App content is hidden."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Screen recording or casting detected. Screen Privacy Protection activated."
+            "value" : "Screen recording or mirroring detected. App content is hidden."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se ha detectado una grabación de pantalla o un screencasting y la protección de la privacidad de la pantalla ha entrado en vigor."
+            "value" : "Se detectó una grabación o duplicación de pantalla. El contenido está oculto."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L'enregistrement ou la diffusion d'écran a été détecté et la protection de la confidentialité de l'écran a pris effet."
+            "value" : "Enregistrement ou recopie de l’écran détecté. Le contenu est masqué."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "È stata rilevata la registrazione o lo screencasting dello schermo e la protezione della privacy dello schermo è entrata in vigore."
+            "value" : "Registrazione o duplicazione dello schermo rilevata. Il contenuto è nascosto."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "画面録画またはスクリーンキャストが検出され、画面プライバシー保護が有効になりました。"
+            "value" : "画面収録またはミラーリングを検出したため、内容を非表示にしました。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "화면 녹화 또는 화면 전송이 감지되어 화면 개인 정보 보호가 적용되었습니다."
+            "value" : "화면 녹화 또는 미러링이 감지되어 앱 내용을 숨겼습니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Обнаружена запись или трансляция экрана, и вступила в силу защита конфиденциальности экрана."
+            "value" : "Обнаружена запись или трансляция экрана. Содержимое скрыто."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "检测到录屏或投屏，屏幕隐私保护已生效。"
+            "value" : "检测到录屏或投屏，已隐藏应用内容。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "偵測到錄影畫面或投影螢幕，螢幕隱私保護已生效。"
+            "value" : "偵測到螢幕錄製或投放，已隱藏應用程式內容。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "偵測到錄影畫面或投影螢幕，螢幕隱私保護已生效。"
+            "value" : "偵測到螢幕錄製或投放，已隱藏應用程式內容。"
           }
         }
       }

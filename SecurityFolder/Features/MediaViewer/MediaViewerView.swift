@@ -5,6 +5,7 @@ struct MediaViewerView<MenuContent: View>: View {
     let items: [VaultItem]
     let initialItemID: UUID
     let policy: MediaViewerSecurePolicy
+    let photoTransitionSource: PhotoPreviewTransitionSource?
     let actions: MediaViewerActions<MenuContent>
     let onDismiss: () -> Void
 
@@ -12,12 +13,14 @@ struct MediaViewerView<MenuContent: View>: View {
         items: [VaultItem],
         initialItemID: UUID,
         policy: MediaViewerSecurePolicy,
+        photoTransitionSource: PhotoPreviewTransitionSource? = nil,
         actions: MediaViewerActions<MenuContent>,
         onDismiss: @escaping () -> Void
     ) {
         self.items = items
         self.initialItemID = initialItemID
         self.policy = policy
+        self.photoTransitionSource = photoTransitionSource
         self.actions = actions
         self.onDismiss = onDismiss
     }
@@ -39,6 +42,7 @@ struct MediaViewerView<MenuContent: View>: View {
                     items: items,
                     initialItemID: initialItemID,
                     provider: PlainMediaAssetProvider(),
+                    photoTransitionSource: photoTransitionSource,
                     onDismiss: onDismiss,
                     onShowDetails: actions.showDetails,
                     detailInfo: actions.detailInfo,
@@ -58,6 +62,7 @@ private struct UIKitMediaViewerRepresentable: UIViewControllerRepresentable {
     let items: [VaultItem]
     let initialItemID: UUID
     let provider: MediaAssetProvider
+    let photoTransitionSource: PhotoPreviewTransitionSource?
     let onDismiss: () -> Void
     let onShowDetails: (VaultItem) -> Void
     let detailInfo: (VaultItem) -> MediaItemDetailInfo?
@@ -65,6 +70,8 @@ private struct UIKitMediaViewerRepresentable: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> MediaViewerController {
         let controller = MediaViewerController(items: items, initialItemID: initialItemID, provider: provider)
+        controller.photoTransitionSource = photoTransitionSource
+        photoTransitionSource?.canBeginInteractiveDismiss = { [weak controller] in controller?.canInteractivelyDismissPhoto == true }
         controller.onDismiss = onDismiss
         controller.onShowDetails = onShowDetails
         controller.detailInfo = detailInfo

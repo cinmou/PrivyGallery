@@ -39,6 +39,8 @@ struct AlbumDetailView: View {
     @State private var showingAlbumPicker = false
     @State private var showingCustomSort = false
     @State private var previewSelection: PreviewSelection?
+    @State private var photoPreviewItemID: UUID?
+    @State private var photoTransitionSource = PhotoPreviewTransitionSource()
     @State private var shareURLs: [URL] = []
     @State private var showingShareSheet = false
     @State private var pendingOperation: PendingMediaOperation?
@@ -203,6 +205,19 @@ struct AlbumDetailView: View {
         .sheet(isPresented: importProgressSheetBinding) {
             mediaImportProgressSheet
         }
+        .background {
+            PhotoPreviewPresentation(itemID: $photoPreviewItemID, source: photoTransitionSource) { itemID, close in
+                MediaPreviewView(
+                    viewModel: viewModel,
+                    albumID: albumID,
+                    items: viewModel.mediaItems(for: albumID),
+                    initialItemID: itemID,
+                    photoTransitionSource: photoTransitionSource,
+                    onDismissOverride: close
+                )
+            }
+            .frame(width: 0, height: 0)
+        }
         .fullScreenCover(item: $previewSelection) { selection in
             let previewItems = viewModel.mediaItems(for: albumID)
             if albumKind?.isSecure == true, let selectedItem = previewItems.first(where: { $0.id == selection.id }) {
@@ -356,13 +371,26 @@ struct AlbumDetailView: View {
             contentInsetBottom: selectionBottomInset,
             renderToken: viewModel.mediaPresentationRevision,
             currentAlbumID: albumID,
+            photoTransitionSource: photoTransitionSource,
+            allItems: { [viewModel, albumID] in viewModel.mediaItems(for: albumID) },
+            onRevealItems: { [limit = $visibleItemLimit] requiredCount in
+                limit.wrappedValue = max(limit.wrappedValue, requiredCount)
+            },
             selectedItemIDs: selectedItemIDs,
             isSelecting: isSelecting,
             onReachEnd: { item in
                 loadMoreItemsIfNeeded(currentItem: item, displayedItems: items, totalItemCount: totalItemCount)
             },
             onOpenItem: { itemID in
+                #if targetEnvironment(macCatalyst)
                 previewSelection = PreviewSelection(id: itemID)
+                #else
+                if let item = items.first(where: { $0.id == itemID }), item.mediaKind != .video {
+                    photoPreviewItemID = itemID
+                } else {
+                    previewSelection = PreviewSelection(id: itemID)
+                }
+                #endif
             },
             onSelectionChanged: { nextSelection in
                 selectedItemIDs = nextSelection
@@ -804,6 +832,7 @@ struct AlbumDetailView: View {
 
     private func enterSelectionMode() {
         previewSelection = nil
+        photoPreviewItemID = nil
         detailItemID = nil
         pendingOperation = nil
         isSelecting = true
@@ -811,6 +840,7 @@ struct AlbumDetailView: View {
 
     private func enterSelectionMode(selecting itemID: UUID) {
         previewSelection = nil
+        photoPreviewItemID = nil
         detailItemID = nil
         pendingOperation = nil
         selectedItemIDs = [itemID]
@@ -1766,6 +1796,9 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
     let contentInsetBottom: CGFloat
     let renderToken: Int
     let currentAlbumID: UUID
+    let photoTransitionSource: PhotoPreviewTransitionSource
+    let allItems: () -> [VaultItem]
+    let onRevealItems: (Int) -> Void
     let selectedItemIDs: Set<UUID>
     let isSelecting: Bool
     let onReachEnd: (VaultItem) -> Void
@@ -1802,6 +1835,7 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
         controller.footerText = footerText
         controller.onContextMenuForItem = onContextMenuForItem
         controller.onDragItem = onDragItem
+        configureTransitionSource(controller)
         controller.onColumnCountChanged = { nextValue in
             DispatchQueue.main.async {
                 context.coordinator.columnCount.wrappedValue = nextValue
@@ -1831,6 +1865,7 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
         controller.footerText = footerText
         controller.onContextMenuForItem = onContextMenuForItem
         controller.onDragItem = onDragItem
+        configureTransitionSource(controller)
         controller.onColumnCountChanged = { nextValue in
             DispatchQueue.main.async {
                 context.coordinator.columnCount.wrappedValue = nextValue
@@ -1842,6 +1877,25 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
             MediaPerformanceLog.mark("grid.selection.reconfigure.request", "previousSelected=\(previousSelectedItemIDs.count) selected=\(selectedItemIDs.count)")
             #endif
             controller.reconfigureSelectionChanges(from: previousSelectedItemIDs, previousIsSelecting: previousIsSelecting)
+        }
+    }
+
+    private func configureTransitionSource(_ controller: ZoomableMediaGridViewController) {
+        let allItems = allItems
+        let onRevealItems = onRevealItems
+        photoTransitionSource.thumbnailView = { [weak controller] itemID, reveal in
+            guard let controller else { return nil }
+            // The preview can page beyond the grid's first loaded batch. Reveal its
+            // destination synchronously so UIKit can find a real return thumbnail.
+            if reveal, !controller.items.contains(where: { $0.id == itemID }) {
+                let availableItems = allItems()
+                guard let index = availableItems.firstIndex(where: { $0.id == itemID }) else { return nil }
+                let requiredCount = max(controller.items.count, index + 1)
+                onRevealItems(requiredCount)
+                controller.items = Array(availableItems.prefix(requiredCount))
+                controller.reloadKeepingPositionIfNeeded()
+            }
+            return controller.thumbnailView(for: itemID, revealIfNeeded: reveal)
         }
     }
 
@@ -2043,6 +2097,16 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
         #endif
         scheduleResumeThumbnailLoadingAfterScrollSettles()
         return true
+    }
+
+    func thumbnailView(for itemID: UUID, revealIfNeeded: Bool) -> UIView? {
+        guard let index = items.firstIndex(where: { $0.id == itemID }) else { return nil }
+        let indexPath = IndexPath(item: index, section: 0)
+        if revealIfNeeded, collectionView.cellForItem(at: indexPath) == nil {
+            collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            collectionView.layoutIfNeeded()
+        }
+        return (collectionView.cellForItem(at: indexPath) as? MediaGridCell)?.transitionThumbnailView
     }
 
     func reconfigureSelectionChanges(from previousSelectedItemIDs: Set<UUID>, previousIsSelecting: Bool) {
@@ -2849,6 +2913,7 @@ extension ZoomableMediaGridViewController: UICollectionViewDragDelegate {
 #endif
 
 private final class MediaGridCell: UICollectionViewCell {
+    var transitionThumbnailView: UIView { thumbnailImageView }
     private let thumbnailImageView: UIImageView = {
         let v = UIImageView()
         v.contentMode = .scaleAspectFill

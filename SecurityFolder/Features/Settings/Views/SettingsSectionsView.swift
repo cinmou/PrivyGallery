@@ -41,7 +41,7 @@ struct SettingsPreferencesSectionView: View {
 /// 设置首页的“隐私与安全”分组。
 /// 这里把开关和入口按钮拆出来后，主设置页就不需要继续堆一大段行内 UI 代码。
 struct SettingsPrivacySectionView: View {
-    @Binding var screenPrivacyProtectionEnabled: Bool
+    @Binding var lockAfterScreenshotEnabled: Bool
     @Binding var deleteImportedSystemAssetsAfterImport: Bool
     let advancedProtectionBinding: Binding<Bool>
     let advancedProtectionEnabled: Bool
@@ -52,7 +52,7 @@ struct SettingsPrivacySectionView: View {
 
     var body: some View {
         Section {
-            Toggle(String(localized: "屏幕隐私保护"), isOn: $screenPrivacyProtectionEnabled)
+            Toggle(String(localized: "侦测到截屏后锁定"), isOn: $lockAfterScreenshotEnabled)
             Toggle(String(localized: "导入后删除"), isOn: $deleteImportedSystemAssetsAfterImport)
 
             if canUseAdvancedProtection {
