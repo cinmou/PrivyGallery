@@ -1,3 +1,5 @@
+> 历史评审材料，归档于 2026-10-21。本文保留当时的设计目标、讨论和待确认事项，不能作为当前行为的依据。现行说明见[备份与恢复](../backup-and-restore.md)和[格式规范](../vault-format.md)。
+
 # PrivyGallery Import / Export Technical Review
 
 This document describes the intended import and export behavior for PrivyGallery’s `.vault` backup feature, the current technical design, and the functional/security requirements that should be reviewed before the feature is finalized.

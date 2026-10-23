@@ -19,6 +19,7 @@ private struct LibraryTabContent: View {
     @AppStorage(AppSettingsKey.lockButtonHintShown) private var lockButtonHintShown = false
     @StateObject private var viewModel: MediaLibraryViewModel
     @ObservedObject var session: AppSessionViewModel
+    @State private var hasDeviceHinge = false
     @State private var showingLockHint = false
     @State private var lastContentTab: AppTab = .media
 
@@ -33,6 +34,7 @@ private struct LibraryTabContent: View {
 
     var body: some View {
         tabContainer
+            .modifier(DeviceHingeObserver(hasDeviceHinge: $hasDeviceHinge))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea(.keyboard, edges: .bottom)
         .onChange(of: session.selectedTab) { _, _ in
@@ -71,7 +73,9 @@ private struct LibraryTabContent: View {
 
     @ViewBuilder
     private var tabContainer: some View {
-        if usesPadSidebarLayout {
+        if hasDeviceHinge {
+            baseTabView
+        } else if usesPadSidebarLayout {
             largePadContentView
         } else {
             // 普通尺寸设备继续交给系统原生 TabView。
@@ -83,6 +87,7 @@ private struct LibraryTabContent: View {
         MediaLibraryView(
             viewModel: viewModel,
             adaptiveLayoutMode: adaptiveLayoutMode,
+            hasDeviceHinge: hasDeviceHinge,
             onOpenSettings: macOpenSettingsAction,
             embeddedSettingsView: AnyView(
                 SettingsView(
@@ -95,7 +100,18 @@ private struct LibraryTabContent: View {
 
     private var baseTabView: some View {
         TabView(selection: $session.selectedTab) {
-            MediaLibraryView(viewModel: viewModel, adaptiveLayoutMode: adaptiveLayoutMode)
+            MediaLibraryView(
+                viewModel: viewModel,
+                adaptiveLayoutMode: adaptiveLayoutMode,
+                hasDeviceHinge: hasDeviceHinge,
+                embeddedSettingsView: hasDeviceHinge ? AnyView(
+                    SettingsView(
+                        settingsViewModel: SettingsViewModel(space: viewModel.space),
+                        session: session
+                    )
+                ) : nil
+            )
+                .toolbar(hasDeviceHinge && usesPadSidebarLayout ? .hidden : .automatic, for: .tabBar)
                 .tabItem { Label(AppTab.media.title, systemImage: AppTab.media.systemImage) }
                 .tag(AppTab.media)
 
@@ -142,7 +158,7 @@ private struct LibraryTabContent: View {
                 session: session
             )
         case .lock, .media:
-            MediaLibraryView(viewModel: viewModel, adaptiveLayoutMode: adaptiveLayoutMode)
+            MediaLibraryView(viewModel: viewModel, adaptiveLayoutMode: adaptiveLayoutMode, hasDeviceHinge: hasDeviceHinge)
         }
     }
 
@@ -155,7 +171,7 @@ private struct LibraryTabContent: View {
     }
 
     private var adaptiveLayoutMode: AdaptiveLayoutMode {
-        AdaptiveLayoutMode.resolve(horizontalSizeClass: horizontalSizeClass)
+        AdaptiveLayoutMode.resolve(horizontalSizeClass: horizontalSizeClass, hasDeviceHinge: hasDeviceHinge)
     }
 
     private var macOpenSettingsAction: (() -> Void)? {

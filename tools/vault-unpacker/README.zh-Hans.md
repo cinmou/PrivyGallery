@@ -17,7 +17,7 @@
 
 ## 安装 / 构建
 
-你需要 [Go](https://go.dev/dl/) 1.24+ 以及一个 C 编译器（LZFSE 解压使用的是 Apple 的参考
+你需要 [Go](https://go.dev/dl/) 1.26.4+ 以及一个 C 编译器（LZFSE 解压使用的是 Apple 的参考
 实现，通过 cgo 调用）：
 
 - **macOS：** `xcode-select --install`（提供 clang）
@@ -83,7 +83,7 @@ vault-unpacker -l "PrivyGallery Backup.vault"
 
 本工具正是反向执行这一流程。权威的逐字节布局存在于源码中——见
 [`vault.go`](vault.go)，其常量与读取器与 App 的 `VaultExportService` 完全对应。
-逐字节的格式说明见 [`Materials/docs/vault-format.md`](../../Materials/docs/vault-format.md)。
+逐字节的格式说明见 [`docs/vault-format.md`](../../docs/vault-format.md)。
 
 ## 测试
 

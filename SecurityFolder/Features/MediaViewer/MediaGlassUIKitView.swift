@@ -179,7 +179,7 @@ final class MediaGlassView: UIView {
     }
 }
 
-final class MediaGlassIconButton: UIButton {
+class MediaGlassIconButton: UIButton {
     private let glassView = MediaGlassView()
     private var highlightedScale: CGFloat = 0.92
 
@@ -212,6 +212,11 @@ final class MediaGlassIconButton: UIButton {
 
     override var isHighlighted: Bool {
         didSet {
+            guard !UIAccessibility.isReduceMotionEnabled else {
+                transform = .identity
+                alpha = isHighlighted ? 0.82 : 1
+                return
+            }
             UIView.animate(withDuration: 0.12, delay: 0, options: [.allowUserInteraction, .curveEaseOut]) {
                 self.transform = self.isHighlighted ? CGAffineTransform(scaleX: self.highlightedScale, y: self.highlightedScale) : .identity
                 self.alpha = self.isHighlighted ? 0.82 : 1
@@ -254,7 +259,7 @@ final class MediaGlassLabel: UIView {
         clipsToBounds = false
         label.textColor = .white
         label.textAlignment = .center
-        label.adjustsFontForContentSizeCategory = false
+        label.adjustsFontForContentSizeCategory = true
         label.layer.zPosition = 1
     }
 
@@ -269,5 +274,10 @@ final class MediaGlassLabel: UIView {
         label.frame = bounds
         // The rate label must stay above the glass background; effect views can otherwise cover drawn text.
         bringSubviewToFront(label)
+    }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        let textSize = label.sizeThatFits(size)
+        return CGSize(width: max(44, textSize.width + 24), height: max(44, textSize.height + 16))
     }
 }

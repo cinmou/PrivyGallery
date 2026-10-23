@@ -6,6 +6,7 @@ struct MediaPreviewView: View {
     let items: [VaultItem]
     let initialItemID: UUID
     var photoTransitionSource: PhotoPreviewTransitionSource? = nil
+    var closesAfterMutation = false
     var onDismissOverride: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
@@ -27,6 +28,11 @@ struct MediaPreviewView: View {
             ),
             onDismiss: { closePreview() }
         )
+        .onChange(of: viewModel.mediaPresentationRevision) { _, _ in
+            // Search previews retain a result snapshot. Return to the updated results
+            // after mutations instead of paging through items that no longer match.
+            if closesAfterMutation { closePreview() }
+        }
         .sheet(item: $albumSelectionItem) { item in
             AlbumSelectionSheet(viewModel: viewModel, currentAlbumID: albumID, selectedItemIDs: [item.id])
         }
@@ -39,7 +45,7 @@ struct MediaPreviewView: View {
             Alert(
                 title: Text(pendingDeletion.title),
                 message: Text(pendingDeletion.message),
-                primaryButton: .destructive(Text(String(localized: "确认"))) {
+                primaryButton: .destructive(Text(pendingDeletion.confirmTitle)) {
                     viewModel.handleDeletion(of: pendingDeletion.itemID, from: albumID)
                     closePreview()
                 },
@@ -154,26 +160,32 @@ struct MediaPreviewView: View {
     private func requestDeletion(for item: VaultItem) {
         let title: String
         let message: String
+        let confirmTitle: String
 
         switch currentAlbumKind {
         case .trash:
+            confirmTitle = String(localized: "永久删除")
             title = String(localized: "彻底删除？")
             message = String(localized: "这个项目将被永久删除，无法从回收站恢复。")
         case .custom:
+            confirmTitle = String(localized: "移出相册")
             title = String(localized: "移出相册？")
             message = String(localized: "这个项目只会从当前相册移出，不会删除原始媒体。")
         case .secureLibrary:
+            confirmTitle = String(localized: "移出强加密媒体库")
             title = String(localized: "移出强加密媒体库？")
             message = String(localized: "这个项目会关闭强加密保护，并回到普通媒体库。")
         case .secureCustom:
+            confirmTitle = String(localized: "移出相册")
             title = String(localized: "移出相册？")
             message = String(localized: "这个项目只会从当前强加密相册移出，但仍保留在强加密媒体库中。")
         default:
+            confirmTitle = String(localized: "移到回收站")
             title = String(localized: "移到回收站？")
             message = String(localized: "这个项目会被放入回收站，可以稍后恢复。")
         }
 
-        pendingDeletion = PendingPreviewDeletion(itemID: item.id, title: title, message: message)
+        pendingDeletion = PendingPreviewDeletion(itemID: item.id, title: title, message: message, confirmTitle: confirmTitle)
     }
 }
 
@@ -182,4 +194,5 @@ private struct PendingPreviewDeletion: Identifiable {
     let itemID: UUID
     let title: String
     let message: String
+    let confirmTitle: String
 }

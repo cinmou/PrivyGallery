@@ -42,7 +42,7 @@ PrivyGallery implements real, local privacy features built on Apple's system
 cryptography (`CryptoKit`, the Keychain, and Secure-Enclave-backed biometrics). It
 has **not** undergone a formal third-party security audit. The cryptographic design
 and the `.vault` format are intentionally **open and documented** so they can be
-reviewed — see [`Materials/docs/vault-format.md`](Materials/docs/vault-format.md).
+reviewed — see [`docs/vault-format.md`](docs/vault-format.md).
 
 ---
 
@@ -86,7 +86,7 @@ reviewed — see [`Materials/docs/vault-format.md`](Materials/docs/vault-format.
 PrivyGallery 基于 Apple 的系统加密能力（`CryptoKit`、钥匙串，以及基于安全隔区的
 生物识别）实现了真实的本地隐私保护。它**尚未**经过正式的第三方安全审计。其加密设计
 与 `.vault` 格式有意保持**公开且有文档**，以便接受审查——见
-[`Materials/docs/vault-format.md`](Materials/docs/vault-format.md)。
+[`docs/vault-format.md`](docs/vault-format.md)。
 
 ---
 
@@ -130,4 +130,4 @@ PrivyGallery 基于 Apple 的系统加密能力（`CryptoKit`、钥匙串，以�
 PrivyGallery 以 Apple 的系統加密能力（`CryptoKit`、鑰匙圈，以及基於安全隔離區的
 生物辨識）實作了真實的本機隱私保護。它**尚未**經過正式的第三方安全性稽核。其加密設計
 與 `.vault` 格式刻意保持**公開且具文件**，以便接受審查——見
-[`Materials/docs/vault-format.md`](Materials/docs/vault-format.md)。
+[`docs/vault-format.md`](docs/vault-format.md)。

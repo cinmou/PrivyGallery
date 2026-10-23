@@ -36,7 +36,7 @@ struct SecureMediaPreviewView: View {
             Alert(
                 title: Text(pendingDeletion.title),
                 message: Text(pendingDeletion.message),
-                primaryButton: .destructive(Text(String(localized: "确认"))) {
+                primaryButton: .destructive(Text(pendingDeletion.confirmTitle)) {
                     viewModel.handleDeletion(of: pendingDeletion.itemID, from: albumID)
                     dismiss()
                 },
@@ -106,20 +106,24 @@ struct SecureMediaPreviewView: View {
     private func requestDeletion(for item: VaultItem) {
         let title: String
         let message: String
+        let confirmTitle: String
 
         switch currentAlbumKind {
         case .secureLibrary:
+            confirmTitle = String(localized: "移出强加密媒体库")
             title = String(localized: "移出强加密媒体库？")
             message = String(localized: "这个项目会回到普通媒体库。")
         case .secureCustom:
+            confirmTitle = String(localized: "移出相册")
             title = String(localized: "移出相册？")
             message = String(localized: "这个项目会从当前相册移出，但仍保留在强加密媒体库中。")
         default:
+            confirmTitle = String(localized: "删除")
             title = String(localized: "删除？")
             message = String(localized: "这个项目会被删除。")
         }
 
-        pendingDeletion = PendingSecurePreviewDeletion(itemID: item.id, title: title, message: message)
+        pendingDeletion = PendingSecurePreviewDeletion(itemID: item.id, title: title, message: message, confirmTitle: confirmTitle)
     }
 }
 
@@ -128,4 +132,5 @@ private struct PendingSecurePreviewDeletion: Identifiable {
     let itemID: UUID
     let title: String
     let message: String
+    let confirmTitle: String
 }

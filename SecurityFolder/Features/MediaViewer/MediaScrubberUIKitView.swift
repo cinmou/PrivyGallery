@@ -16,8 +16,6 @@ final class MediaScrubberUIKitView: UIView {
     private let trackView = UIView()
     private let bufferView = UIView()
     private let progressView = UIView()
-    private let collapsedTrack = UIView()
-    private let collapsedProgress = UIView()
     private lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
 
     private var duration: Double = 0
@@ -39,7 +37,7 @@ final class MediaScrubberUIKitView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func update(currentTime: Double, duration: Double, bufferedTime: Double, collapsed: Bool, animated: Bool) {
+    func update(currentTime: Double, duration: Double, bufferedTime: Double) {
         isProgrammaticUpdate = true
         defer { isProgrammaticUpdate = false }
         if !isScrubbing {
@@ -47,39 +45,54 @@ final class MediaScrubberUIKitView: UIView {
         }
         self.duration = max(duration, 0)
         self.bufferedTime = max(bufferedTime, 0)
+        let previousHeight = preferredHeight(for: bounds.width)
         currentLabel.text = Self.timeString(self.currentTime)
         durationLabel.text = self.duration > 0 ? Self.timeString(self.duration) : "--:--"
-        setCollapsed(collapsed, animated: animated)
         setNeedsLayout()
+        if preferredHeight(for: bounds.width) != previousHeight { superview?.setNeedsLayout() }
+    }
+
+    private var timeLabelWidth: CGFloat {
+        max(54, currentLabel.intrinsicContentSize.width, durationLabel.intrinsicContentSize.width)
+    }
+
+    private func stacksTimes(for width: CGFloat) -> Bool { width < timeLabelWidth * 2 + 28 + 16 + 60 }
+
+    func preferredHeight(for width: CGFloat) -> CGFloat {
+        let line = max(currentLabel.font.lineHeight, durationLabel.font.lineHeight)
+        return stacksTimes(for: width) ? max(64, line * 2 + 32) : max(44, line + 20)
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let fullHeight: CGFloat = 44
-        glassContainer.frame = CGRect(x: 0, y: 0, width: bounds.width, height: fullHeight)
+        let fullHeight = bounds.height
+        glassContainer.frame = bounds
         glassView.frame = glassContainer.bounds
-        glassView.update(cornerRadius: fullHeight / 2, isDark: true, tintStyle: .panel, isInteractive: allowsSeeking)
-
-        let labelWidth: CGFloat = 54
-        currentLabel.frame = CGRect(x: 14, y: 0, width: labelWidth, height: fullHeight)
-        durationLabel.frame = CGRect(x: bounds.width - labelWidth - 14, y: 0, width: labelWidth, height: fullHeight)
-
-        let trackX = currentLabel.frame.maxX + 8
-        let trackWidth = max(1, durationLabel.frame.minX - trackX - 8)
-        trackView.frame = CGRect(x: trackX, y: (fullHeight - 6) / 2, width: trackWidth, height: 6)
+        glassView.update(cornerRadius: min(22, fullHeight / 2), isDark: true, tintStyle: .panel, isInteractive: allowsSeeking)
+        if stacksTimes(for: bounds.width) {
+            let line = max(currentLabel.font.lineHeight, durationLabel.font.lineHeight)
+            let labelWidth = max(0, bounds.width - 28)
+            currentLabel.frame = CGRect(x: 14, y: 8, width: labelWidth, height: line)
+            durationLabel.frame = CGRect(x: 14, y: 10 + line, width: labelWidth, height: line)
+            durationLabel.textAlignment = .left
+            trackView.frame = CGRect(x: 14, y: max(0, fullHeight - 16), width: labelWidth, height: 6)
+        } else {
+            let width = timeLabelWidth
+            currentLabel.frame = CGRect(x: 14, y: 0, width: width, height: fullHeight)
+            durationLabel.frame = CGRect(x: bounds.width - width - 14, y: 0, width: width, height: fullHeight)
+            durationLabel.textAlignment = .right
+            let trackX = currentLabel.frame.maxX + 8
+            trackView.frame = CGRect(x: trackX, y: (fullHeight - 6) / 2,
+                                     width: max(0, durationLabel.frame.minX - trackX - 8), height: 6)
+        }
         trackView.layer.cornerRadius = 3
         bufferView.frame = progressFrame(maxTime: bufferedTime, in: trackView.bounds)
         progressView.frame = progressFrame(maxTime: currentTime, in: trackView.bounds)
-
-        collapsedTrack.frame = CGRect(x: 16, y: bounds.height - 4, width: bounds.width - 32, height: 2)
-        collapsedProgress.frame = progressFrame(maxTime: currentTime, in: collapsedTrack.bounds)
     }
 
     private func setup() {
         addSubview(glassContainer)
         glassContainer.contentView.addSubview(glassView)
-        addSubview(collapsedTrack)
-        collapsedTrack.addSubview(collapsedProgress)
         glassView.contentView.addSubview(currentLabel)
         glassView.contentView.addSubview(durationLabel)
         glassView.contentView.addSubview(trackView)
@@ -89,33 +102,16 @@ final class MediaScrubberUIKitView: UIView {
 
         [currentLabel, durationLabel].forEach {
             $0.textColor = .white
-            $0.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+            $0.font = UIFontMetrics(forTextStyle: .caption1).scaledFont(for: .monospacedDigitSystemFont(ofSize: 12, weight: .medium))
+            $0.adjustsFontForContentSizeCategory = true
         }
         durationLabel.textAlignment = .right
         trackView.backgroundColor = UIColor.white.withAlphaComponent(0.28)
         bufferView.backgroundColor = UIColor.white.withAlphaComponent(0.36)
         progressView.backgroundColor = .white
-        collapsedTrack.backgroundColor = UIColor.white.withAlphaComponent(0.22)
-        collapsedProgress.backgroundColor = .white
-        [trackView, bufferView, progressView, collapsedTrack, collapsedProgress].forEach {
+        [trackView, bufferView, progressView].forEach {
             $0.layer.masksToBounds = true
             $0.layer.cornerRadius = max(1, $0.bounds.height / 2)
-        }
-        collapsedTrack.alpha = 0
-        collapsedProgress.alpha = 0
-    }
-
-    private func setCollapsed(_ collapsed: Bool, animated: Bool) {
-        let changes = {
-            self.glassContainer.alpha = collapsed ? 0 : 1
-            self.glassContainer.transform = collapsed ? CGAffineTransform(translationX: 0, y: 12).scaledBy(x: 0.98, y: 0.98) : .identity
-            self.collapsedTrack.alpha = 0
-            self.collapsedProgress.alpha = 0
-        }
-        if animated {
-            UIView.animate(withDuration: 0.24, delay: 0, options: [.curveEaseInOut, .allowUserInteraction], animations: changes)
-        } else {
-            changes()
         }
     }
 

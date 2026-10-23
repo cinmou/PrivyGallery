@@ -22,9 +22,10 @@ final class MediaViewerController: UIViewController {
     private let topOverlay = MediaTopOverlayView()
     private let bottomScrubber = MediaScrubberUIKitView()
     private let playbackControls = UIStackView()
-    private let rewindButton = MediaGlassIconButton(frame: .zero)
-    private let centerButton = MediaGlassIconButton(frame: .zero)
-    private let forwardButton = MediaGlassIconButton(frame: .zero)
+    private var playbackSizeConstraints: [ObjectIdentifier: [NSLayoutConstraint]] = [:]
+    private let rewindButton = MediaPlaybackButton(kind: .backward)
+    private let centerButton = MediaPlaybackButton(kind: .playPause)
+    private let forwardButton = MediaPlaybackButton(kind: .forward)
     private let rateButton = MediaGlassIconButton(frame: .zero)
     private let fastForwardLabel = MediaGlassLabel()
     private let detailBackdrop = UIControl()
@@ -82,6 +83,9 @@ final class MediaViewerController: UIViewController {
         configureGestures()
         configureCaptureProtectionIfNeeded()
         showInitialPage()
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (controller: MediaViewerController, _: UITraitCollection) in
+            controller.view.setNeedsLayout()
+        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -147,9 +151,9 @@ final class MediaViewerController: UIViewController {
         playbackControls.addArrangedSubview(centerButton)
         playbackControls.addArrangedSubview(forwardButton)
 
-        configurePlaybackButton(rewindButton, systemImage: "gobackward.15", size: 70, pointSize: 31)
-        configurePlaybackButton(centerButton, systemImage: "play.fill", size: 96, pointSize: 44)
-        configurePlaybackButton(forwardButton, systemImage: "goforward.15", size: 70, pointSize: 31)
+        configurePlaybackButton(rewindButton, size: 64, pointSize: 34)
+        configurePlaybackButton(centerButton, size: 92, pointSize: 40)
+        configurePlaybackButton(forwardButton, size: 64, pointSize: 34)
         rewindButton.addTarget(self, action: #selector(rewindTapped), for: .touchUpInside)
         forwardButton.addTarget(self, action: #selector(forwardTapped), for: .touchUpInside)
         centerButton.addTarget(self, action: #selector(centerButtonTapped), for: .touchUpInside)
@@ -158,14 +162,15 @@ final class MediaViewerController: UIViewController {
 
         centerButton.tintColor = .white
         rateButton.tintColor = .white
-        rateButton.titleLabel?.font = .monospacedDigitSystemFont(ofSize: 14, weight: .semibold)
+        rateButton.titleLabel?.font = UIFontMetrics(forTextStyle: .subheadline).scaledFont(for: .monospacedDigitSystemFont(ofSize: 14, weight: .semibold))
+        rateButton.titleLabel?.adjustsFontForContentSizeCategory = true
         rateButton.setTitle("1x", for: .normal)
         rateButton.accessibilityLabel = String(localized: "倍速")
         rateButton.addTarget(self, action: #selector(rateTapped), for: .touchUpInside)
 
         fastForwardLabel.text = "2x"
         fastForwardLabel.textColor = .white
-        fastForwardLabel.font = .monospacedDigitSystemFont(ofSize: 17, weight: .semibold)
+        fastForwardLabel.font = UIFontMetrics(forTextStyle: .body).scaledFont(for: .monospacedDigitSystemFont(ofSize: 17, weight: .semibold))
         fastForwardLabel.textAlignment = .center
         fastForwardLabel.alpha = 0
         fastForwardLabel.layer.shadowColor = UIColor.black.cgColor
@@ -246,44 +251,59 @@ final class MediaViewerController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let safe = view.safeAreaInsets
-        topOverlay.frame = CGRect(x: 12, y: safe.top + 8, width: view.bounds.width - 24, height: 48)
-        // Position the Live Photo badge directly below the close button (top-left),
-        // aligned with the left edge of the top overlay.
-        livePhotoBadge.frame = CGRect(x: 12, y: topOverlay.frame.maxY + 8, width: 36, height: 36)
-        rateButton.frame = CGRect(x: 14 + safe.left, y: view.bounds.height - safe.bottom - 60, width: 64, height: 42)
-        bottomScrubber.frame = CGRect(x: rateButton.frame.maxX + 10, y: view.bounds.height - safe.bottom - 61, width: view.bounds.width - rateButton.frame.maxX - safe.right - 24, height: 50)
-        // Keep the center play/pause button square so the glass background remains a true circle in both layouts.
-        let controlsWidth: CGFloat = provider.supportsSecureSeeking ? 304 : 96
-        playbackControls.frame = CGRect(x: (view.bounds.width - controlsWidth) / 2, y: (view.bounds.height - 96) / 2, width: controlsWidth, height: 96)
-        fastForwardLabel.frame = CGRect(x: view.bounds.width - safe.right - 82, y: safe.top + 64, width: 66, height: 40)
+        let area = view.bounds.inset(by: view.safeAreaInsets)
+        let rateText = rateButton.titleLabel?.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)) ?? .zero
+        let rateSize = CGSize(width: max(64, rateText.width + 24), height: max(44, rateText.height + 18))
+        let rowTimelineWidth = area.width - 24 - rateSize.width - 10
+        let timelineWidth = rowTimelineWidth >= 120 ? rowTimelineWidth : max(0, area.width - 24)
+        let layout = MediaViewerOverlayLayout(
+            safeArea: area, topHeight: topOverlay.preferredHeight,
+            rateSize: rateSize, scrubberHeight: bottomScrubber.preferredHeight(for: timelineWidth),
+            showsPlayback: currentPage?.item.mediaKind == .video, allowsSeeking: provider.supportsSecureSeeking
+        )
+        topOverlay.frame = layout.top
+        livePhotoBadge.frame = CGRect(x: layout.top.minX, y: layout.top.maxY + 8, width: 36, height: 36)
+        // Bounds and center remain stable while controls are animated with transforms.
+        rateButton.bounds.size = layout.rate.size
+        rateButton.center = CGPoint(x: layout.rate.midX, y: layout.rate.midY)
+        bottomScrubber.bounds.size = layout.scrubber.size
+        bottomScrubber.center = CGPoint(x: layout.scrubber.midX, y: layout.scrubber.midY)
+        playbackControls.spacing = layout.buttonSpacing
+        for (button, side) in [(centerButton, layout.centerButtonSide), (rewindButton, layout.skipButtonSide), (forwardButton, layout.skipButtonSide)] {
+            let constraints = playbackSizeConstraints[ObjectIdentifier(button)] ?? []
+            if constraints.first?.constant != side {
+                constraints.forEach { $0.constant = side }
+                button.setIconPointSize(min(button === centerButton ? 40 : 34, side * 0.55))
+            }
+        }
+        playbackControls.bounds.size = layout.playback.size
+        playbackControls.center = CGPoint(x: layout.playback.midX, y: layout.playback.midY)
+        let badgeSize = fastForwardLabel.sizeThatFits(area.size)
+        fastForwardLabel.frame = CGRect(x: area.maxX - badgeSize.width - 12, y: layout.top.maxY + 8,
+                                       width: badgeSize.width, height: badgeSize.height)
         detailBackdrop.frame = view.bounds
         privacyOverlay.frame = view.bounds
-        let panelWidth = min(view.bounds.width - 32, 430)
-        let panelHeight = min(view.bounds.height - safe.top - safe.bottom - 80, 460)
-        detailPanel.frame = CGRect(
-            x: (view.bounds.width - panelWidth) / 2,
-            y: view.bounds.height - safe.bottom - panelHeight - 20,
-            width: panelWidth,
-            height: panelHeight
-        )
+        detailPanel.bounds.size = layout.detail.size
+        detailPanel.center = CGPoint(x: layout.detail.midX, y: layout.detail.midY)
     }
 
-    private func configurePlaybackButton(_ button: UIButton, systemImage: String, size: CGFloat, pointSize: CGFloat) {
+    private func configurePlaybackButton(_ button: MediaPlaybackButton, size: CGFloat, pointSize: CGFloat) {
+        button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = .white
         button.backgroundColor = .clear
-        button.setImage(UIImage(systemName: systemImage), for: .normal)
-        button.setPreferredSymbolConfiguration(.init(pointSize: pointSize, weight: .semibold), forImageIn: .normal)
+        button.setIconPointSize(pointSize)
         button.imageView?.contentMode = .center
         button.contentHorizontalAlignment = .center
         button.contentVerticalAlignment = .center
-        button.setContentHuggingPriority(.required, for: .horizontal)
-        button.setContentHuggingPriority(.required, for: .vertical)
+        button.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        button.setContentHuggingPriority(.defaultHigh, for: .vertical)
         button.setContentCompressionResistancePriority(.required, for: .horizontal)
         button.setContentCompressionResistancePriority(.required, for: .vertical)
-        button.widthAnchor.constraint(equalToConstant: size).isActive = true
-        button.heightAnchor.constraint(equalToConstant: size).isActive = true
-        button.widthAnchor.constraint(equalTo: button.heightAnchor).isActive = true
+        let constraints = [button.widthAnchor.constraint(equalToConstant: size), button.heightAnchor.constraint(equalToConstant: size)]
+        // UIStackView sets the width to zero when secure playback hides skip controls.
+        constraints[0].priority = UILayoutPriority(999)
+        NSLayoutConstraint.activate(constraints)
+        playbackSizeConstraints[ObjectIdentifier(button)] = constraints
     }
 
     private func showInitialPage() {
@@ -382,26 +402,17 @@ final class MediaViewerController: UIViewController {
         rateButton.isHidden = !isVideo
         rewindButton.isHidden = !provider.supportsSecureSeeking
         forwardButton.isHidden = !provider.supportsSecureSeeking
-        let centerImage = state.didFinish ? "arrow.clockwise" : (state.isPlaying ? "pause.fill" : "play.fill")
-        centerButton.setImage(UIImage(systemName: centerImage), for: .normal)
-        centerButton.accessibilityLabel = state.isPlaying ? String(localized: "暂停") : String(localized: "播放")
+        centerButton.updatePlayback(isPlaying: state.isPlaying, didFinish: state.didFinish,
+                                    animated: controlsVisible && view.window != nil)
         rateButton.setTitle(rateTitle(state.playbackRate), for: .normal)
         bottomScrubber.isHidden = !isVideo
         if !bottomScrubber.isTrackingUserScrub {
             bottomScrubber.update(
                 currentTime: state.currentTime,
                 duration: state.duration,
-                bufferedTime: state.bufferedTime,
-                collapsed: !controlsVisible,
-                animated: true
+                bufferedTime: state.bufferedTime
             )
         }
-        let shouldShowPlaybackControls = isVideo && controlsVisible
-        playbackControls.alpha = shouldShowPlaybackControls ? 1 : 0
-        rateButton.alpha = shouldShowPlaybackControls ? 1 : 0
-        playbackControls.transform = shouldShowPlaybackControls ? .identity : CGAffineTransform(scaleX: 0.86, y: 0.86)
-        rateButton.transform = shouldShowPlaybackControls ? .identity : CGAffineTransform(translationX: 0, y: 6)
-
         guard scheduleAutoHide else { return }
         scheduleHideControlsIfNeeded(reset: false)
     }
@@ -434,19 +445,25 @@ final class MediaViewerController: UIViewController {
 
     private func renderControlsVisibility(animated: Bool) {
         let visible = controlsVisible
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
+        playbackControls.isUserInteractionEnabled = visible
+        playbackControls.accessibilityElementsHidden = !visible
         let showBadge = visible && isLivePhotoItem(currentPage?.item)
+        let footerTransform = visible || reduceMotion ? CGAffineTransform.identity : CGAffineTransform(translationX: 0, y: 6)
         let changes = {
             self.topOverlay.alpha = visible ? 1 : 0
-            self.bottomScrubber.alpha = visible ? 1 : 0
             self.playbackControls.alpha = visible ? 1 : 0
-            self.rateButton.alpha = visible ? 1 : 0
+            for footer in [self.bottomScrubber, self.rateButton] as [UIView] {
+                footer.alpha = visible ? 1 : 0
+                footer.transform = footerTransform
+            }
             self.livePhotoBadge.alpha = showBadge ? 1 : 0
-            self.bottomScrubber.transform = visible ? .identity : CGAffineTransform(translationX: 0, y: 8)
-            self.playbackControls.transform = visible ? .identity : CGAffineTransform(scaleX: 0.86, y: 0.86)
-            self.rateButton.transform = visible ? .identity : CGAffineTransform(translationX: 0, y: 6)
+            self.playbackControls.transform = visible || reduceMotion ? .identity : CGAffineTransform(scaleX: 0.86, y: 0.86)
         }
         if animated {
-            UIView.animate(withDuration: 0.24, delay: 0, options: [.curveEaseInOut, .allowUserInteraction], animations: changes)
+            UIView.animate(withDuration: reduceMotion ? 0.15 : 0.25, delay: 0,
+                           usingSpringWithDamping: 0.9, initialSpringVelocity: 0,
+                           options: [.beginFromCurrentState, .allowUserInteraction], animations: changes)
         } else {
             changes()
         }
@@ -552,11 +569,13 @@ final class MediaViewerController: UIViewController {
 
     @objc private func rewindTapped() {
         currentPage?.skip(by: -15)
+        rewindButton.animateSeek()
         showControls(lock: false)
     }
 
     @objc private func forwardTapped() {
         currentPage?.skip(by: 15)
+        forwardButton.animateSeek()
         showControls(lock: false)
     }
 
@@ -777,29 +796,38 @@ final class MediaTopOverlayView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    var preferredHeight: CGFloat {
+        let subtitleHeight = subtitleLabel.isHidden ? 0 : subtitleLabel.font.lineHeight + 2
+        return max(48, titleLabel.font.lineHeight + subtitleHeight + 12)
+    }
+
     func update(title: String, subtitle: String?) {
         titleLabel.text = title
         subtitleLabel.text = subtitle
         subtitleLabel.isHidden = subtitle == nil
         setNeedsLayout()
+        superview?.setNeedsLayout()
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let buttonSize: CGFloat = min(44, bounds.height)
+        let buttonSize: CGFloat = 44
         closeButton.frame = CGRect(x: 0, y: (bounds.height - buttonSize) / 2, width: buttonSize, height: buttonSize)
         moreButton.frame = CGRect(x: bounds.width - buttonSize, y: (bounds.height - buttonSize) / 2, width: buttonSize, height: buttonSize)
 
-        let spacing: CGFloat = 12
-        let maxTitleWidth = max(120, bounds.width - buttonSize * 2 - spacing * 4)
+        let maxTitleWidth = max(0, bounds.width - buttonSize * 2 - 24)
         let titleWidth = min(maxTitleWidth, max(150, intrinsicTitleWidth + 28))
-        titleContainer.frame = CGRect(x: (bounds.width - titleWidth) / 2, y: (bounds.height - 44) / 2, width: titleWidth, height: 44)
+        titleContainer.frame = CGRect(x: (bounds.width - titleWidth) / 2, y: 0, width: titleWidth, height: bounds.height)
         titleGlassView.frame = titleContainer.bounds
-        titleGlassView.update(cornerRadius: 22, isDark: true, tintStyle: .panel, isInteractive: false)
+        titleGlassView.update(cornerRadius: bounds.height / 2, isDark: true, tintStyle: .panel, isInteractive: false)
 
-        let labelFrame = CGRect(x: 14, y: 4, width: titleContainer.bounds.width - 28, height: titleContainer.bounds.height - 8)
-        titleLabel.frame = subtitleLabel.isHidden ? labelFrame : CGRect(x: labelFrame.minX, y: 5, width: labelFrame.width, height: 21)
-        subtitleLabel.frame = CGRect(x: labelFrame.minX, y: 25, width: labelFrame.width, height: 16)
+        let textWidth = max(0, titleWidth - 28)
+        let subtitleHeight = subtitleLabel.isHidden ? 0 : subtitleLabel.font.lineHeight
+        let spacing: CGFloat = subtitleLabel.isHidden ? 0 : 2
+        let textHeight = titleLabel.font.lineHeight + spacing + subtitleHeight
+        let textY = (bounds.height - textHeight) / 2
+        titleLabel.frame = CGRect(x: 14, y: textY, width: textWidth, height: titleLabel.font.lineHeight)
+        subtitleLabel.frame = CGRect(x: 14, y: titleLabel.frame.maxY + spacing, width: textWidth, height: subtitleHeight)
     }
 
     private func setup() {
@@ -815,11 +843,13 @@ final class MediaTopOverlayView: UIView {
         moreButton.accessibilityLabel = String(localized: "更多")
         [closeButton, moreButton].forEach { $0.tintColor = .white }
         titleLabel.textColor = .white
-        titleLabel.font = .systemFont(ofSize: 14, weight: .semibold)
+        titleLabel.font = UIFontMetrics(forTextStyle: .subheadline).scaledFont(for: .systemFont(ofSize: 14, weight: .semibold))
+        titleLabel.adjustsFontForContentSizeCategory = true
         titleLabel.textAlignment = .center
         titleLabel.lineBreakMode = .byTruncatingMiddle
         subtitleLabel.textColor = UIColor.white.withAlphaComponent(0.7)
-        subtitleLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+        subtitleLabel.font = UIFontMetrics(forTextStyle: .caption2).scaledFont(for: .monospacedDigitSystemFont(ofSize: 11, weight: .medium))
+        subtitleLabel.adjustsFontForContentSizeCategory = true
         subtitleLabel.textAlignment = .center
     }
 
@@ -833,8 +863,10 @@ final class MediaTopOverlayView: UIView {
 final class MediaDetailPanelView: UIView {
     private let glassContainer = MediaGlassContainerView()
     private let glassView = MediaGlassView()
+    private let scrollView = UIScrollView()
     private let titleLabel = UILabel()
     private let stackView = UIStackView()
+    private var rows: [UIStackView] = []
     private let byteFormatter = ByteCountFormatter()
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -848,31 +880,24 @@ final class MediaDetailPanelView: UIView {
         setup()
     }
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func configure(with detail: MediaItemDetailInfo) {
         titleLabel.text = detail.title
-        stackView.arrangedSubviews.forEach { view in
-            stackView.removeArrangedSubview(view)
-            view.removeFromSuperview()
-        }
-
+        rows.forEach { row in stackView.removeArrangedSubview(row); row.removeFromSuperview() }
+        rows.removeAll()
+        scrollView.setContentOffset(.zero, animated: false)
         addRow(title: String(localized: "类型"), value: detail.mediaKindTitle)
         addRow(title: String(localized: "文件名"), value: detail.originalFilename)
         addRow(title: String(localized: "文件类型"), value: detail.contentTypeIdentifier)
         addRow(title: String(localized: "大小"), value: byteFormatter.string(fromByteCount: detail.byteCount))
         addRow(title: String(localized: "导入时间"), value: dateFormatter.string(from: detail.importedAt))
-        if let originalCapturedAt = detail.originalCapturedAt {
-            addRow(title: String(localized: "拍摄时间"), value: dateFormatter.string(from: originalCapturedAt))
-        }
-        if let lastExportedAt = detail.lastExportedAt {
-            addRow(title: String(localized: "上次导出"), value: dateFormatter.string(from: lastExportedAt))
-        }
+        if let date = detail.originalCapturedAt { addRow(title: String(localized: "拍摄时间"), value: dateFormatter.string(from: date)) }
+        if let date = detail.lastExportedAt { addRow(title: String(localized: "上次导出"), value: dateFormatter.string(from: date)) }
         if let latitude = detail.locationLatitude, let longitude = detail.locationLongitude {
             addRow(title: String(localized: "位置"), value: "\(latitude), \(longitude)")
         }
+        setNeedsLayout()
     }
 
     override func layoutSubviews() {
@@ -880,9 +905,12 @@ final class MediaDetailPanelView: UIView {
         glassContainer.frame = bounds
         glassView.frame = glassContainer.bounds
         glassView.update(cornerRadius: 28, isDark: true, tintStyle: .panel, isInteractive: true)
-        let inset: CGFloat = 22
-        titleLabel.frame = CGRect(x: inset, y: 20, width: bounds.width - inset * 2, height: 34)
-        stackView.frame = CGRect(x: inset, y: titleLabel.frame.maxY + 18, width: bounds.width - inset * 2, height: bounds.height - titleLabel.frame.maxY - 36)
+        let stacksVertically = traitCollection.preferredContentSizeCategory.isAccessibilityCategory || bounds.width < 350
+        for row in rows {
+            row.axis = stacksVertically ? .vertical : .horizontal
+            row.alignment = stacksVertically ? .fill : .firstBaseline
+            row.spacing = stacksVertically ? 4 : 14
+        }
     }
 
     private func setup() {
@@ -895,36 +923,55 @@ final class MediaDetailPanelView: UIView {
         byteFormatter.countStyle = .file
         addSubview(glassContainer)
         glassContainer.contentView.addSubview(glassView)
-        glassView.contentView.addSubview(titleLabel)
-        glassView.contentView.addSubview(stackView)
+        glassView.contentView.addSubview(scrollView)
+        scrollView.addSubview(stackView)
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            scrollView.leadingAnchor.constraint(equalTo: glassView.contentView.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: glassView.contentView.trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: glassView.contentView.topAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: glassView.contentView.bottomAnchor),
+            stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 22),
+            stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -22),
+            stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 20),
+            stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -20),
+            stackView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -44)
+        ])
+        scrollView.alwaysBounceVertical = true
         titleLabel.textColor = .white
-        titleLabel.font = .systemFont(ofSize: 21, weight: .semibold)
+        titleLabel.font = .preferredFont(forTextStyle: .title2)
+        titleLabel.adjustsFontForContentSizeCategory = true
         titleLabel.textAlignment = .center
-        titleLabel.lineBreakMode = .byTruncatingMiddle
+        titleLabel.numberOfLines = 0
         stackView.axis = .vertical
         stackView.spacing = 14
         stackView.alignment = .fill
-        stackView.distribution = .fill
+        stackView.addArrangedSubview(titleLabel)
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (panel: MediaDetailPanelView, _: UITraitCollection) in
+            panel.setNeedsLayout()
+        }
     }
 
     private func addRow(title: String, value: String) {
         let row = UIStackView()
-        row.axis = .horizontal
-        row.alignment = .firstBaseline
-        row.spacing = 14
-        let titleLabel = UILabel()
-        titleLabel.text = title
-        titleLabel.textColor = UIColor.white.withAlphaComponent(0.68)
-        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
-        titleLabel.widthAnchor.constraint(equalToConstant: 104).isActive = true
+        let nameLabel = UILabel()
+        nameLabel.text = title
+        nameLabel.textColor = UIColor.white.withAlphaComponent(0.68)
+        nameLabel.font = .preferredFont(forTextStyle: .subheadline)
+        nameLabel.adjustsFontForContentSizeCategory = true
+        nameLabel.numberOfLines = 0
+        nameLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        nameLabel.setContentCompressionResistancePriority(UILayoutPriority(751), for: .horizontal)
         let valueLabel = UILabel()
         valueLabel.text = value
         valueLabel.textColor = .white
-        valueLabel.font = .systemFont(ofSize: 15, weight: .regular)
-        valueLabel.numberOfLines = 3
-        valueLabel.lineBreakMode = .byTruncatingMiddle
-        row.addArrangedSubview(titleLabel)
+        valueLabel.font = .preferredFont(forTextStyle: .subheadline)
+        valueLabel.adjustsFontForContentSizeCategory = true
+        valueLabel.numberOfLines = 0
+        row.addArrangedSubview(nameLabel)
         row.addArrangedSubview(valueLabel)
+        rows.append(row)
         stackView.addArrangedSubview(row)
     }
 }

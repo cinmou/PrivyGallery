@@ -147,7 +147,7 @@ struct SettingsView: View {
             } message: {
                 Text(String(localized: "请输入生成该备份文件时设置的导出密码。备份内容会恢复到当前空间，并与现有内容合并。"))
             }
-            .alert(String(localized: "启用高级数据保护？"), isPresented: $showingAdvancedProtectionAlert) {
+            .alert(String(localized: "启用安全预览模式？"), isPresented: $showingAdvancedProtectionAlert) {
                 Button(String(localized: "取消"), role: .cancel) {}
                 Button(String(localized: "启用"), role: .destructive) {
                     MediaThumbnailService.shared.clearCache()
@@ -709,7 +709,7 @@ struct SettingsView: View {
     }
 
     private var advancedProtectionFooterText: String {
-        String(localized: "开启高级数据保护后，强加密媒体会使用更严格的预览链路；普通媒体库仍会正常显示缩略图和预览。")
+        String(localized: "安全预览模式通过独立的内存解密链路预览受保护媒体；普通媒体库仍会正常显示缩略图和预览。")
     }
 
 

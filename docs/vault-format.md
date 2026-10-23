@@ -1,6 +1,6 @@
 # PrivyGallery `.vault` 备份格式
 
-本文档描述 `VaultExportService` / `VaultImportService` 当前读写的 `.vault` 格式，供跨平台解析或恢复工具参考。参考实现见 [`tools/vault-unpacker/vault.go`](../../tools/vault-unpacker/vault.go)。
+本文档描述 `VaultExportService` / `VaultImportService` 当前读写的 `.vault` 格式，供跨平台解析或恢复工具参考。参考实现见 [`tools/vault-unpacker/vault.go`](../tools/vault-unpacker/vault.go)。
 
 ## 1. 概览
 
@@ -208,14 +208,4 @@ blob 内的数据已是 **明文原始文件**（导出时已从 App 内部加�
 4. 校验 `SVAR` 和版本 `1`，读取 manifest。
 5. 依次读取 blob，按 codec 解压拼接；根据 `sourceDomain` 和清单决定输出文件名。
 
-## 9. App 本地密码验证（不属于 `.vault` 格式）
-
-这部分描述 App 如何验证空间密码，便于调试解锁流程。
-
-- 每个空间有一个随机的 256-bit 主密钥（DEK），媒体文件和加密元数据都用它按块 AES-GCM 加密。
-- 设置密码时，App 用 `SHA256("SecurityFolder|{space}|{passcode}")` 作为包裹密钥，对 DEK 做 AES-GCM 包裹。
-  - 包裹结果存入钥匙串的 `space.{space}.wrapped.key`，访问级别为 `WhenUnlockedThisDeviceOnly`。
-- 验证密码 = 用输入的密码派生包裹密钥，看能否解开 wrapped key。App 不保存明文密码。
-- Face ID / Touch ID 解锁读取的是另一份受 `biometryCurrentSet` 保护的 DEK 副本。
-- 修改密码只重新包裹 DEK，不重新加密媒体。
-- 胁迫密码存储的是 `SHA256("SecurityFolder.Coercion|{passcode}")` 摘要；输入匹配时立即执行紧急清空。
+App 本地空间密码与密钥管理见[认证与隐私](auth-and-privacy.md)。

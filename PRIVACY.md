@@ -21,8 +21,9 @@ device. There is no account, no server, and no analytics SDK.
   the app's sandbox.
 - Encryption keys are protected by your passcode and (optionally) biometrics via the
   iOS Keychain.
-- Backups (`.vault` files) are created **only** when you explicitly export them, and
-  they go wherever you choose to save or share them.
+- Backups (`.vault` files) are created only when you request them and are first
+  stored inside the app. You can then save or share them to a location you choose.
+  Copies inside the app remain until you delete them; uninstalling the app removes them.
 
 ## Device permissions
 
@@ -73,7 +74,7 @@ PrivyGallery 的设计理念是**本地优先**。你的媒体与元数据都保
 
 - 导入的照片和视频会在**设备本地加密**（AES-GCM），并存放在 App 的沙盒内。
 - 加密密钥由你的密码以及（可选的）生物识别通过 iOS 钥匙串保护。
-- 备份（`.vault` 文件）**仅**在你主动导出时才会生成，并保存到你选择的任意位置。
+- 备份（`.vault` 文件）仅在你主动创建时生成，先保存在应用内，再由你另存或分享至选择的位置。应用内副本会保留到你主动删除；卸载应用也会删除这些副本。
 
 ## 设备权限
 
@@ -122,7 +123,7 @@ PrivyGallery 的設計理念是**本機優先**。你的媒體與中繼資料都
 
 - 匯入的照片和影片會在**裝置本機加密**（AES-GCM），並存放在 App 的沙盒內。
 - 加密金鑰由你的密碼以及（可選的）生物辨識透過 iOS 鑰匙圈保護。
-- 備份（`.vault` 檔案）**僅**在你主動匯出時才會產生，並儲存到你選擇的任意位置。
+- 備份（`.vault` 檔案）僅在你主動建立時產生，先儲存在應用程式內，再由你另存或分享至選擇的位置。應用程式內的副本會保留到你主動刪除；解除安裝也會刪除這些副本。
 
 ## 裝置權限
 

@@ -29,7 +29,7 @@ enum VaultFileStorageError: LocalizedError {
         case .unreadableData:
             return String(localized: "无法读取导入的文件数据。")
         case .advancedDataProtectionEnabled:
-            return String(localized: "高级数据保护已开启，应用不会生成任何临时解密文件。")
+            return String(localized: "安全预览模式已开启，受保护媒体不提供临时解密文件。")
         }
     }
 }

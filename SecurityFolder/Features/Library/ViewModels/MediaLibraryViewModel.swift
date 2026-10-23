@@ -208,6 +208,42 @@ final class MediaLibraryViewModel: ObservableObject {
         albums.first(where: { $0.id == id })
     }
 
+    // Search only decrypted metadata in the current space. No persistent search index.
+    func searchItems(query: MediaSearchQuery, albumID: UUID, wholeSpace: Bool) async -> [VaultItem] {
+        let candidates: [VaultItem]
+        if wholeSpace {
+            candidates = items.filter {
+                $0.space == space && !$0.isInTrash && !$0.isArchived && !$0.isStrongProtected
+            }
+        } else {
+            candidates = mediaItems(for: albumID).filter { $0.space == space }
+        }
+        let documents = candidates.map {
+            MediaSearchDocument(id: $0.id, name: $0.name, filename: $0.originalFilename,
+                                kindRawValue: $0.mediaKindRawValue, capturedAt: $0.originalCapturedAt,
+                                importedAt: $0.importedAt)
+        }
+        let worker = Task.detached(priority: .userInitiated) {
+            MediaSearchDocument.matchingIDs(in: documents, query: query, newestImportFirst: wholeSpace)
+        }
+        let ids = await withTaskCancellationHandler {
+            await worker.value
+        } onCancel: {
+            worker.cancel()
+        }
+        guard !Task.isCancelled else { return [] }
+        let byID = Dictionary(uniqueKeysWithValues: candidates.map { ($0.id, $0) })
+        return ids.compactMap { byID[$0] }
+    }
+
+    func searchAlbums(text: String) -> [VaultAlbum] {
+        let needle = MediaSearchQuery.normalize(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !needle.isEmpty else { return [] }
+        return albums.filter {
+            $0.space == space && $0.kind == .custom && MediaSearchQuery.normalize($0.name).contains(needle)
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
     func mediaItems(for albumID: UUID) -> [VaultItem] {
         guard let album = album(for: albumID) else { return [] }
         return items(for: album)
@@ -1123,10 +1159,7 @@ final class MediaLibraryViewModel: ObservableObject {
 
         for (index, pickerAsset) in pickerAssets.enumerated() {
             try Task.checkCancellation()
-            let fallbackName = String.localizedStringWithFormat(
-                String(localized: "导入媒体%lld"),
-                nextImportedMediaNumber
-            )
+            let fallbackName = "Imported Media \(nextImportedMediaNumber)"
             nextImportedMediaNumber += 1
             updateImportProgress(
                 title: String(localized: "正在加密导入"),
@@ -1632,7 +1665,7 @@ final class MediaLibraryViewModel: ObservableObject {
     }
 
     private func nextImportedMediaOrdinal() -> Int {
-        let prefix = String(localized: "导入媒体")
+        let prefix = "Imported Media "
         let ordinals = items.compactMap { item -> Int? in
             guard item.name.hasPrefix(prefix) else { return nil }
             let suffix = item.name.dropFirst(prefix.count)

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs><mask id="album" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><path d="M 268,198 H 756 A 88,88 0 0 1 844,286 V 670 A 88,88 0 0 1 756,758 H 268 A 88,88 0 0 1 180,670 V 286 A 88,88 0 0 1 268,198 Z" fill="white"/><path d="M 362,700 a 150,150 0 1 0 300,0 a 150,150 0 1 0 -300,0 Z" fill="black"/></mask></defs>
+  <circle cx="332" cy="337" r="66" fill="#FFFFFF" mask="url(#album)"/>
+</svg>

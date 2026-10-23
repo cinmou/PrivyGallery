@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "5D8AEE98-F9C3-4998-AB0D-A9E5A5B09A0F.png",
+      "filename" : "LaunchLogo@1x.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "5D8AEE98-F9C3-4998-AB0D-A9E5A5B09A0F 1.png",
+      "filename" : "LaunchLogo@2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "5D8AEE98-F9C3-4998-AB0D-A9E5A5B09A0F 2.png",
+      "filename" : "LaunchLogo@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

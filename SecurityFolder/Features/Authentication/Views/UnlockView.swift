@@ -10,11 +10,12 @@ struct UnlockView: View {
     @StateObject private var viewModel = UnlockViewModel()
     @StateObject private var onboardingDraft = PasscodeDraftController()
     @State private var hasAcceptedPrivacyPolicy = false
+    @State private var hasDeviceHinge = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    /// True on iPad wide layout and macOS — drives more desktop-friendly onboarding sizing.
+    /// Reuses wide onboarding on iPad, Catalyst, and the Duo inner display.
     private var isWideLayout: Bool {
-        AdaptiveLayoutMode.resolve(horizontalSizeClass: horizontalSizeClass).usesWideLayout
+        AdaptiveLayoutMode.resolve(horizontalSizeClass: horizontalSizeClass, hasDeviceHinge: hasDeviceHinge).usesWideLayout
     }
 
     private var onboardingIconSize: CGFloat { isWideLayout ? 46 : 62 }
@@ -42,6 +43,7 @@ struct UnlockView: View {
                     .id(viewModel.stage)
                     .transition(stageTransition)
             }
+            .modifier(DeviceHingeObserver(hasDeviceHinge: $hasDeviceHinge))
             .animation(.spring(response: 0.36, dampingFraction: 0.9), value: viewModel.stage)
             .onAppear {
                 prepareForCurrentSession()
@@ -329,6 +331,24 @@ struct UnlockView: View {
         .modifier(OnboardingContainerModifier(isWide: isWideLayout))
     }
 
+    private var onboardingPasscodeEntryAction: some View {
+        centeredActionButton(title: String(localized: "确认并继续")) {
+            performOnboardingStageChange(direction: .forward) {
+                viewModel.submitPrimaryOnboardingPasscodeEntry(draft: onboardingDraft)
+            }
+        }
+        .disabled(onboardingDraft.kind == .custom ? onboardingDraft.primaryValue.isEmpty : onboardingDraft.primaryValue.count != expectedLength(for: onboardingDraft.kind))
+    }
+
+    private var onboardingPasscodeConfirmationAction: some View {
+        centeredActionButton(title: String(localized: "完成设置")) {
+            performOnboardingStageChange(direction: .forward) {
+                viewModel.submitPrimaryOnboardingPasscode(draft: onboardingDraft, using: session)
+            }
+        }
+        .disabled(onboardingDraft.kind == .custom ? onboardingDraft.confirmationValue.isEmpty : onboardingDraft.confirmationValue.count != expectedLength(for: onboardingDraft.kind))
+    }
+
     private var onboardingPasscodeEntryView: some View {
         // 首次启动第 4 页：第一次输入密码。
         List {
@@ -383,16 +403,21 @@ struct UnlockView: View {
                 errorSection(message: errorMessage)
             }
 
-            Section {
-                centeredActionButton(title: String(localized: "确认并继续")) {
-                    performOnboardingStageChange(direction: .forward) {
-                        viewModel.submitPrimaryOnboardingPasscodeEntry(draft: onboardingDraft)
-                    }
-                }
-                .disabled(onboardingDraft.kind == .custom ? onboardingDraft.primaryValue.isEmpty : onboardingDraft.primaryValue.count != expectedLength(for: onboardingDraft.kind))
+            if !hasDeviceHinge {
+                Section { onboardingPasscodeEntryAction }
             }
         }
         .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom) {
+            if hasDeviceHinge {
+                onboardingPasscodeEntryAction
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(.bar)
+            }
+        }
         .navigationTitle(String(localized: "设置密码"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -455,16 +480,21 @@ struct UnlockView: View {
                 errorSection(message: errorMessage)
             }
 
-            Section {
-                centeredActionButton(title: String(localized: "完成设置")) {
-                    performOnboardingStageChange(direction: .forward) {
-                        viewModel.submitPrimaryOnboardingPasscode(draft: onboardingDraft, using: session)
-                    }
-                }
-                .disabled(onboardingDraft.kind == .custom ? onboardingDraft.confirmationValue.isEmpty : onboardingDraft.confirmationValue.count != expectedLength(for: onboardingDraft.kind))
+            if !hasDeviceHinge {
+                Section { onboardingPasscodeConfirmationAction }
             }
         }
         .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom) {
+            if hasDeviceHinge {
+                onboardingPasscodeConfirmationAction
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(.bar)
+            }
+        }
         .navigationTitle(String(localized: "确认密码"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

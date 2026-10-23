@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="card" gradientUnits="userSpaceOnUse" x1="0" y1="176" x2="0" y2="780">
+      <stop offset="0" stop-color="#ECEFF4"/>
+      <stop offset="1" stop-color="#D8DEE9"/>
+    </linearGradient>
+    <mask id="album" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <path d="M 268,176 H 756 A 110,110 0 0 1 866,286 V 670 A 110,110 0 0 1 756,780 H 268 A 110,110 0 0 1 158,670 V 286 A 110,110 0 0 1 268,176 Z" fill="#FFFFFF"/>
+      <path d="M 362,700 a 150,150 0 1 0 300,0 a 150,150 0 1 0 -300,0 Z" fill="#FFFFFF"/>
+      <path d="M 406,700 a 106,106 0 1 0 212,0 a 106,106 0 1 0 -212,0 Z" fill="#000000"/>
+    </mask>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#card)" mask="url(#album)"/>
+</svg>

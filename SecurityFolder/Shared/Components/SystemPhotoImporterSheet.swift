@@ -48,7 +48,7 @@ struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
             var importedAssets: [ImportedPickerAsset] = []
 
             for (index, result) in results.enumerated() {
-                let fallbackName = "导入媒体 \(index + 1)"
+                let fallbackName = "Imported Media \(index + 1)"
 
                 // ── Live Photo: authoritative PHAsset-level detection ──────────────────────
                 // A HEIC still on its own is not a Live Photo. The only reliable signal is

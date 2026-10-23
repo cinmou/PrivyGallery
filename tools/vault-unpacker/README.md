@@ -21,7 +21,7 @@ It runs anywhere Go runs: macOS, Linux, and Windows.
 
 ## Install / build
 
-You need [Go](https://go.dev/dl/) 1.24+ and a C compiler (the LZFSE
+You need [Go](https://go.dev/dl/) 1.26.4+ and a C compiler (the LZFSE
 decompressor is Apple's reference implementation, used through cgo):
 
 - **macOS:** `xcode-select --install` (provides clang)
@@ -95,7 +95,7 @@ The `.vault` format is a password-encrypted container:
 The tool reverses exactly this pipeline. The authoritative byte-level layout
 lives in the source — see [`vault.go`](vault.go), whose constants and reader
 mirror the app's `VaultExportService`. A byte-level description is in
-[`Materials/docs/vault-format.md`](../../Materials/docs/vault-format.md).
+[`docs/vault-format.md`](../../docs/vault-format.md).
 
 ## Tests
 

@@ -7,6 +7,7 @@ import UIKit
 struct MediaLibraryView: View {
     @ObservedObject var viewModel: MediaLibraryViewModel
     let adaptiveLayoutMode: AdaptiveLayoutMode
+    let hasDeviceHinge: Bool
     let sidebarBottomAccessory: AnyView?
     let onOpenSettings: (() -> Void)?
     let embeddedSettingsView: AnyView?
@@ -39,6 +40,9 @@ struct MediaLibraryView: View {
     @State private var dropOverlayResetToken = UUID()
     @State private var showingEmbeddedSettings = false
     @State private var embeddedSettingsResetToken = UUID()
+    @State private var showingSpaceSearch = false
+    @State private var spaceSearchQuery = MediaSearchQuery()
+    @FocusState private var sidebarSearchFocused: Bool
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     private let symbolColumns = [
@@ -48,12 +52,14 @@ struct MediaLibraryView: View {
     init(
         viewModel: MediaLibraryViewModel,
         adaptiveLayoutMode: AdaptiveLayoutMode = .compact,
+        hasDeviceHinge: Bool = false,
         sidebarBottomAccessory: AnyView? = nil,
         onOpenSettings: (() -> Void)? = nil,
         embeddedSettingsView: AnyView? = nil
     ) {
         self.viewModel = viewModel
         self.adaptiveLayoutMode = adaptiveLayoutMode
+        self.hasDeviceHinge = hasDeviceHinge
         self.sidebarBottomAccessory = sidebarBottomAccessory
         self.onOpenSettings = onOpenSettings
         self.embeddedSettingsView = embeddedSettingsView
@@ -65,6 +71,7 @@ struct MediaLibraryView: View {
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .onChange(of: selectedAlbumID) { _, newAlbumID in
                 if newAlbumID != nil {
+                    showingSpaceSearch = false
                     showingEmbeddedSettings = false
                 }
             }
@@ -371,10 +378,17 @@ struct MediaLibraryView: View {
                         libraryToolbarContent
                     }
                     #endif
+                    #if targetEnvironment(macCatalyst)
                     .navigationSplitViewColumnWidth(min: 220, ideal: 285, max: 340)
+                    #else
+                    .navigationSplitViewColumnWidth(min: 240, ideal: 285, max: 520)
+                    #endif
             } detail: {
                 libraryDetailContent
             }
+            #if !targetEnvironment(macCatalyst)
+            .navigationSplitViewStyle(.balanced)
+            #endif
         } else {
             NavigationStack {
                 libraryListContent
@@ -393,9 +407,48 @@ struct MediaLibraryView: View {
     private var librarySidebar: some View {
         if viewModel.canShowRealData {
             VStack(alignment: .leading, spacing: 0) {
-                // 侧栏本体保持原生 plain list，只在行内做轻量选中态。
+                #if !targetEnvironment(macCatalyst)
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField(String(localized: "搜索当前空间"), text: $spaceSearchQuery.text)
+                        .textFieldStyle(.plain)
+                        .focused($sidebarSearchFocused)
+                        .submitLabel(.search)
+                    if !spaceSearchQuery.text.isEmpty {
+                        Button {
+                            spaceSearchQuery.text = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(String(localized: "清除搜索"))
+                    }
+                }
+                .padding(12)
+                .background { sidebarSearchBackground }
+                .padding(.horizontal, usesSystemSidebarRows ? 20 : 16)
+                .padding(.vertical, 8)
+                #endif
                 librarySidebarList
-                    .listStyle(.plain)
+                    .listStyle(.sidebar)
+                    #if targetEnvironment(macCatalyst)
+                    .searchable(text: $spaceSearchQuery.text, placement: .sidebar,
+                                prompt: String(localized: "搜索当前空间"))
+                    .searchFocused($sidebarSearchFocused)
+                    #endif
+                    .onChange(of: sidebarSearchFocused) { _, focused in
+                        if focused && !showingSpaceSearch { beginSpaceSearch() }
+                    }
+                    .onChange(of: spaceSearchQuery.text) { _, text in
+                        if !text.isEmpty && !showingSpaceSearch { beginSpaceSearch() }
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: .vaultDidLock)) { _ in
+                        spaceSearchQuery = MediaSearchQuery()
+                        sidebarSearchFocused = false
+                        showingSpaceSearch = false
+                    }
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .onDrop(of: DroppedMediaImportSupport.supportedTypeIdentifiers, isTargeted: $isLibraryDropTargeted) { providers in
@@ -423,12 +476,14 @@ struct MediaLibraryView: View {
     // NavigationSplitView, so we don't add our own (that produced a duplicate).
     @ToolbarContentBuilder
     private var macSidebarToolbar: some ToolbarContent {
+
         ToolbarItemGroup(placement: .topBarLeading) {
             Menu {
                 libraryImportMenuItems
             } label: {
-                Image(systemName: "plus")
+                Label(String(localized: "新建"), systemImage: "plus")
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .menuIndicator(.hidden)
             .disabled(!viewModel.canShowRealData)
@@ -436,8 +491,9 @@ struct MediaLibraryView: View {
             Menu {
                 librarySortMenuItems
             } label: {
-                Image(systemName: "line.3.horizontal.decrease")
+                Label(String(localized: "排序"), systemImage: "arrow.up.arrow.down")
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .menuIndicator(.hidden)
             .accessibilityLabel(String(localized: "排序"))
@@ -446,27 +502,40 @@ struct MediaLibraryView: View {
     }
     #endif
 
+    private var usesIPadSidebar: Bool {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        usesSplitLayout && UIDevice.current.userInterfaceIdiom == .pad
+        #endif
+    }
+
+    private var usesDuoSidebar: Bool {
+        usesSplitLayout && hasDeviceHinge
+    }
+
+    private var usesSystemSidebarRows: Bool {
+        usesIPadSidebar || usesDuoSidebar
+    }
+
+    @ViewBuilder
+    private var sidebarSearchBackground: some View {
+        if usesSystemSidebarRows {
+            if #available(iOS 26.0, *) {
+                Capsule().fill(.clear).glassEffect(.regular, in: Capsule())
+            } else {
+                Capsule().fill(Color(uiColor: .tertiarySystemFill))
+            }
+        } else {
+            RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .tertiarySystemFill))
+        }
+    }
+
     private var sidebarRowInsets: EdgeInsets {
         #if targetEnvironment(macCatalyst)
         EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6)
         #else
         EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)
-        #endif
-    }
-
-    private var sidebarSelectionCornerRadius: CGFloat {
-        #if targetEnvironment(macCatalyst)
-        7
-        #else
-        14
-        #endif
-    }
-
-    private var secondarySidebarSelectionCornerRadius: CGFloat {
-        #if targetEnvironment(macCatalyst)
-        7
-        #else
-        26
         #endif
     }
 
@@ -478,14 +547,6 @@ struct MediaLibraryView: View {
         #endif
     }
 
-    private var sidebarSecondaryVerticalPadding: CGFloat {
-        #if targetEnvironment(macCatalyst)
-        5
-        #else
-        10
-        #endif
-    }
-
     private var platformLibraryBackground: Color {
         #if targetEnvironment(macCatalyst)
         Color(uiColor: .systemBackground)
@@ -494,92 +555,81 @@ struct MediaLibraryView: View {
         #endif
     }
 
+    private enum SidebarSelection: Hashable {
+        case album(UUID), settings
+    }
+
+    private var sidebarSelection: Binding<SidebarSelection?> {
+        Binding {
+            if showingSpaceSearch { return nil }
+            if showingEmbeddedSettings { return .settings }
+            return selectedAlbumID.map { .album($0) }
+        } set: { selection in
+            switch selection {
+            case .album(let id):
+                showAlbumDetail(id)
+            case .settings:
+                spaceSearchQuery = MediaSearchQuery()
+                sidebarSearchFocused = false
+                showingSpaceSearch = false
+                if let onOpenSettings {
+                    onOpenSettings()
+                } else {
+                    showingEmbeddedSettings = true
+                    embeddedSettingsResetToken = UUID()
+                    selectedAlbumID = nil
+                }
+            case nil:
+                break
+            }
+        }
+    }
+
     private var librarySidebarList: some View {
-        List {
+        List(selection: sidebarSelection) {
             Section {
-                // 这里是"全部照片 / 全部视频 / 强加密媒体库 / 自定义相册"的主列表。
                 ForEach(viewModel.mediaAlbums) { album in
                     sidebarAlbumRow(album)
                 }
-            } 
-
+            }
             Section {
-                // 这里单独放归档 / 回收站，和上面的主相册刻意分成第二组。
                 if let archiveAlbum = viewModel.archiveAlbum {
-                    Button {
-                        showAlbumDetail(archiveAlbum.id)
-                    } label: {
-                        sidebarSecondaryAlbumRow(
-                            archiveAlbum,
-                            isSelected: selectedAlbumID == archiveAlbum.id
-                        )
-	                    }
-	                    .listRowSeparator(.hidden)
-	                    .listRowBackground(Color.clear)
-	                    .listRowInsets(sidebarRowInsets)
-	                    .buttonStyle(.plain)
+                    sidebarSecondaryAlbumRow(archiveAlbum)
+                        .tag(SidebarSelection.album(archiveAlbum.id))
+                        .listRowInsets(sidebarRowInsets)
                 }
-
                 if let trashAlbum = viewModel.trashAlbum {
-                    Button {
-                        showAlbumDetail(trashAlbum.id)
-                    } label: {
-                        sidebarSecondaryAlbumRow(
-                            trashAlbum,
-                            isSelected: selectedAlbumID == trashAlbum.id
-                        )
-	                    }
-	                    .listRowSeparator(.hidden)
-	                    .listRowBackground(Color.clear)
-	                    .listRowInsets(sidebarRowInsets)
-	                    .buttonStyle(.plain)
+                    sidebarSecondaryAlbumRow(trashAlbum)
+                        .tag(SidebarSelection.album(trashAlbum.id))
+                        .listRowInsets(sidebarRowInsets)
                 }
             } header: {
                 sidebarSectionSpacer
             }
-
             if usesSplitLayout, embeddedSettingsView != nil || onOpenSettings != nil {
                 Section {
-                    Button {
-                        if let onOpenSettings {
-                            onOpenSettings()
+                    Group {
+                        if usesSystemSidebarRows {
+                            HStack(spacing: 12) {
+                                Image(systemName: "gear").frame(width: 54)
+                                Text(String(localized: "设置"))
+                            }
                         } else {
-                            showingEmbeddedSettings = true
-                            embeddedSettingsResetToken = UUID()
-                            selectedAlbumID = nil
+                            Label {
+                                Text(String(localized: "设置")).padding(.leading, 24)
+                            } icon: {
+                                Image(systemName: "gear").frame(width: 24)
+                            }
                         }
-                    } label: {
-                        HStack {
-                            Image(systemName: "gear")
-                                .foregroundStyle(showingEmbeddedSettings ? Color.accentColor : .primary)
-                                .frame(width: 22)
-
-                            Text(String(localized: "设置"))
-                                .foregroundStyle(showingEmbeddedSettings ? Color.accentColor : .primary)
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(showingEmbeddedSettings ? Color.accentColor : Color.secondary.opacity(0.6))
-                        }
-                        .padding(.horizontal, 12)
-	                        .padding(.vertical, sidebarSecondaryVerticalPadding)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-	                        .modifier(SimpleSidebarSelectionModifier(isSelected: showingEmbeddedSettings, cornerRadius: secondarySidebarSelectionCornerRadius))
-	                        .contentShape(RoundedRectangle(cornerRadius: secondarySidebarSelectionCornerRadius, style: .continuous))
                     }
-                    .tint(.primary)
-	                    .buttonStyle(.plain)
-	                    .listRowSeparator(.hidden)
-	                    .listRowBackground(Color.clear)
-	                    .listRowInsets(sidebarRowInsets)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .tag(SidebarSelection.settings)
+                        .listRowInsets(sidebarRowInsets)
                 } header: {
-                    Color.clear
-                        .frame(height: 22)
-                        .listRowInsets(.init())
+                    sidebarSectionSpacer
                 }
             }
-
             if let sidebarBottomAccessory {
                 Section {
                     sidebarBottomAccessory
@@ -588,13 +638,17 @@ struct MediaLibraryView: View {
                 }
             }
         }
+        .listSectionSpacing(usesSystemSidebarRows ? .custom(16) : .default)
+        .listRowSpacing(usesSystemSidebarRows ? 0 : nil)
     }
 
+    @ViewBuilder
     private var sidebarSectionSpacer: some View {
-        // 去掉 Section 标题后，继续保留系统分组间距。
-        Color.clear
-            .frame(height: 10)
-            .listRowInsets(.init())
+        if !usesSystemSidebarRows {
+            Color.clear
+                .frame(height: 10)
+                .listRowInsets(.init())
+        }
     }
 
     @ViewBuilder
@@ -648,14 +702,33 @@ struct MediaLibraryView: View {
         }
     }
 
+    @ViewBuilder
+    private var spaceSearchButton: some View {
+        if let album = viewModel.albums.first(where: { $0.kind == .allPhotos }) {
+            NavigationLink {
+                AlbumDetailView(viewModel: viewModel, albumID: album.id, searchesWholeSpace: true)
+            } label: {
+                Label(String(localized: "搜索当前空间"), systemImage: "magnifyingglass")
+            }
+        }
+    }
+
     @ToolbarContentBuilder
     private var libraryToolbarContent: some ToolbarContent {
+        if !usesSplitLayout {
+            ToolbarItem(placement: .topBarTrailing) {
+                spaceSearchButton
+            }
+        }
+
         ToolbarItem(placement: .topBarTrailing) {
-            Menu { libraryImportMenuItems } label: { Image(systemName: "plus") }
+            Menu { libraryImportMenuItems } label: { Label(String(localized: "新建"), systemImage: "plus") }
+                .labelStyle(.iconOnly)
                 .disabled(!viewModel.canShowRealData)
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Menu { librarySortMenuItems } label: { Image(systemName: "line.3.horizontal.decrease") }
+            Menu { librarySortMenuItems } label: { Label(String(localized: "排序"), systemImage: "arrow.up.arrow.down") }
+                .labelStyle(.iconOnly)
                 .accessibilityLabel(String(localized: "排序"))
                 .disabled(!viewModel.canShowRealData)
         }
@@ -713,7 +786,12 @@ struct MediaLibraryView: View {
 
     @ViewBuilder
     private var libraryDetailContent: some View {
-        if showingEmbeddedSettings, let embeddedSettingsView {
+        if showingSpaceSearch, let album = viewModel.albums.first(where: { $0.kind == .allPhotos }) {
+            NavigationStack {
+                AlbumDetailView(viewModel: viewModel, albumID: album.id, searchesWholeSpace: true, sharedSearchQuery: $spaceSearchQuery)
+            }
+            .id("space-search")
+        } else if showingEmbeddedSettings, let embeddedSettingsView {
             embeddedSettingsView
                 .id(embeddedSettingsResetToken)
         } else if let selectedAlbumID {
@@ -841,20 +919,36 @@ struct MediaLibraryView: View {
     }
 
     private func sidebarAlbumRow(_ album: AlbumCellModel) -> some View {
-        Button {
-            showAlbumDetail(album.id)
-        } label: {
-            AlbumCellView(album: album, accentSelection: selectedAlbumID == album.id)
-                .padding(.horizontal, 10)
-                .padding(.vertical, sidebarAlbumVerticalPadding)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .modifier(SimpleSidebarSelectionModifier(isSelected: selectedAlbumID == album.id, cornerRadius: sidebarSelectionCornerRadius))
-                .contentShape(RoundedRectangle(cornerRadius: sidebarSelectionCornerRadius, style: .continuous))
+        let isSelected = selectedAlbumID == album.id && !showingSpaceSearch && !showingEmbeddedSettings
+        return Group {
+            if usesSystemSidebarRows {
+                AlbumCellView(album: album, usesSidebarStyle: true, alignsSidebarColumns: true)
+                    .padding(.vertical, sidebarAlbumVerticalPadding)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .tag(SidebarSelection.album(album.id))
+            } else {
+                Button {
+                    showAlbumDetail(album.id)
+                } label: {
+                    AlbumCellView(album: album, usesSidebarStyle: true)
+                        .foregroundStyle(isSelected ? Color.white : .primary)
+                        .tint(isSelected ? Color.white : .accentColor)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, sidebarAlbumVerticalPadding)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(isSelected ? Color.accentColor : .clear)
+                        }
+                        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
         }
         .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
         .listRowInsets(sidebarRowInsets)
-        .buttonStyle(.plain)
         .contextMenu {
             albumContextMenu(for: album)
         }
@@ -892,31 +986,30 @@ struct MediaLibraryView: View {
         }
     }
 
-    private func sidebarSecondaryAlbumRow(_ album: AlbumCellModel, isSelected: Bool) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: sidebarSystemImage(for: album))
-                .foregroundStyle(isSelected ? Color.accentColor : .primary)
-                .frame(width: 22)
-
-            Text(album.title)
-                .foregroundStyle(isSelected ? Color.accentColor : .primary)
-
-            Spacer()
-
-            Text(album.subtitle)
-                .font(.footnote)
-                .foregroundStyle(isSelected ? Color.accentColor : .primary)
-
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.6))
+    private func sidebarSecondaryAlbumRow(_ album: AlbumCellModel) -> some View {
+        Group {
+            if usesSystemSidebarRows {
+                HStack(spacing: 12) {
+                    Image(systemName: sidebarSystemImage(for: album)).frame(width: 54)
+                    Text(album.title)
+                    Spacer()
+                    Text(album.subtitle).font(.footnote)
+                }
+            } else {
+                Label {
+                    HStack {
+                        Text(album.title)
+                        Spacer()
+                        Text(album.subtitle).font(.footnote)
+                    }
+                    .padding(.leading, 24)
+                } icon: {
+                    Image(systemName: sidebarSystemImage(for: album)).frame(width: 24)
+                }
+            }
         }
-        .padding(.vertical, 2)
-        .padding(.horizontal, 12)
-        .padding(.vertical, sidebarSecondaryVerticalPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .modifier(SimpleSidebarSelectionModifier(isSelected: isSelected, cornerRadius: secondarySidebarSelectionCornerRadius))
-        .contentShape(RoundedRectangle(cornerRadius: secondarySidebarSelectionCornerRadius, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private func sidebarSystemImage(for album: AlbumCellModel) -> String {
@@ -964,7 +1057,16 @@ struct MediaLibraryView: View {
         }
     }
 
+    private func beginSpaceSearch() {
+        selectedAlbumID = nil
+        showingEmbeddedSettings = false
+        showingSpaceSearch = true
+    }
+
     private func showAlbumDetail(_ albumID: UUID) {
+        spaceSearchQuery = MediaSearchQuery()
+        sidebarSearchFocused = false
+        showingSpaceSearch = false
         // 大屏模式下如果右侧正停在设置的二级界面，
         // 先通知设置页回到根级，再在下一拍切回相册详情，
         // 避免右侧残留上一次的设置导航栈。
@@ -1102,40 +1204,6 @@ struct MediaLibraryView: View {
         } else {
             Text(option.title)
         }
-    }
-}
-
-private struct SimpleSidebarSelectionModifier: ViewModifier {
-    let isSelected: Bool
-    let cornerRadius: CGFloat
-
-    func body(content: Content) -> some View {
-        content
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(selectionFill)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(selectionStroke, lineWidth: 1)
-            )
-    }
-
-    private var selectionFill: Color {
-        guard isSelected else { return .clear }
-        #if targetEnvironment(macCatalyst)
-        return Color.accentColor.opacity(0.16)
-        #else
-        return Color(.systemGray5)
-        #endif
-    }
-
-    private var selectionStroke: Color {
-        #if targetEnvironment(macCatalyst)
-        return .clear
-        #else
-        return isSelected ? Color(.systemGray5) : .clear
-        #endif
     }
 }
 

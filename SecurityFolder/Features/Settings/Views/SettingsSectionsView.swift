@@ -56,11 +56,11 @@ struct SettingsPrivacySectionView: View {
             Toggle(String(localized: "导入后删除"), isOn: $deleteImportedSystemAssetsAfterImport)
 
             if canUseAdvancedProtection {
-                Toggle(String(localized: "高级数据保护"), isOn: advancedProtectionBinding)
+                Toggle(String(localized: "安全预览模式"), isOn: advancedProtectionBinding)
             } else {
                 Button(action: onAttemptEnableAdvancedProtection) {
                     HStack {
-                        Text(String(localized: "高级数据保护"))
+                        Text(String(localized: "安全预览模式"))
                             .foregroundStyle(.primary)
                         Spacer()
                         Toggle("", isOn: .constant(advancedProtectionEnabled))

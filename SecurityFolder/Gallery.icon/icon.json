@@ -1,48 +1,140 @@
 {
+  "features" : [
+    "specular-location"
+  ],
   "fill" : {
     "linear-gradient" : [
-      "display-p3:0.31396,0.32300,0.36475,1.00000",
-      "display-p3:0.18176,0.19543,0.22461,1.00000"
+      "extended-srgb:0.23137,0.25882,0.32157,1.00000",
+      "extended-srgb:0.12941,0.14510,0.17647,1.00000"
     ]
   },
   "groups" : [
     {
       "layers" : [
         {
-          "blend-mode" : "soft-light",
-          "fill" : "none",
-          "image-name" : "image.png",
-          "name" : "image",
-          "opacity" : 0.37,
+          "image-name" : "08-lock-hub.png",
+          "name" : "Lock Hub",
           "position" : {
-            "scale" : 0.88,
+            "scale" : 1,
             "translation-in-points" : [
               0,
-              56
+              0
+            ]
+          }
+        },
+        {
+          "image-name" : "07-lock-spokes.png",
+          "name" : "Lock Spokes",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
             ]
           }
         },
         {
           "glass" : false,
-          "hidden" : false,
-          "image-name" : "5D8AEE98-F9C3-4998-AB0D-A9E5A5B09A0F.png",
-          "name" : "5D8AEE98-F9C3-4998-AB0D-A9E5A5B09A0F",
+          "image-name" : "06-lock-ring.png",
+          "name" : "Lock Recess",
           "position" : {
-            "scale" : 1.27,
+            "scale" : 1,
             "translation-in-points" : [
               0,
-              23.5625
+              0
             ]
           }
         }
       ],
+      "name" : "Lock",
       "shadow" : {
         "kind" : "neutral",
-        "opacity" : 0.5
+        "opacity" : 0.18
       },
       "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
+        "enabled" : false,
+        "value" : 0.15
+      }
+    },
+    {
+      "layers" : [
+        {
+          "image-name" : "05-mountain-near.png",
+          "name" : "Near Mountain",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "image-name" : "04-mountain-far.png",
+          "name" : "Far Mountain",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "Mountains",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.05
+      },
+      "specular-specializations" : [
+        {
+          "value" : "inside"
+        },
+        {
+          "appearance" : "dark",
+          "value" : "inside"
+        }
+      ],
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.15
+      }
+    },
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name" : "03-album-sun.png",
+          "name" : "Sun",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "image-name" : "02-album-card.png",
+          "name" : "Album Card",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "name" : "Album",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.2
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.15
       }
     }
   ],

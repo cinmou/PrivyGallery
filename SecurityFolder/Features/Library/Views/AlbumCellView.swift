@@ -6,46 +6,77 @@ private let albumCoverCornerRadius: CGFloat = 8
 struct AlbumCellView: View {
     let album: AlbumCellModel
     var accentSelection = false
+    var usesSidebarStyle = false
+    var alignsSidebarColumns = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: albumCoverCornerRadius, style: .continuous)
-                    .fill(platformCardBackground)
-
-                if let coverImageRelativePath = album.coverImageRelativePath {
-                    AlbumCoverImageView(relativePath: coverImageRelativePath)
-                } else if let coverItem = album.coverItem {
-                    AlbumCoverThumbnailView(item: coverItem)
+        Group {
+            if usesSidebarStyle {
+                if alignsSidebarColumns {
+                    HStack(spacing: 12) {
+                        albumCover
+                        sidebarTitle
+                    }
                 } else {
-                    Image(systemName: album.systemImage)
-                        .font(.title2)
-                        .foregroundStyle(accentSelection ? Color.accentColor : .secondary)
+                    Label {
+                        sidebarTitle.padding(.leading, 12)
+                    } icon: {
+                        albumCover
+                    }
+                }
+            } else {
+                HStack(spacing: 12) {
+                    albumCover
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(album.title)
+                            .foregroundStyle(accentSelection ? Color.accentColor : .primary)
+                        HStack(spacing: 5) {
+                            if let color = album.color { AlbumColorDot(color: color) }
+                            Text(album.subtitle)
+                                .font(.footnote)
+                                .foregroundStyle(accentSelection ? Color.accentColor : .secondary)
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(accentSelection ? Color.accentColor : Color.secondary.opacity(0.65))
                 }
             }
-            .frame(width: 54, height: 54)
-            .clipShape(RoundedRectangle(cornerRadius: albumCoverCornerRadius, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: albumCoverCornerRadius, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(album.title)
-                    .foregroundStyle(accentSelection ? Color.accentColor : .primary)
-                HStack(spacing: 5) {
-                    if let color = album.color { AlbumColorDot(color: color) }
-                    Text(album.subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(accentSelection ? Color.accentColor : .secondary)
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(accentSelection ? Color.accentColor : Color.secondary.opacity(0.65))
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
+    }
+
+    private var sidebarTitle: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(album.title)
+            HStack(spacing: 5) {
+                if let color = album.color { AlbumColorDot(color: color) }
+                Text(album.subtitle).font(.footnote).opacity(0.75)
+            }
+        }
+    }
+
+    private var albumCover: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: albumCoverCornerRadius, style: .continuous)
+                .fill(usesSidebarStyle ? Color.clear : platformCardBackground)
+            if let coverImageRelativePath = album.coverImageRelativePath {
+                AlbumCoverImageView(relativePath: coverImageRelativePath)
+            } else if let coverItem = album.coverItem {
+                AlbumCoverThumbnailView(item: coverItem)
+            } else if usesSidebarStyle {
+                Image(systemName: album.systemImage).font(.title2)
+            } else {
+                Image(systemName: album.systemImage)
+                    .font(.title2)
+                    .foregroundStyle(accentSelection ? Color.accentColor : .secondary)
+            }
+        }
+        .frame(width: 54, height: 54)
+        .clipShape(RoundedRectangle(cornerRadius: albumCoverCornerRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: albumCoverCornerRadius, style: .continuous))
     }
 
     private var platformCardBackground: Color {

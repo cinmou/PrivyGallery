@@ -3,6 +3,7 @@ import PhotosUI
 import Photos
 import UniformTypeIdentifiers
 import UIKit
+import GameController
 
 private struct PreviewSelection: Identifiable {
     let id: UUID
@@ -27,6 +28,29 @@ private struct PendingMediaOperation: Identifiable {
 struct AlbumDetailView: View {
     @ObservedObject var viewModel: MediaLibraryViewModel
     let albumID: UUID
+    var searchesWholeSpace = false
+    var searchFocusRequest: UUID? = nil
+    var sharedSearchQuery: Binding<MediaSearchQuery>? = nil
+    @State private var localSearchQuery = MediaSearchQuery()
+
+    private var searchQuery: MediaSearchQuery {
+        get { sharedSearchQuery?.wrappedValue ?? localSearchQuery }
+        nonmutating set {
+            if let sharedSearchQuery { sharedSearchQuery.wrappedValue = newValue }
+            else { localSearchQuery = newValue }
+        }
+    }
+
+    private var searchQueryBinding: Binding<MediaSearchQuery> {
+        sharedSearchQuery ?? $localSearchQuery
+    }
+    @State private var showingSearchFilters = false
+    @State private var matchingItems: [VaultItem] = []
+    @State private var searchIsAvailable = true
+    @State private var isSearching = false
+    @State private var hasFocusedSearch = false
+    @FocusState private var searchFocused: Bool
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @AppStorage(AppSettingsKey.advancedDataProtectionEnabled)
     private var advancedDataProtectionEnabled = AppSettingsKey.defaultAdvancedDataProtectionEnabled
     @AppStorage(AppSettingsKey.deleteImportedSystemAssetsAfterImport)
@@ -85,7 +109,37 @@ struct AlbumDetailView: View {
         )
     }
 
+    private var usesSearchResults: Bool { searchesWholeSpace || searchQuery.isActive }
+
+    private var searchFieldPlacement: SearchFieldPlacement {
+        #if targetEnvironment(macCatalyst)
+        .toolbar
+        #else
+        horizontalSizeClass == .regular ? .toolbar : .navigationBarDrawer(displayMode: .always)
+        #endif
+    }
+
+    private var automaticallyFocusesSearch: Bool {
+        sharedSearchQuery == nil && (UIDevice.current.userInterfaceIdiom != .pad || GCKeyboard.coalesced != nil)
+    }
+
+    private var searchRequest: MediaSearchRequest {
+        MediaSearchRequest(query: searchQuery, albumID: albumID, wholeSpace: searchesWholeSpace,
+                           revision: viewModel.mediaPresentationRevision, enabled: searchIsAvailable)
+    }
+
+    private var previewItems: [VaultItem] {
+        guard searchIsAvailable else { return [] }
+        return usesSearchResults ? matchingItems : viewModel.mediaItems(for: albumID)
+    }
+
     private func loggedMediaItemsPage(limit: Int) -> MediaItemsPage {
+        guard searchIsAvailable else { return MediaItemsPage(items: [], totalCount: 0) }
+        if usesSearchResults {
+            let matches = matchingItems
+            return MediaItemsPage(items: Array(matches.prefix(limit)), totalCount: matches.count)
+        }
+
         #if DEBUG
         return MediaPerformanceLog.measure(
             "album.viewModel.mediaItemsPage",
@@ -149,10 +203,70 @@ struct AlbumDetailView: View {
             }
             #endif
         }
-        .navigationTitle(navigationTitle(albumName: viewModel.album(for: albumID)?.displayName, selectedCount: selectedItemIDs.count, totalCount: totalItemCount))
+        .navigationTitle(navigationTitle(albumName: searchesWholeSpace ? String(localized: "搜索当前空间") : viewModel.album(for: albumID)?.displayName, selectedCount: selectedItemIDs.count, totalCount: totalItemCount))
         .navigationBarTitleDisplayMode(.inline)
+        .modifier(MediaSearchFieldStyle(
+            text: searchQueryBinding.text,
+            placement: searchFieldPlacement,
+            prompt: searchesWholeSpace ? String(localized: "搜索照片、视频和相册") : String(localized: "在此相册中搜索"),
+            focus: $searchFocused,
+            isEnabled: sharedSearchQuery == nil && !isSelecting
+        ))
+        .onChange(of: searchFocusRequest, initial: true) { _, request in
+            if request != nil && searchIsAvailable && automaticallyFocusesSearch { searchFocused = true }
+        }
+        .task {
+            if searchesWholeSpace && !hasFocusedSearch && !searchQuery.isActive {
+                hasFocusedSearch = true
+                await Task.yield()
+                guard searchIsAvailable, automaticallyFocusesSearch else { return }
+                searchFocused = true
+            }
+        }
+        .task(id: searchRequest) {
+            let request = searchRequest
+            guard usesSearchResults, request.enabled,
+                  !searchesWholeSpace || request.query.isActive else {
+                matchingItems = []
+                isSearching = false
+                return
+            }
+            isSearching = true
+            do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
+            let matches = await viewModel.searchItems(query: request.query, albumID: request.albumID, wholeSpace: request.wholeSpace)
+            guard !Task.isCancelled, searchIsAvailable, request == searchRequest else { return }
+            matchingItems = matches
+            isSearching = false
+        }
+        .onChange(of: searchQuery) { _, _ in
+            matchingItems = []
+            isSearching = usesSearchResults && (!searchesWholeSpace || searchQuery.isActive)
+            visibleItemLimit = initialVisibleItemLimit
+            exitSelectionMode()
+        }
+        .onChange(of: viewModel.mediaPresentationRevision) { _, _ in
+            selectedItemIDs.formIntersection(Set(viewModel.items.map(\.id)))
+            if usesSearchResults { matchingItems = [] }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .vaultDidLock)) { _ in
+            searchIsAvailable = false
+            matchingItems = []
+            isSearching = false
+            searchQuery = MediaSearchQuery()
+            searchFocused = false
+            showingSearchFilters = false
+            previewSelection = nil
+            photoPreviewItemID = nil
+            exitSelectionMode()
+        }
         .toolbar {
-            topBarToolbar(currentSortOption: currentSortOption, albumKind: albumKind)
+            if searchFocused {
+                ToolbarItem(placement: .keyboard) {
+                    Button(String(localized: "完成")) { searchFocused = false }
+                }
+            }
+
+            topBarToolbar(currentSortOption: currentSortOption)
         }
         .overlay(alignment: .bottom) {
             if isSelecting {
@@ -210,16 +324,17 @@ struct AlbumDetailView: View {
                 MediaPreviewView(
                     viewModel: viewModel,
                     albumID: albumID,
-                    items: viewModel.mediaItems(for: albumID),
+                    items: previewItems,
                     initialItemID: itemID,
                     photoTransitionSource: photoTransitionSource,
+                    closesAfterMutation: usesSearchResults,
                     onDismissOverride: close
                 )
             }
             .frame(width: 0, height: 0)
         }
         .fullScreenCover(item: $previewSelection) { selection in
-            let previewItems = viewModel.mediaItems(for: albumID)
+            let previewItems = self.previewItems
             if albumKind?.isSecure == true, let selectedItem = previewItems.first(where: { $0.id == selection.id }) {
                 SecureMediaPreviewView(
                     viewModel: viewModel,
@@ -231,7 +346,8 @@ struct AlbumDetailView: View {
                     viewModel: viewModel,
                     albumID: albumID,
                     items: previewItems,
-                    initialItemID: selection.id
+                    initialItemID: selection.id,
+                    closesAfterMutation: usesSearchResults
                 )
             }
         }
@@ -329,16 +445,88 @@ struct AlbumDetailView: View {
             Text(String(localized: "修改这个项目在应用内显示的名称。"))
         }
         .overlay {
-            if totalItemCount == 0 {
-                ContentUnavailableView(String(localized: "暂无内容"), systemImage: "photo.on.rectangle.angled")
+            if totalItemCount == 0 && !isSearching {
+                ContentUnavailableView {
+                    Label(searchesWholeSpace && !searchQuery.isActive ? String(localized: "搜索当前空间") : (usesSearchResults ? String(localized: "未找到结果") : String(localized: "暂无内容")), systemImage: usesSearchResults ? "magnifyingglass" : "photo.on.rectangle.angled")
+                } description: {
+                    Text(searchesWholeSpace && !searchQuery.isActive ? String(localized: "输入名称，或使用筛选查找照片与视频。") : (usesSearchResults ? String(localized: "尝试其他名称，或调整筛选条件。") : ""))
+                }
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) { searchSummary }
         .onChange(of: albumID) { _, _ in
             visibleItemLimit = initialVisibleItemLimit
+            searchQuery = MediaSearchQuery()
         }
         .onChange(of: totalItemCount) { _, newCount in
             visibleItemLimit = min(max(visibleItemLimit, initialVisibleItemLimit), max(newCount, initialVisibleItemLimit))
         }
+    }
+
+    @ViewBuilder
+    private var searchSummary: some View {
+        if searchIsAvailable && searchQuery.isActive {
+            VStack(alignment: .leading, spacing: 8) {
+                if searchesWholeSpace && !searchQuery.normalizedText.isEmpty {
+                    let albums = viewModel.searchAlbums(text: searchQuery.text)
+                    if !albums.isEmpty {
+                        ScrollView(.horizontal) {
+                            HStack {
+                                ForEach(albums) { album in
+                                    NavigationLink {
+                                        AlbumDetailView(viewModel: viewModel, albumID: album.id)
+                                    } label: {
+                                        Label(album.name, systemImage: "rectangle.stack")
+                                            .padding(.horizontal, 12).frame(minHeight: 44)
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                            }
+                        }
+                        .accessibilityLabel(String(localized: "匹配的相册"))
+                    }
+                }
+                if searchQuery.isActive { searchStatus }
+            }
+            .padding(.horizontal).padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.background)
+        }
+    }
+
+    private var searchStatus: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    if isSearching {
+                        ProgressView().controlSize(.small)
+                        Text(String(localized: "正在搜索"))
+                    } else {
+                        Text(String.localizedStringWithFormat(String(localized: "%lld 个结果"), Int64(matchingItems.count)))
+                    }
+                }
+                if searchQuery.type != .all {
+                    Text(searchQuery.type.title)
+                }
+                if searchQuery.usesDateRange {
+                    Text("\(searchQuery.dateField.title): \(searchQuery.startDate.formatted(date: .abbreviated, time: .omitted)) – \(searchQuery.endDate.formatted(date: .abbreviated, time: .omitted))")
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if searchQuery.type != .all || searchQuery.usesDateRange {
+                Button(String(localized: "清除筛选")) { clearSearchFilters() }
+                    .frame(minHeight: 44)
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .font(.subheadline).foregroundStyle(.secondary)
+    }
+
+    private func clearSearchFilters() {
+        let text = searchQuery.text
+        searchQuery = MediaSearchQuery()
+        searchQuery.text = text
     }
 
     @ViewBuilder
@@ -372,7 +560,7 @@ struct AlbumDetailView: View {
             renderToken: viewModel.mediaPresentationRevision,
             currentAlbumID: albumID,
             photoTransitionSource: photoTransitionSource,
-            allItems: { [viewModel, albumID] in viewModel.mediaItems(for: albumID) },
+            allItems: { previewItems },
             onRevealItems: { [limit = $visibleItemLimit] requiredCount in
                 limit.wrappedValue = max(limit.wrappedValue, requiredCount)
             },
@@ -382,6 +570,7 @@ struct AlbumDetailView: View {
                 loadMoreItemsIfNeeded(currentItem: item, displayedItems: items, totalItemCount: totalItemCount)
             },
             onOpenItem: { itemID in
+                searchFocused = false
                 #if targetEnvironment(macCatalyst)
                 previewSelection = PreviewSelection(id: itemID)
                 #else
@@ -515,6 +704,7 @@ struct AlbumDetailView: View {
                 loadMoreItemsIfNeeded(currentItem: item, displayedItems: items, totalItemCount: totalItemCount)
             },
             onOpenItem: { itemID in
+                searchFocused = false
                 previewSelection = PreviewSelection(id: itemID)
             },
             onSelectionChanged: { nextSelection in
@@ -616,82 +806,57 @@ struct AlbumDetailView: View {
     }
 
     @ToolbarContentBuilder
-    private func topBarToolbar(currentSortOption: AlbumSortOption, albumKind: MediaAlbumKind?) -> some ToolbarContent {
-        // Hide the trailing actions while the full-screen media viewer is open so
-        // they don't linger in the window title bar over the photo/video.
-        if previewSelection == nil {
-            #if targetEnvironment(macCatalyst)
+    private func topBarToolbar(currentSortOption: AlbumSortOption) -> some ToolbarContent {
+        if previewSelection == nil && photoPreviewItemID == nil {
             ToolbarItem(placement: .topBarTrailing) {
-                if isSelecting {
-                    nativeMacSortMenu(currentSortOption: currentSortOption)
-                } else {
-                    nativeMacImportMenuButton
+                Menu {
+                    if !isSelecting {
+                        Button { enterSelectionMode() } label: {
+                            Label(String(localized: "选择"), systemImage: "checkmark.circle")
+                        }
+                    }
+                    if !searchesWholeSpace {
+                        if !isSelecting {
+                            Menu {
+                                Button { beginSystemPhotoImport() } label: {
+                                    Label(String(localized: "从相册导入"), systemImage: "photo.on.rectangle")
+                                }
+                                Button { showingFileImporter = true } label: {
+                                    Label(String(localized: "从文件导入"), systemImage: "folder")
+                                }
+                            } label: {
+                                Label(String(localized: "导入"), systemImage: "plus")
+                            }
+                        }
+                        Menu {
+                            ForEach(availableSortOptions) { option in
+                                sortOptionButton(for: option, currentSortOption: currentSortOption)
+                            }
+                        } label: {
+                            Label(String(localized: "排序"), systemImage: "arrow.up.arrow.down")
+                        }
+                    }
+                    Button { searchFocused = false; showingSearchFilters = true } label: {
+                        Label(String(localized: "筛选"), systemImage: "line.3.horizontal.decrease")
+                    }
+                } label: {
+                    Label(String(localized: "更多"), systemImage: "ellipsis")
+                }
+                .labelStyle(.iconOnly)
+                .popover(isPresented: $showingSearchFilters) {
+                    MediaSearchFiltersView(query: searchQueryBinding)
+                        .frame(idealWidth: 380, idealHeight: 540)
+                        .presentationCompactAdaptation(.sheet)
+                        .presentationDetents([.medium, .large])
                 }
             }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                nativeMacSelectionModeButton(albumKind: albumKind)
-            }
-            #else
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                if isSelecting {
-                    sortMenu(currentSortOption: currentSortOption)
-                }
-
-                if !isSelecting {
-                    importMenuButton
-                }
-                selectionModeButton(albumKind: albumKind)
-            }
-            #endif
-        }
-    }
-
-    #if targetEnvironment(macCatalyst)
-    private var nativeMacImportMenuButton: some View {
-        Menu {
-            Button {
-                beginSystemPhotoImport()
-            } label: {
-                Label(String(localized: "从相册导入"), systemImage: "photo.on.rectangle")
-            }
-
-            Button {
-                showingFileImporter = true
-            } label: {
-                Label(String(localized: "从文件导入"), systemImage: "folder")
-            }
-        } label: {
-            Image(systemName: "square.and.arrow.down")
-        }
-    }
-
-    private func nativeMacSelectionModeButton(albumKind: MediaAlbumKind?) -> some View {
-        Button {
             if isSelecting {
-                exitSelectionMode()
-            } else {
-                enterSelectionMode()
-            }
-        } label: {
-            if isSelecting {
-                Image(systemName: "xmark")
-            } else {
-                Image(systemName: "checkmark.circle")
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(String(localized: "取消")) { exitSelectionMode() }
+                }
             }
         }
     }
-
-    private func nativeMacSortMenu(currentSortOption: AlbumSortOption) -> some View {
-        Menu {
-            ForEach(availableSortOptions) { option in
-                sortOptionButton(for: option, currentSortOption: currentSortOption)
-            }
-        } label: {
-            Image(systemName: "line.3.horizontal.decrease")
-        }
-    }
-    #endif
 
     private func selectionActionBar(albumKind: MediaAlbumKind?) -> some View {
         HStack(spacing: 0) {
@@ -792,45 +957,8 @@ struct AlbumDetailView: View {
         .modifier(SelectionBarGlassStyle())
     }
 
-    private var importMenuButton: some View {
-        Menu {
-            Button {
-                beginSystemPhotoImport()
-            } label: {
-                Label(String(localized: "从相册导入"), systemImage: "photo.on.rectangle")
-            }
-
-            Button {
-                showingFileImporter = true
-            } label: {
-                Label(String(localized: "从文件导入"), systemImage: "folder")
-            }
-        } label: {
-            Image(systemName: "square.and.arrow.down")
-        }
-        .buttonStyle(.borderless)
-        .menuIndicator(.hidden)
-    }
-
-    private func selectionModeButton(albumKind: MediaAlbumKind?) -> some View {
-        Button {
-            if isSelecting {
-                exitSelectionMode()
-            } else {
-                enterSelectionMode()
-            }
-        } label: {
-            if isSelecting {
-                Image(systemName: "xmark")
-                    .font(.body.weight(.semibold))
-            } else {
-                Image(systemName: "checkmark.circle")
-            }
-        }
-        .buttonStyle(.borderless)
-    }
-
     private func enterSelectionMode() {
+        searchFocused = false
         previewSelection = nil
         photoPreviewItemID = nil
         detailItemID = nil
@@ -839,6 +967,7 @@ struct AlbumDetailView: View {
     }
 
     private func enterSelectionMode(selecting itemID: UUID) {
+        searchFocused = false
         previewSelection = nil
         photoPreviewItemID = nil
         detailItemID = nil
@@ -880,19 +1009,6 @@ struct AlbumDetailView: View {
         }
         .disabled(isDisabled)
         .buttonStyle(.plain)
-    }
-
-    private func sortMenu(currentSortOption: AlbumSortOption) -> some View {
-        Menu {
-            ForEach(availableSortOptions) { option in
-                sortOptionButton(for: option, currentSortOption: currentSortOption)
-            }
-        } label: {
-            Image(systemName: "line.3.horizontal.decrease")
-        }
-        .buttonStyle(.borderless)
-        .menuIndicator(.hidden)
-        .accessibilityLabel(String(localized: "排序"))
     }
 
     private var availableSortOptions: [AlbumSortOption] {

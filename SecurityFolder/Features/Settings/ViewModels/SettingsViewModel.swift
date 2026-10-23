@@ -5,7 +5,7 @@ import Foundation
 final class SettingsViewModel: ObservableObject {
     let space: VaultSpaceKind
     let trashRetentionOptions = [7, 15, 30, 60, 90]
-    let autoLockTimeoutOptions = [0, 30, 60, 120, 180, 300]
+    let autoLockTimeoutOptions = [30, 60, 120, 180, 300, 0]
 
     init(space: VaultSpaceKind) {
         self.space = space

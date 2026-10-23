@@ -989,6 +989,16 @@
         }
       }
     },
+    "%@: %@ – %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@ – %3$@"
+          }
+        }
+      }
+    },
     "%@暂无内容" : {
       "localizations" : {
         "de" : {
@@ -1518,6 +1528,179 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "%lld 个结果" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Ergebnis"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Ergebnisse"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld result"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld results"
+                }
+              }
+            }
+          }
+        },
+        "en-GB" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld result"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld results"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld resultado"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld resultados"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld résultat"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld résultats"
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld risultato"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld risultati"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 件の結果"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "결과 %lld개"
+          }
+        },
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld результата"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld результатов"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld результат"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld результата"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个结果"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個結果"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個結果"
           }
         }
       }
@@ -5400,6 +5583,82 @@
         }
       }
     },
+    "侦测到截屏后锁定" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach erkanntem Screenshot sperren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock After Screenshot Detection"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock After Screenshot Detection"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloquear al detectar una captura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verrouiller après une capture d’écran"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blocca dopo una cattura dello schermo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スクリーンショット検出後にロック"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "스크린샷 감지 후 잠금"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Блокировать после снимка экрана"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "侦测到截屏后锁定"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偵測到截圖後鎖定"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偵測到截圖後鎖定"
+          }
+        }
+      }
+    },
     "保存" : {
       "localizations" : {
         "de" : {
@@ -7376,6 +7635,83 @@
         }
       }
     },
+    "全部" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutti"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべて"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전체"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Все"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        }
+      }
+    },
     "全部照片" : {
       "localizations" : {
         "de" : {
@@ -8136,154 +8472,154 @@
         }
       }
     },
-    "其中包含 %1$lld 个高级数据保护媒体和 %2$lld 个强加密相册；查看这部分内容前，请确保高级数据保护保持开启。" : {
+    "其中包含 %1$lld 个受保护媒体和 %2$lld 个强加密相册；查看这部分内容前，请确保安全预览模式保持开启。" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Es enthält %1$lld Advanced Data Protection-Medien und %2$lld stark verschlüsselte Alben; Bitte stellen Sie sicher, dass der erweiterte Datenschutz aktiviert ist, bevor Sie diesen Abschnitt lesen."
+            "value" : "Dies enthält %1$lld geschützte Medien und %2$lld geschützte Alben. Lassen Sie den sicheren Vorschaumodus aktiviert, um sie anzuzeigen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This includes %1$lld Advanced Data Protection media items and %2$lld encrypted albums. Keep Advanced Data Protection enabled to view them."
+            "value" : "This includes %1$lld secure media items and %2$lld Secure Albums. Keep Secure Preview Mode enabled to view them."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This includes %1$lld Advanced Data Protection media items and %2$lld encrypted albums. Keep Advanced Data Protection enabled to view them."
+            "value" : "This includes %1$lld secure media items and %2$lld Secure Albums. Keep Secure Preview Mode enabled to view them."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Contiene %1$lld medios de protección de datos avanzada y %2$lld álbumes fuertemente cifrados; asegúrese de que la Protección de datos avanzada esté activada antes de ver esta sección."
+            "value" : "Incluye %1$lld elementos multimedia protegidos y %2$lld álbumes protegidos. Mantén activado el modo de vista previa segura para verlos."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Il contient %1$lld médias Advanced Data Protection et %2$lld albums fortement cryptés ; veuillez vous assurer que la protection avancée des données est activée avant de consulter cette section."
+            "value" : "Ce contenu comprend %1$lld médias protégés et %2$lld albums protégés. Gardez le mode d’aperçu sécurisé activé pour les consulter."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Contiene %1$lld supporti di protezione dati avanzata e %2$lld album fortemente crittografati; assicurati che la protezione avanzata dei dati sia attivata prima di visualizzare questa sezione."
+            "value" : "Include %1$lld elementi multimediali protetti e %2$lld album protetti. Mantieni attiva la modalità anteprima sicura per visualizzarli."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "これには、%1$lld Advanced Data Protection メディアと %2$lld の強力に暗号化されたアルバムが含まれています。このセクションを参照する前に、高度なデータ保護がオンになっていることを確認してください。"
+            "value" : "保護されたメディア %1$lld 件と保護されたアルバム %2$lld 個が含まれています。表示するにはセキュアプレビューモードをオンにしてください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "여기에는 %1$lld 고급 데이터 보호 미디어와 %2$lld 강력하게 암호화된 앨범이 포함되어 있습니다. 이 섹션을 보기 전에 고급 데이터 보호 기능이 켜져 있는지 확인하십시오."
+            "value" : "보호된 미디어 %1$lld개와 보호된 앨범 %2$lld개가 포함되어 있습니다. 보려면 보안 미리보기 모드를 켜 두세요."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Он содержит %1$lld носители Advanced Data Protection и %2$lld сильно зашифрованные альбомы; перед просмотром этого раздела убедитесь, что расширенная защита данных включена."
+            "value" : "Содержит защищённые медиафайлы (%1$lld) и альбомы (%2$lld). Для просмотра оставьте включённым режим защищённого просмотра."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 个高级数据保护媒体和 %2$lld 个强加密相册；查看这部分内容前，请确保高级数据保护保持开启。"
+            "value" : "其中包含 %1$lld 个受保护媒体和 %2$lld 个强加密相册；查看这部分内容前，请确保安全预览模式保持开启。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 個進階資料保護媒體和 %2$lld 個強加密相簿；查看這部分內容前，請確保進階資料保護保持開啟。"
+            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個強加密相簿；查看前，請確保安全預覽模式保持開啟。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 個進階數據保護媒體和 %2$lld 個強加密相簿；查看這部分內容前，請確保進階數據保護保持開啟。"
+            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個強加密相簿；查看前，請確保安全預覽模式保持開啟。"
           }
         }
       }
     },
-    "其中包含 %1$lld 个高级数据保护媒体和 %2$lld 个强加密相册；这部分内容需要会员并开启高级数据保护后才能查看。" : {
+    "其中包含 %1$lld 个受保护媒体和 %2$lld 个强加密相册；这部分内容需要会员并开启安全预览模式后才能查看。" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Es enthält %1$lld erweiterte Datenschutzmedien und %2$lld stark verschlüsselte Fotoalben; Für diesen Inhalt ist eine Mitgliedschaft und die Aktivierung des erweiterten Datenschutzes erforderlich, bevor Sie ihn anzeigen können."
+            "value" : "Dies enthält %1$lld geschützte Medien und %2$lld geschützte Alben. Zum Anzeigen sind eine Mitgliedschaft und der sichere Vorschaumodus erforderlich."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This includes %1$lld Advanced Data Protection media items and %2$lld encrypted albums. A membership and Advanced Data Protection are required to view them."
+            "value" : "This includes %1$lld secure media items and %2$lld Secure Albums. A membership and Secure Preview Mode are required to view them."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This includes %1$lld Advanced Data Protection media items and %2$lld encrypted albums. A membership and Advanced Data Protection are required to view them."
+            "value" : "This includes %1$lld secure media items and %2$lld Secure Albums. A membership and Secure Preview Mode are required to view them."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Contiene %1$lld medios de protección de datos avanzados y %2$lld álbumes de fotos fuertemente cifrados; este contenido requiere membresía y activación de protección de datos avanzada antes de poder verlo."
+            "value" : "Incluye %1$lld elementos multimedia protegidos y %2$lld álbumes protegidos. Para verlos, necesitas una suscripción y el modo de vista previa segura."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Il contient %1$lld supports de protection des données avancés et %2$lld albums photo fortement cryptés ; ce contenu nécessite une adhésion et l'activation de la protection avancée des données avant de pouvoir le visualiser."
+            "value" : "Ce contenu comprend %1$lld médias protégés et %2$lld albums protégés. Leur consultation nécessite une adhésion et le mode d’aperçu sécurisé."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Contiene %1$lld supporti avanzati per la protezione dei dati e %2$lld album fotografici fortemente crittografati; questo contenuto richiede l'iscrizione e l'attivazione della protezione avanzata dei dati prima di poterlo visualizzare."
+            "value" : "Include %1$lld elementi multimediali protetti e %2$lld album protetti. Per visualizzarli servono un’iscrizione e la modalità anteprima sicura."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "これには、%1$lld の高度なデータ保護メディアと %2$lld の強力に暗号化されたフォト アルバムが含まれています。このコンテンツを表示するには、メンバーシップと高度なデータ保護を有効にする必要があります。"
+            "value" : "保護されたメディア %1$lld 件と保護されたアルバム %2$lld 個が含まれています。表示にはメンバーシップとセキュアプレビューモードが必要です。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "여기에는 %1$lld 고급 데이터 보호 미디어와 %2$lld 강력하게 암호화된 사진 앨범이 포함되어 있습니다. 이 콘텐츠를 보려면 멤버십이 필요하고 고급 데이터 보호 기능을 켜야 합니다."
+            "value" : "보호된 미디어 %1$lld개와 보호된 앨범 %2$lld개가 포함되어 있습니다. 보려면 멤버십과 보안 미리보기 모드가 필요합니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Он содержит носители с улучшенной защитой данных %1$lld и сильно зашифрованные фотоальбомы %2$lld; для просмотра этого контента требуется членство и включение расширенной защиты данных."
+            "value" : "Содержит защищённые медиафайлы (%1$lld) и альбомы (%2$lld). Для просмотра нужны членство и режим защищённого просмотра."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 个高级数据保护媒体和 %2$lld 个强加密相册；这部分内容需要会员并开启高级数据保护后才能查看。"
+            "value" : "其中包含 %1$lld 个受保护媒体和 %2$lld 个强加密相册；这部分内容需要会员并开启安全预览模式后才能查看。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 個進階資料保護媒體和 %2$lld 個強加密相簿；這部分內容需要會員並開啟高級資料保護後才能查看。"
+            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個強加密相簿；這部分內容需要會員並開啟安全預覽模式後才能查看。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 個進階數據保護媒體和 %2$lld 個強加密相簿；這部分內容需要會員並開啟高級數據保護後才能查看。"
+            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個強加密相簿；這部分內容需要會員並開啟安全預覽模式後才能查看。"
           }
         }
       }
@@ -9580,6 +9916,82 @@
         }
       }
     },
+    "切换到后台或多任务界面时，应用会遮挡内容；录屏或投屏期间也会隐藏内容。开启“侦测到截屏后锁定”后，应用会在收到截屏通知时锁定，已经保存的截图不会被撤回。" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beim Wechseln aus der App werden die Inhalte verdeckt. Bei Bildschirmaufnahme oder Bildschirmübertragung bleiben sie ausgeblendet. „Nach erkanntem Screenshot sperren“ sperrt die App nach einem Screenshot; der bereits gespeicherte Screenshot wird dadurch nicht entfernt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App content is covered when you leave the app and hidden during screen recording or mirroring. “Lock After Screenshot Detection” locks the app after a screenshot is taken; it does not remove the saved screenshot."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App content is covered when you leave the app and hidden during screen recording or mirroring. “Lock After Screenshot Detection” locks the app after a screenshot is taken; it does not remove the saved screenshot."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El contenido se cubre al salir de la app y se oculta durante la grabación o duplicación de pantalla. «Bloquear al detectar una captura» bloquea la app después de una captura; no elimina la captura guardada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le contenu est masqué lorsque vous quittez l’app et pendant l’enregistrement ou la recopie de l’écran. « Verrouiller après une capture d’écran » verrouille l’app après une capture ; la capture enregistrée reste disponible."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il contenuto viene coperto quando esci dall’app e nascosto durante la registrazione o duplicazione dello schermo. «Blocca dopo una cattura dello schermo» blocca l’app dopo una cattura; non elimina la cattura salvata."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アプリを離れると内容を覆い、画面収録やミラーリング中は内容を非表示にします。「スクリーンショット検出後にロック」を有効にすると撮影後にアプリをロックします。保存済みのスクリーンショットは削除されません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱을 나가면 내용을 가리고, 화면 녹화 또는 미러링 중에는 내용을 숨깁니다. “스크린샷 감지 후 잠금”을 켜면 촬영 후 앱이 잠깁니다. 이미 저장된 스크린샷은 삭제되지 않습니다."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "При выходе из приложения содержимое закрывается, а при записи или трансляции экрана скрывается. «Блокировать после снимка экрана» блокирует приложение после снимка; сохранённый снимок не удаляется."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换到后台或多任务界面时，应用会遮挡内容；录屏或投屏期间也会隐藏内容。开启“侦测到截屏后锁定”后，应用会在收到截屏通知时锁定，已经保存的截图不会被撤回。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切換到背景或多工介面時，應用程式會遮擋內容；螢幕錄製或投放期間也會隱藏內容。開啟「偵測到截圖後鎖定」後，應用程式會在收到截圖通知時鎖定，已儲存的截圖不會被撤回。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切換到背景或多工介面時，應用程式會遮擋內容；螢幕錄製或投放期間也會隱藏內容。開啟「偵測到截圖後鎖定」後，應用程式會在收到截圖通知時鎖定，已儲存的截圖不會被撤回。"
+          }
+        }
+      }
+    },
     "创建" : {
       "localizations" : {
         "de" : {
@@ -10184,6 +10596,83 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "副空間"
+          }
+        }
+      }
+    },
+    "匹配的相册" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passende Alben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matching albums"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matching albums"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Álbumes coincidentes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Albums correspondants"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Album corrispondenti"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一致するアルバム"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일치하는 앨범"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Найденные альбомы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匹配的相册"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "符合的相簿"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "符合的相簿"
           }
         }
       }
@@ -11024,78 +11513,78 @@
         }
       }
     },
-    "启用高级数据保护？" : {
+    "启用安全预览模式？" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Erweiterten Datenschutz aktivieren?"
+            "value" : "Sicheren Vorschaumodus aktivieren?"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enable Advanced Data Protection?"
+            "value" : "Enable Secure Preview Mode?"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enable Advanced Data Protection?"
+            "value" : "Enable Secure Preview Mode?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Habilitar la protección de datos avanzada?"
+            "value" : "¿Activar el modo de vista previa segura?"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Activer la protection avancée des données ?"
+            "value" : "Activer le mode d’aperçu sécurisé ?"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abilitare la protezione avanzata dei dati?"
+            "value" : "Attivare la modalità anteprima sicura?"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "高度なデータ保護を有効にしますか?"
+            "value" : "セキュアプレビューモードを有効にしますか？"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "고급 데이터 보호를 활성화하시겠습니까?"
+            "value" : "보안 미리보기 모드를 켤까요?"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Включить расширенную защиту данных?"
+            "value" : "Включить режим защищённого просмотра?"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "启用高级数据保护？"
+            "value" : "启用安全预览模式？"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "啟用進階資料保護？"
+            "value" : "啟用安全預覽模式？"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "啟用進階數據保護？"
+            "value" : "啟用安全預覽模式？"
           }
         }
       }
@@ -11704,6 +12193,83 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在左側選擇一個相簿後，呢度會顯示對應內容。"
+          }
+        }
+      }
+    },
+    "在此相册中搜索" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Album durchsuchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search this album"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search this album"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar en este álbum"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher dans cet album"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca in questo album"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このアルバムを検索"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 앨범에서 검색"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поиск в этом альбоме"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此相册中搜索"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋此相簿"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋此相簿"
           }
         }
       }
@@ -13304,6 +13870,387 @@
         }
       }
     },
+    "媒体类型" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medientyp"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Media type"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Media type"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipo de contenido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type de média"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipo di contenuto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メディアの種類"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "미디어 유형"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тип медиа"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "媒体类型"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "媒體類型"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "媒體類型"
+          }
+        }
+      }
+    },
+    "安全预览模式" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sicherer Vorschaumodus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure Preview Mode"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure Preview Mode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modo de vista previa segura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode d’aperçu sécurisé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modalità anteprima sicura"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "セキュアプレビューモード"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "보안 미리보기 모드"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Режим защищённого просмотра"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全预览模式"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全預覽模式"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全預覽模式"
+          }
+        }
+      }
+    },
+    "安全预览模式已开启，受保护媒体不提供临时解密文件。" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der sichere Vorschaumodus ist aktiviert. Für geschützte Medien werden keine temporären entschlüsselten Dateien bereitgestellt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure Preview Mode is enabled. Temporary decrypted files are unavailable for secure media."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure Preview Mode is enabled. Temporary decrypted files are unavailable for secure media."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El modo de vista previa segura está activado. No se proporcionan archivos temporales descifrados para los elementos protegidos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le mode d’aperçu sécurisé est activé. Aucun fichier temporaire déchiffré n’est fourni pour les médias protégés."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La modalità anteprima sicura è attiva. Non vengono forniti file temporanei decifrati per i contenuti protetti."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "セキュアプレビューモードが有効です。保護されたメディアの一時復号ファイルは作成されません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "보안 미리보기 모드가 켜져 있습니다. 보호된 미디어의 임시 복호화 파일은 제공되지 않습니다."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Режим защищённого просмотра включён. Временные расшифрованные файлы для защищённых медиафайлов недоступны."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全预览模式已开启，受保护媒体不提供临时解密文件。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全預覽模式已開啟，受保護媒體不提供暫存解密檔案。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全預覽模式已開啟，受保護媒體不提供暫存解密檔案。"
+          }
+        }
+      }
+    },
+    "安全预览模式是会员功能。开启后，媒体库首页会出现强加密媒体库，并允许你创建强加密相册。强加密媒体不会显示缩略图，只会以列表方式展示文件名称；点击后会通过独立的内存解密预览链路查看原图或原视频，不会把原始内容临时写回硬盘。普通媒体库不受影响，仍然可以正常显示缩略图、封面并进行预览。" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sicherer Vorschaumodus ist eine Mitgliedschaftsfunktion. Nach dem Einschalten erscheint die stark verschlüsselte Medienbibliothek auf der Startseite der Medienbibliothek und ermöglicht die Erstellung stark verschlüsselter Fotoalben. Bei stark verschlüsselten Medien werden keine Miniaturansichten, sondern nur Dateinamen in einer Liste angezeigt. Nach dem Klicken wird das Originalbild oder -video über einen unabhängigen Vorschaulink zur Speicherentschlüsselung angezeigt und der Originalinhalt wird nicht vorübergehend auf die Festplatte zurückgeschrieben. Die normale Medienbibliothek ist nicht betroffen und kann weiterhin Miniaturansichten, Cover und Vorschauen normal anzeigen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure Preview Mode is a member feature. When enabled, a Secure Library appears on the Library home screen and you can create Secure Albums. Secure items do not show thumbnails and appear as file names in a list. When you tap an item, the original photo or video is previewed through a separate in-memory decryption path without writing the original content back to disk. The normal library is unaffected and still shows thumbnails, covers, and previews."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure Preview Mode is a member feature. When enabled, a Secure Library appears on the Library home screen and you can create Secure Albums. Secure items do not show thumbnails and appear as file names in a list. When you tap an item, the original photo or video is previewed through a separate in-memory decryption path without writing the original content back to disk. The normal library is unaffected and still shows thumbnails, covers, and previews."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modo de vista previa segura es una característica de la membresía. Después de encenderlo, la biblioteca multimedia fuertemente cifrada aparecerá en la página de inicio de la biblioteca multimedia y le permitirá crear álbumes de fotos fuertemente cifrados. Los medios fuertemente cifrados no mostrarán miniaturas, solo mostrarán nombres de archivos en una lista; después de hacer clic, la imagen o el video original se verá a través de un enlace de vista previa de descifrado de memoria independiente y el contenido original no se volverá a escribir temporalmente en el disco duro. La biblioteca multimedia normal no se ve afectada y aún puede mostrar miniaturas, portadas y vistas previas con normalidad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode d’aperçu sécurisé est une fonctionnalité d’adhésion. Après l'avoir allumé, la médiathèque fortement cryptée apparaîtra sur la page d'accueil de la médiathèque et vous permettra de créer des albums photos fortement cryptés. Les médias fortement cryptés n'afficheront pas de vignettes, mais afficheront uniquement les noms de fichiers dans une liste ; après avoir cliqué, l'image ou la vidéo originale sera visualisée via un lien de prévisualisation de décryptage de mémoire indépendant, et le contenu original ne sera pas temporairement réécrit sur le disque dur. La médiathèque ordinaire n’est pas affectée et peut toujours afficher normalement les vignettes, les couvertures et l’aperçu."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modalità anteprima sicura è una funzionalità dell'abbonamento. Dopo averlo attivato, il catalogo multimediale fortemente crittografato apparirà sulla home page del catalogo multimediale e consentirà di creare album fotografici con crittografia avanzata. I supporti fortemente crittografati non visualizzeranno le miniature, ma visualizzeranno solo i nomi dei file in un elenco; dopo aver fatto clic, l'immagine o il video originale verranno visualizzati tramite un collegamento di anteprima di decrittografia della memoria indipendente e il contenuto originale non verrà temporaneamente riscritto sul disco rigido. Il normale catalogo multimediale non è interessato e può comunque visualizzare normalmente miniature, copertine e anteprime."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "セキュアプレビューモードはメンバーシップ機能です。オンにすると、強力に暗号化されたメディア ライブラリがメディア ライブラリのホームページに表示され、強力に暗号化されたフォト アルバムを作成できるようになります。強力に暗号化されたメディアはサムネイルを表示せず、リスト内のファイル名のみを表示します。クリックすると、独立したメモリ復号化プレビュー リンクを通じて元の画像またはビデオが表示され、元のコンテンツが一時的にハードディスクに書き戻されることはありません。通常のメディア ライブラリは影響を受けず、サムネイル、カバー、プレビューを通常どおり表示できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "보안 미리보기 모드는 멤버십 기능입니다. 이 기능을 켜면 강력하게 암호화된 미디어 라이브러리가 미디어 라이브러리 홈페이지에 나타나며 이를 통해 강력한 암호화된 사진 앨범을 만들 수 있습니다. 강력하게 암호화된 미디어는 썸네일을 표시하지 않고 목록에 파일 이름만 표시합니다. 클릭한 후에는 독립된 메모리 암호 해독 미리보기 링크를 통해 원본 이미지 또는 비디오를 볼 수 있으며 원본 콘텐츠는 일시적으로 하드 디스크에 다시 기록되지 않습니다. 일반 미디어 라이브러리는 영향을 받지 않으며 여전히 썸네일, 표지 및 미리보기를 정상적으로 표시할 수 있습니다."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Режим защищённого просмотра — это функция членства. После включения сильно зашифрованная медиатека появится на главной странице медиатеки и позволит вам создавать надежно зашифрованные фотоальбомы. На сильно зашифрованных носителях миниатюры не отображаются, а отображаются только имена файлов в списке; после нажатия исходное изображение или видео будет просмотрено по независимой ссылке предварительного просмотра расшифровки памяти, а исходный контент не будет временно записан обратно на жесткий диск. Обычная медиатека не затронута и по-прежнему может нормально отображать миниатюры, обложки и предварительный просмотр."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全预览模式是会员功能。开启后，媒体库首页会出现强加密媒体库，并允许你创建强加密相册。强加密媒体不会显示缩略图，只会以列表方式展示文件名称；点击后会通过独立的内存解密预览链路查看原图或原视频，不会把原始内容临时写回硬盘。普通媒体库不受影响，仍然可以正常显示缩略图、封面并进行预览。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全預覽模式是會員功能。開啟後，媒體庫首頁會出現強加密媒體庫，並允許你建立強加密相簿。強加密媒體不會顯示縮圖，只會以列表方式展示文件名稱；點擊後會通過獨立的內存解密預覽鏈路查看原圖或原影片，不會把原始內容臨時寫回硬碟。普通媒體庫不受影響，仍可正常顯示縮圖、封面並進行預覽。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全預覽模式是會員功能。開啟後，媒體庫首頁會出現強加密媒體庫，並允許你建立強加密相簿。強加密媒體不會顯示縮圖，只會以列表方式展示文件名稱；點擊後會通過獨立嘅內存解密預覽鏈路查看原圖或原視頻，不會把原始內容臨時寫回硬碟。普通媒體庫不受影響，仍可正常顯示縮圖、封面並進行預覽。"
+          }
+        }
+      }
+    },
+    "安全预览模式通过独立的内存解密链路预览受保护媒体；普通媒体库仍会正常显示缩略图和预览。" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der sichere Vorschaumodus entschlüsselt geschützte Medien für die Vorschau im Arbeitsspeicher. Die normale Mediathek zeigt weiterhin Miniaturansichten und Vorschauen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure Preview Mode uses a separate in-memory preview path for secure media. The regular library still shows thumbnails and previews normally."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure Preview Mode uses a separate in-memory preview path for secure media. The regular library still shows thumbnails and previews normally."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El modo de vista previa segura descifra los elementos protegidos en memoria para mostrarlos. La biblioteca normal sigue mostrando miniaturas y vistas previas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le mode d’aperçu sécurisé déchiffre les médias protégés en mémoire pour les afficher. La médiathèque normale conserve ses vignettes et aperçus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La modalità anteprima sicura decifra in memoria i contenuti protetti per mostrarli. La libreria normale continua a mostrare miniature e anteprime."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "セキュアプレビューモードでは、保護されたメディアをメモリ内で復号して表示します。通常のライブラリでは引き続きサムネイルとプレビューを表示できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "보안 미리보기 모드는 보호된 미디어를 메모리에서 복호화하여 표시합니다. 일반 라이브러리는 계속 썸네일과 미리보기를 표시합니다."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В режиме защищённого просмотра защищённые медиафайлы расшифровываются в памяти. Обычная медиатека по-прежнему показывает миниатюры и предварительный просмотр."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全预览模式通过独立的内存解密链路预览受保护媒体；普通媒体库仍会正常显示缩略图和预览。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全預覽模式透過獨立的記憶體解密流程預覽受保護媒體；一般媒體庫仍會正常顯示縮圖和預覽。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全預覽模式透過獨立嘅記憶體解密流程預覽受保護媒體；一般媒體庫仍會正常顯示縮圖和預覽。"
+          }
+        }
+      }
+    },
     "完成" : {
       "localizations" : {
         "de" : {
@@ -13657,12 +14604,6 @@
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Пароль неверный. Ещё %lld неудачная попытка — и разблокировка будет временно недоступна."
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -13673,6 +14614,12 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "Пароль неверный. Ещё %lld неудачных попыток — и разблокировка будет временно недоступна."
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Пароль неверный. Ещё %lld неудачная попытка — и разблокировка будет временно недоступна."
                 }
               },
               "other" : {
@@ -14741,12 +15688,6 @@
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Слишком много неудачных попыток. Повторите через %lld минуту."
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -14757,6 +15698,12 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "Слишком много неудачных попыток. Повторите через %lld минут."
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Слишком много неудачных попыток. Повторите через %lld минуту."
                 }
               },
               "other" : {
@@ -15017,6 +15964,7 @@
       }
     },
     "导入媒体" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15093,6 +16041,7 @@
       }
     },
     "导入媒体%lld" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15468,6 +16417,83 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "導入已停止。"
+          }
+        }
+      }
+    },
+    "导入日期" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importdatum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date imported"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date imported"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fecha de importación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date d’importation"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data di importazione"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込み日"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가져온 날짜"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дата импорта"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入日期"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯入日期"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯入日期"
           }
         }
       }
@@ -16385,6 +17411,83 @@
         }
       }
     },
+    "尝试其他名称，或调整筛选条件。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versuche einen anderen Namen oder passe die Filter an."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try another name or adjust your filters."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try another name or adjust your filters."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prueba otro nombre o ajusta los filtros."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Essayez un autre nom ou ajustez les filtres."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prova un altro nome o modifica i filtri."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "別の名前を試すか、絞り込み条件を変更してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 이름을 입력하거나 필터를 조정하세요."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Попробуйте другое имя или измените фильтры."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尝试其他名称，或调整筛选条件。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請嘗試其他名稱，或調整篩選條件。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請嘗試其他名稱，或調整篩選條件。"
+          }
+        }
+      }
+    },
     "屏幕隐私与录屏防窥" : {
       "localizations" : {
         "de" : {
@@ -16457,82 +17560,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "螢幕隱私與錄影防窺"
-          }
-        }
-      }
-    },
-    "侦测到截屏后锁定" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nach erkanntem Screenshot sperren"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lock After Screenshot Detection"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lock After Screenshot Detection"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bloquear al detectar una captura"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verrouiller après une capture d’écran"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Blocca dopo una cattura dello schermo"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スクリーンショット検出後にロック"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "스크린샷 감지 후 잠금"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Блокировать после снимка экрана"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "侦测到截屏后锁定"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "偵測到截圖後鎖定"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "偵測到截圖後鎖定"
           }
         }
       }
@@ -17145,6 +18172,83 @@
         }
       }
     },
+    "应用" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anwenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplicar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applica"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "適用"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "적용"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Применить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套用"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套用"
+          }
+        }
+      }
+    },
     "应用主题" : {
       "localizations" : {
         "de" : {
@@ -17217,82 +18321,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "App主題"
-          }
-        }
-      }
-    },
-    "切换到后台或多任务界面时，应用会遮挡内容；录屏或投屏期间也会隐藏内容。开启“侦测到截屏后锁定”后，应用会在收到截屏通知时锁定，已经保存的截图不会被撤回。" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Beim Wechseln aus der App werden die Inhalte verdeckt. Bei Bildschirmaufnahme oder Bildschirmübertragung bleiben sie ausgeblendet. „Nach erkanntem Screenshot sperren“ sperrt die App nach einem Screenshot; der bereits gespeicherte Screenshot wird dadurch nicht entfernt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "App content is covered when you leave the app and hidden during screen recording or mirroring. “Lock After Screenshot Detection” locks the app after a screenshot is taken; it does not remove the saved screenshot."
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "App content is covered when you leave the app and hidden during screen recording or mirroring. “Lock After Screenshot Detection” locks the app after a screenshot is taken; it does not remove the saved screenshot."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El contenido se cubre al salir de la app y se oculta durante la grabación o duplicación de pantalla. «Bloquear al detectar una captura» bloquea la app después de una captura; no elimina la captura guardada."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le contenu est masqué lorsque vous quittez l’app et pendant l’enregistrement ou la recopie de l’écran. « Verrouiller après une capture d’écran » verrouille l’app après une capture ; la capture enregistrée reste disponible."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Il contenuto viene coperto quando esci dall’app e nascosto durante la registrazione o duplicazione dello schermo. «Blocca dopo una cattura dello schermo» blocca l’app dopo una cattura; non elimina la cattura salvata."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "アプリを離れると内容を覆い、画面収録やミラーリング中は内容を非表示にします。「スクリーンショット検出後にロック」を有効にすると撮影後にアプリをロックします。保存済みのスクリーンショットは削除されません。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱을 나가면 내용을 가리고, 화면 녹화 또는 미러링 중에는 내용을 숨깁니다. “스크린샷 감지 후 잠금”을 켜면 촬영 후 앱이 잠깁니다. 이미 저장된 스크린샷은 삭제되지 않습니다."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "При выходе из приложения содержимое закрывается, а при записи или трансляции экрана скрывается. «Блокировать после снимка экрана» блокирует приложение после снимка; сохранённый снимок не удаляется."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "切换到后台或多任务界面时，应用会遮挡内容；录屏或投屏期间也会隐藏内容。开启“侦测到截屏后锁定”后，应用会在收到截屏通知时锁定，已经保存的截图不会被撤回。"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "切換到背景或多工介面時，應用程式會遮擋內容；螢幕錄製或投放期間也會隱藏內容。開啟「偵測到截圖後鎖定」後，應用程式會在收到截圖通知時鎖定，已儲存的截圖不會被撤回。"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "切換到背景或多工介面時，應用程式會遮擋內容；螢幕錄製或投放期間也會隱藏內容。開啟「偵測到截圖後鎖定」後，應用程式會在收到截圖通知時鎖定，已儲存的截圖不會被撤回。"
           }
         }
       }
@@ -17525,82 +18553,6 @@
         }
       }
     },
-    "开启高级数据保护后，强加密媒体会使用更严格的预览链路；普通媒体库仍会正常显示缩略图和预览。" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wenn der erweiterte Datenschutz aktiviert ist, verwenden stark verschlüsselte Medien einen strengeren Vorschau-Link. In normalen Medienbibliotheken werden Miniaturansichten und Vorschauen weiterhin normal angezeigt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "When Advanced Data Protection is enabled, encrypted media uses a stricter preview path. The regular library still shows thumbnails and previews normally."
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "When Advanced Data Protection is enabled, encrypted media uses a stricter preview path. The regular library still shows thumbnails and previews normally."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cuando la protección de datos avanzada está activada, los medios fuertemente cifrados utilizarán un enlace de vista previa más estricto; Las bibliotecas multimedia normales seguirán mostrando miniaturas y vistas previas con normalidad."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lorsque la protection avancée des données est activée, les médias fortement chiffrés utiliseront un lien de prévisualisation plus strict ; Les bibliothèques multimédias ordinaires afficheront toujours les vignettes et les aperçus normalement."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quando la protezione avanzata dei dati è attivata, i contenuti multimediali fortemente crittografati utilizzeranno un collegamento di anteprima più rigido; le normali librerie multimediali continueranno a visualizzare normalmente le miniature e le anteprime."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高度なデータ保護がオンになっている場合、強力に暗号化されたメディアはより厳密なプレビュー リンクを使用します。通常のメディア ライブラリでは、サムネイルとプレビューが通常どおり表示されます。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "고급 데이터 보호가 켜져 있으면 강력하게 암호화된 미디어는 더 엄격한 미리보기 링크를 사용합니다. 일반 미디어 라이브러리는 여전히 썸네일과 미리보기를 정상적으로 표시합니다."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Если включена расширенная защита данных, для сильно зашифрованных носителей будет использоваться более строгая ссылка предварительного просмотра; обычные медиа-библиотеки по-прежнему будут нормально отображать миниатюры и предварительный просмотр."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开启高级数据保护后，强加密媒体会使用更严格的预览链路；普通媒体库仍会正常显示缩略图和预览。"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開啟進階資料保護後，強加密媒體會使用更嚴格的預覽連結；普通​​媒體庫仍會正常顯示縮圖和預覽。"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開啟進階數據保護後，強加密媒體會使用更嚴格嘅預覽連結；普通​​媒體庫仍會正常顯示縮圖和預覽。"
-          }
-        }
-      }
-    },
     "开始导出" : {
       "localizations" : {
         "de" : {
@@ -17749,6 +18701,83 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開始恢復"
+          }
+        }
+      }
+    },
+    "开始日期" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startdatum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start date"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start date"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fecha de inicio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date de début"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data iniziale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始日"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시작 날짜"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Начальная дата"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始日期"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始日期"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始日期"
           }
         }
       }
@@ -21402,6 +22431,83 @@
         }
       }
     },
+    "拍摄日期" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufnahmedatum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date taken"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date taken"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fecha de captura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date de prise de vue"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data di acquisizione"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撮影日"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "촬영 날짜"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дата съёмки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄日期"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍攝日期"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍攝日期"
+          }
+        }
+      }
+    },
     "拍摄时间" : {
       "localizations" : {
         "de" : {
@@ -21706,6 +22812,160 @@
         }
       }
     },
+    "按拍摄日期筛选时，不包含缺少拍摄时间的项目。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beim Filtern nach Aufnahmedatum werden Elemente ohne Aufnahmedatum ausgeschlossen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtering by date taken excludes items without a capture date."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtering by date taken excludes items without a capture date."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El filtro por fecha de captura excluye los elementos sin esa fecha."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le filtre par date de prise de vue exclut les éléments sans cette date."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il filtro per data di acquisizione esclude gli elementi privi di tale data."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撮影日がない項目は、撮影日による絞り込みに含まれません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "촬영 날짜로 필터링하면 촬영 날짜가 없는 항목은 제외됩니다."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фильтр по дате съёмки исключает объекты без этой даты."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按拍摄日期筛选时，不包含缺少拍摄时间的项目。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "依拍攝日期篩選時，不包含缺少拍攝時間的項目。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "依拍攝日期篩選時，不包含缺少拍攝時間的項目。"
+          }
+        }
+      }
+    },
+    "按日期筛选" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach Datum filtern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter by date"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter by date"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtrar por fecha"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtrer par date"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtra per data"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日付で絞り込む"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "날짜로 필터링"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фильтр по дате"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按日期筛选"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "依日期篩選"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "依日期篩選"
+          }
+        }
+      }
+    },
     "排序" : {
       "localizations" : {
         "de" : {
@@ -21854,6 +23114,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "提示"
+          }
+        }
+      }
+    },
+    "搜索当前空间" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktuellen Bereich durchsuchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search current space"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search current space"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar en el espacio actual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher dans l’espace actuel"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca nello spazio attuale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在のスペースを検索"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 공간 검색"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поиск в текущем пространстве"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索当前空间"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋目前空間"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋目前空間"
+          }
+        }
+      }
+    },
+    "搜索照片、视频和相册" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos, Videos und Alben suchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search photos, videos, and albums"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search photos, videos, and albums"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar fotos, vídeos y álbumes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher des photos, vidéos et albums"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca foto, video e album"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真、ビデオ、アルバムを検索"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진, 비디오 및 앨범 검색"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поиск фото, видео и альбомов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索照片、视频和相册"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋照片、影片和相簿"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋照片、影片和相簿"
           }
         }
       }
@@ -23834,6 +25248,83 @@
         }
       }
     },
+    "日期依据" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datumsfeld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date field"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date field"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Campo de fecha"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Champ de date"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Campo data"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日付の種類"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "날짜 기준"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тип даты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日期依据"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日期依據"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日期依據"
+          }
+        }
+      }
+    },
     "时段内解锁空间" : {
       "localizations" : {
         "de" : {
@@ -24970,6 +26461,83 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未找到備份文件"
+          }
+        }
+      }
+    },
+    "未找到结果" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Ergebnisse"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No results"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No results"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin resultados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun résultat"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun risultato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結果がありません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "결과 없음"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет результатов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到结果"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到結果"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到結果"
           }
         }
       }
@@ -27331,6 +28899,83 @@
         }
       }
     },
+    "正在搜索" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suchen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Searching…"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Searching…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricerca…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "検索中…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "검색 중…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поиск…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在搜索"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋中⋯"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋中⋯"
+          }
+        }
+      }
+    },
     "正在整理当前空间索引" : {
       "localizations" : {
         "de" : {
@@ -29384,6 +31029,160 @@
         }
       }
     },
+    "清除搜索" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche löschen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Search"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Search"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar búsqueda"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer la recherche"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancella ricerca"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "検索をクリア"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "검색 지우기"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистить поиск"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除搜索"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除搜尋"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除搜尋"
+          }
+        }
+      }
+    },
+    "清除筛选" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter zurücksetzen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear filters"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear filters"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar filtros"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer les filtres"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancella filtri"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "絞り込みを解除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필터 지우기"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сбросить фильтры"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除筛选"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除篩選"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除篩選"
+          }
+        }
+      }
+    },
     "点击这里锁定当前空间" : {
       "localizations" : {
         "de" : {
@@ -31300,13 +33099,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "视频"
+            "value" : "Videos"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "视频"
+            "value" : "Videos"
           }
         },
         "es" : {
@@ -33190,6 +34989,83 @@
         }
       }
     },
+    "筛选" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtrar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtrer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtra"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "絞り込み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필터"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фильтр"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筛选"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "篩選"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "篩選"
+          }
+        }
+      }
+    },
     "管理相册" : {
       "localizations" : {
         "de" : {
@@ -33566,6 +35442,83 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "經度"
+          }
+        }
+      }
+    },
+    "结束日期" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enddatum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End date"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End date"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fecha de fin"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date de fin"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data finale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "終了日"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "종료 날짜"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Конечная дата"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结束日期"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結束日期"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結束日期"
           }
         }
       }
@@ -38434,6 +40387,83 @@
         }
       }
     },
+    "输入名称，或使用筛选查找照片与视频。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib einen Namen ein oder verwende Filter, um Fotos und Videos zu finden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a name, or use filters to find photos and videos."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a name, or use filters to find photos and videos."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce un nombre o usa filtros para encontrar fotos y vídeos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez un nom ou utilisez les filtres pour trouver des photos et vidéos."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci un nome o usa i filtri per trovare foto e video."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名前を入力するか、絞り込みで写真やビデオを探せます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이름을 입력하거나 필터를 사용하여 사진과 비디오를 찾으세요."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите имя или используйте фильтры для поиска фото и видео."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入名称，或使用筛选查找照片与视频。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸入名稱，或使用篩選尋找照片與影片。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸入名稱，或使用篩選尋找照片與影片。"
+          }
+        }
+      }
+    },
     "输入复杂密码" : {
       "localizations" : {
         "de" : {
@@ -42535,234 +44565,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "驗證身份並保存 %@ 設定"
-          }
-        }
-      }
-    },
-    "高级数据保护" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erweiterter Datenschutz"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Advanced Data Protection"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Advanced Data Protection"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Protección de datos avanzada"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Protection avancée des données"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Protezione avanzata dei dati"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高度なデータ保護"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "고급 데이터 보호"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Расширенная защита данных"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高级数据保护"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "進階資料保護"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "進階數據保護"
-          }
-        }
-      }
-    },
-    "高级数据保护已开启，应用不会生成任何临时解密文件。" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der erweiterte Datenschutz ist aktiviert und die App generiert keine temporären entschlüsselten Dateien."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Advanced Data Protection is enabled. The app will not create temporary decrypted files."
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Advanced Data Protection is enabled. The app will not create temporary decrypted files."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La protección de datos avanzada está activada y la aplicación no generará ningún archivo temporal descifrado."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La protection avancée des données est activée et l'application ne générera aucun fichier temporaire déchiffré."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La protezione avanzata dei dati è attivata e l'app non genererà alcun file temporaneo decrittografato."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高度なデータ保護がオンになっており、アプリは一時的な復号化されたファイルを生成しません。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "고급 데이터 보호가 켜져 있으며 앱은 임시 암호 해독 파일을 생성하지 않습니다."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Расширенная защита данных включена, и приложение не будет создавать временные расшифрованные файлы."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高级数据保护已开启，应用不会生成任何临时解密文件。"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "進階資料保護已開啟，應用程式不會產生任何臨時解密檔案。"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "進階數據保護已開啟，App不會產生任何臨時解密檔案。"
-          }
-        }
-      }
-    },
-    "高级数据保护是会员功能。开启后，媒体库首页会出现强加密媒体库，并允许你创建强加密相册。强加密媒体不会显示缩略图，只会以列表方式展示文件名称；点击后会通过独立的内存解密预览链路查看原图或原视频，不会把原始内容临时写回硬盘。普通媒体库不受影响，仍然可以正常显示缩略图、封面并进行预览。" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erweiterter Datenschutz ist eine Mitgliedschaftsfunktion. Nach dem Einschalten erscheint die stark verschlüsselte Medienbibliothek auf der Startseite der Medienbibliothek und ermöglicht die Erstellung stark verschlüsselter Fotoalben. Bei stark verschlüsselten Medien werden keine Miniaturansichten, sondern nur Dateinamen in einer Liste angezeigt. Nach dem Klicken wird das Originalbild oder -video über einen unabhängigen Vorschaulink zur Speicherentschlüsselung angezeigt und der Originalinhalt wird nicht vorübergehend auf die Festplatte zurückgeschrieben. Die normale Medienbibliothek ist nicht betroffen und kann weiterhin Miniaturansichten, Cover und Vorschauen normal anzeigen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Advanced Data Protection is a member feature. When enabled, a Secure Library appears on the Library home screen and you can create Secure Albums. Secure items do not show thumbnails and appear as file names in a list. When you tap an item, the original photo or video is previewed through a separate in-memory decryption path without writing the original content back to disk. The normal library is unaffected and still shows thumbnails, covers, and previews."
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Advanced Data Protection is a member feature. When enabled, a Secure Library appears on the Library home screen and you can create Secure Albums. Secure items do not show thumbnails and appear as file names in a list. When you tap an item, the original photo or video is previewed through a separate in-memory decryption path without writing the original content back to disk. The normal library is unaffected and still shows thumbnails, covers, and previews."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La protección de datos avanzada es una característica de la membresía. Después de encenderlo, la biblioteca multimedia fuertemente cifrada aparecerá en la página de inicio de la biblioteca multimedia y le permitirá crear álbumes de fotos fuertemente cifrados. Los medios fuertemente cifrados no mostrarán miniaturas, solo mostrarán nombres de archivos en una lista; después de hacer clic, la imagen o el video original se verá a través de un enlace de vista previa de descifrado de memoria independiente y el contenido original no se volverá a escribir temporalmente en el disco duro. La biblioteca multimedia normal no se ve afectada y aún puede mostrar miniaturas, portadas y vistas previas con normalidad."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La protection avancée des données est une fonctionnalité d’adhésion. Après l'avoir allumé, la médiathèque fortement cryptée apparaîtra sur la page d'accueil de la médiathèque et vous permettra de créer des albums photos fortement cryptés. Les médias fortement cryptés n'afficheront pas de vignettes, mais afficheront uniquement les noms de fichiers dans une liste ; après avoir cliqué, l'image ou la vidéo originale sera visualisée via un lien de prévisualisation de décryptage de mémoire indépendant, et le contenu original ne sera pas temporairement réécrit sur le disque dur. La médiathèque ordinaire n’est pas affectée et peut toujours afficher normalement les vignettes, les couvertures et l’aperçu."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La protezione avanzata dei dati è una funzionalità dell'abbonamento. Dopo averlo attivato, il catalogo multimediale fortemente crittografato apparirà sulla home page del catalogo multimediale e consentirà di creare album fotografici con crittografia avanzata. I supporti fortemente crittografati non visualizzeranno le miniature, ma visualizzeranno solo i nomi dei file in un elenco; dopo aver fatto clic, l'immagine o il video originale verranno visualizzati tramite un collegamento di anteprima di decrittografia della memoria indipendente e il contenuto originale non verrà temporaneamente riscritto sul disco rigido. Il normale catalogo multimediale non è interessato e può comunque visualizzare normalmente miniature, copertine e anteprime."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高度なデータ保護はメンバーシップ機能です。オンにすると、強力に暗号化されたメディア ライブラリがメディア ライブラリのホームページに表示され、強力に暗号化されたフォト アルバムを作成できるようになります。強力に暗号化されたメディアはサムネイルを表示せず、リスト内のファイル名のみを表示します。クリックすると、独立したメモリ復号化プレビュー リンクを通じて元の画像またはビデオが表示され、元のコンテンツが一時的にハードディスクに書き戻されることはありません。通常のメディア ライブラリは影響を受けず、サムネイル、カバー、プレビューを通常どおり表示できます。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "고급 데이터 보호는 멤버십 기능입니다. 이 기능을 켜면 강력하게 암호화된 미디어 라이브러리가 미디어 라이브러리 홈페이지에 나타나며 이를 통해 강력한 암호화된 사진 앨범을 만들 수 있습니다. 강력하게 암호화된 미디어는 썸네일을 표시하지 않고 목록에 파일 이름만 표시합니다. 클릭한 후에는 독립된 메모리 암호 해독 미리보기 링크를 통해 원본 이미지 또는 비디오를 볼 수 있으며 원본 콘텐츠는 일시적으로 하드 디스크에 다시 기록되지 않습니다. 일반 미디어 라이브러리는 영향을 받지 않으며 여전히 썸네일, 표지 및 미리보기를 정상적으로 표시할 수 있습니다."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Расширенная защита данных — это функция членства. После включения сильно зашифрованная медиатека появится на главной странице медиатеки и позволит вам создавать надежно зашифрованные фотоальбомы. На сильно зашифрованных носителях миниатюры не отображаются, а отображаются только имена файлов в списке; после нажатия исходное изображение или видео будет просмотрено по независимой ссылке предварительного просмотра расшифровки памяти, а исходный контент не будет временно записан обратно на жесткий диск. Обычная медиатека не затронута и по-прежнему может нормально отображать миниатюры, обложки и предварительный просмотр."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高级数据保护是会员功能。开启后，媒体库首页会出现强加密媒体库，并允许你创建强加密相册。强加密媒体不会显示缩略图，只会以列表方式展示文件名称；点击后会通过独立的内存解密预览链路查看原图或原视频，不会把原始内容临时写回硬盘。普通媒体库不受影响，仍然可以正常显示缩略图、封面并进行预览。"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高級資料保護是會員功能。開啟後，媒體庫首頁會出現強加密媒體庫，並允許你建立強加密相簿。強加密媒體不會顯示縮圖，只會以列表方式展示文件名稱；點擊後會通過獨立的內存解密預覽鏈路查看原圖或原影片，不會把原始內容臨時寫回硬碟。普通媒體庫不受影響，仍可正常顯示縮圖、封面並進行預覽。"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高級數據保護是會員功能。開啟後，媒體庫首頁會出現強加密媒體庫，並允許你建立強加密相簿。強加密媒體不會顯示縮圖，只會以列表方式展示文件名稱；點擊後會通過獨立嘅內存解密預覽鏈路查看原圖或原視頻，不會把原始內容臨時寫回硬碟。普通媒體庫不受影響，仍可正常顯示縮圖、封面並進行預覽。"
           }
         }
       }

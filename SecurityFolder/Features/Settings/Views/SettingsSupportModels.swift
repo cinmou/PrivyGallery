@@ -109,13 +109,13 @@ struct BackupResultAlert: Identifiable {
         if strongProtectedMediaCount > 0 || strongProtectedAlbumCount > 0 {
             if requiresMembershipReminder {
                 advancedProtectionMessage = String.localizedStringWithFormat(
-                    String(localized: "其中包含 %1$lld 个高级数据保护媒体和 %2$lld 个强加密相册；这部分内容需要会员并开启高级数据保护后才能查看。"),
+                    String(localized: "其中包含 %1$lld 个受保护媒体和 %2$lld 个强加密相册；这部分内容需要会员并开启安全预览模式后才能查看。"),
                     strongProtectedMediaCount,
                     strongProtectedAlbumCount
                 )
             } else {
                 advancedProtectionMessage = String.localizedStringWithFormat(
-                    String(localized: "其中包含 %1$lld 个高级数据保护媒体和 %2$lld 个强加密相册；查看这部分内容前，请确保高级数据保护保持开启。"),
+                    String(localized: "其中包含 %1$lld 个受保护媒体和 %2$lld 个强加密相册；查看这部分内容前，请确保安全预览模式保持开启。"),
                     strongProtectedMediaCount,
                     strongProtectedAlbumCount
                 )
