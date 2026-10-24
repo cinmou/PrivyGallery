@@ -15,7 +15,6 @@
 </p>
 
 <p align="center">
-  <a href="https://apps.apple.com/us/app/privygallery-dual-space-vault/id6765981187">App Store</a> ·
   <a href="https://privygallery.cinmou.uk">宣傳頁</a> ·
   <a href="tools/vault-unpacker/">.vault 解包器</a> ·
   <a href="docs/vault-format.md">備份格式</a> ·
@@ -24,7 +23,7 @@
 </p>
 
 <p align="center">
-  <a href="https://apps.apple.com/us/app/privygallery-dual-space-vault/id6765981187">
+  <a href="https://apps.apple.com/hk/app/id6765981187">
     <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="在 App Store 下載" height="56" />
   </a>
 </p>
