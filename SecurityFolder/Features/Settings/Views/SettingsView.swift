@@ -87,6 +87,11 @@ struct SettingsView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(item: $selectedSidebarDestination) { destination in
                     settingsDestinationView(for: destination)
+                        #if targetEnvironment(macCatalyst)
+                        .frame(maxWidth: 720)
+                        .frame(maxWidth: .infinity)
+                        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+                        #endif
                 }
         }
             .onReceive(NotificationCenter.default.publisher(for: .settingsShouldResetToRoot)) { _ in
@@ -205,6 +210,92 @@ struct SettingsView: View {
 
 
     private var settingsListContent: some View {
+        #if targetEnvironment(macCatalyst)
+        ScrollView {
+        VStack(alignment: .leading, spacing: 24) {
+            MacSettingsSection(String(localized: "会员管理")) {
+                HStack {
+                    Text(String(localized: "当前状态"))
+                    Spacer()
+                    Text(subscriptionManager.currentTier.title)
+                        .foregroundStyle(subscriptionManager.currentTier.accentColor)
+                }
+
+                settingsNavigationRow(String(localized: "会员中心")) {
+                    selectedSidebarDestination = .membership
+                }
+            }
+
+            SettingsPreferencesSectionView(
+                appTheme: $appTheme,
+                trashRetentionDays: $trashRetentionDays,
+                autoLockTimeoutSeconds: $autoLockTimeoutSeconds,
+                themeOptions: ThemeOption.allCases,
+                trashRetentionOptions: settingsViewModel.trashRetentionOptions,
+                autoLockTimeoutOptions: settingsViewModel.autoLockTimeoutOptions,
+                autoLockFooterText: autoLockFooterText,
+                autoLockTitle: settingsViewModel.autoLockTitle(for:)
+            )
+
+            SettingsPrivacySectionView(
+                lockAfterScreenshotEnabled: $lockAfterScreenshotEnabled,
+                deleteImportedSystemAssetsAfterImport: $deleteImportedSystemAssetsAfterImport,
+                advancedProtectionBinding: advancedProtectionBinding,
+                advancedProtectionEnabled: advancedDataProtectionEnabled,
+                canUseAdvancedProtection: subscriptionManager.currentTier == .fullMember,
+                advancedProtectionFooterText: advancedProtectionFooterText,
+                onOpenPassword: {
+                    protectedDestination = .password
+                    activeAuthPrompt = .privacy
+                },
+                onAttemptEnableAdvancedProtection: {
+                    selectedSidebarDestination = .membership
+                }
+            )
+
+            SettingsBackupSectionView(
+                exportingVault: exportingVault,
+                importingVault: importingVault,
+                backupFooterText: backupFooterText,
+                onExport: {
+                    activeAuthPrompt = .export
+                },
+                onImport: {
+                    showingImportPicker = true
+                },
+                onOpenBackupFiles: {
+                    selectedSidebarDestination = .backupFiles
+                }
+            )
+
+            MacSettingsSection(String(localized: "关于")) {
+                settingsNavigationRow(String(localized: "使用指南")) {
+                    selectedSidebarDestination = .guide
+                }
+
+                settingsNavigationRow(String(localized: "法律与隐私")) {
+                    selectedSidebarDestination = .legal
+                }
+
+                settingsNavigationRow(String(localized: "版本信息"), trailingText: AppMetadata.versionDisplay) {
+                    selectedSidebarDestination = .about
+                }
+            }
+
+            if let settingsStatusMessage {
+                VStack {
+                    Text(settingsStatusMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
+        }
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        #else
         List {
             Section(String(localized: "会员管理")) {
                 HStack {
@@ -285,7 +376,8 @@ struct SettingsView: View {
         }
         #if targetEnvironment(macCatalyst)
         .scrollContentBackground(.hidden)
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        #endif
         #endif
     }
 
@@ -304,7 +396,14 @@ struct SettingsView: View {
         }
         #if targetEnvironment(macCatalyst)
         .scrollContentBackground(.hidden)
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        #endif
+        #if targetEnvironment(macCatalyst)
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .frame(maxWidth: 720)
+        .frame(maxWidth: .infinity)
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
         #endif
         .navigationTitle(String(localized: "偏好设置"))
         .navigationBarTitleDisplayMode(.inline)
@@ -803,6 +902,28 @@ struct SettingsView: View {
 // MARK: - 法律与隐私视图 (直接附在文件末尾)
 private struct LegalInformationView: View {
     var body: some View {
+        Group {
+        #if targetEnvironment(macCatalyst)
+        MacInformationPage {
+
+            MacInformationSection(String(localized: "隐私与数据安全")) {
+                Text(String(localized: "本应用采用本地加密存储机制。除系统生成的预览图外，导入的媒体文件及相关元数据会使用 CryptoKit 提供的 AES-GCM 加密后保存在设备本地。"))
+                Text(String(localized: "本应用不设云端服务器，也不会主动上传您的照片、视频或相册数据。加密所需的密钥保存在设备本地的 Keychain 中，开发者无法访问或解密您的本地内容。"))
+                Text(String(localized: "您可以随时通过删除 App 清除本地数据；如果启用了胁迫密码，也可以在触发后清空本地保险箱内容。数据删除后通常无法恢复，谨记数据无价。"))
+            }
+            MacInformationSection(String(localized: "免责声明")) {
+                Text(String(localized: "您须对所有自行导入的素材（包括但不限于图片、视频及相关信息）承担全部连带责任。请务必确保您的使用行为及存储内容符合所在国家或地区的法律法规，并对此承担全部法律责任。"))
+                Text(String(localized: "您因存储违规内容而产生的任何法律纠纷、行政处罚或第三方索赔，均由您本人自行承担，开发者不承担任何直接或连带责任。"))
+                Text(String(localized: "任何因设备丢失、硬件损坏、系统故障、主动卸载应用、忘记空间密码或触发\u{201C}胁迫密码\u{201D}自毁机制导致的数据遗失，均属于不可逆转的操作。开发者无权也无法提供数据恢复服务，亦不对任何形式的数据损失承担赔偿责任。"))
+                Text(String(localized: "请务必定期使用\u{201C}导出备份\u{201D}功能生成加密的 .vault 文件并妥善保存。备份文件的安全性及保存情况由用户自行负责。"))
+            }
+            MacInformationSection(String(localized: "正式条款")) {
+                Link(String(localized: "隐私政策 (Privacy Policy)"), destination: URL(string: AppMetadata.privacyPolicyURLString)!)
+                Link(String(localized: "标准用户协议 (EULA)"), destination: URL(string: AppMetadata.standardEULAURLString)!)
+                Text(String(localized: "一旦您下载、安装或开始使用本应用，即视为您已充分阅读、理解并同意接受上述隐私政策与免责声明的所有条款约束。"))
+            }
+        }
+        #else
         List {
             
             Section(String(localized: "隐私与数据安全")) {
@@ -821,6 +942,12 @@ private struct LegalInformationView: View {
                 Link(String(localized: "标准用户协议 (EULA)"), destination: URL(string: AppMetadata.standardEULAURLString)!)
                 Text(String(localized: "一旦您下载、安装或开始使用本应用，即视为您已充分阅读、理解并同意接受上述隐私政策与免责声明的所有条款约束。"))
             }
+        }
+        #if targetEnvironment(macCatalyst)
+        .scrollContentBackground(.hidden)
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        #endif
+        #endif
         }
         .navigationTitle(String(localized: "法律与隐私"))
         .navigationBarTitleDisplayMode(.inline)

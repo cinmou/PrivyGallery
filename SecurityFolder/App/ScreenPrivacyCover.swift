@@ -5,12 +5,16 @@ import UIKit
 /// It never becomes key, so showing it cannot interrupt Face ID or keyboard focus.
 struct ScreenPrivacyCover: UIViewRepresentable {
     let session: AppSessionViewModel
+    @AppStorage(AppSettingsKey.hideContentDuringCapture)
+    private var hideContentDuringCapture = AppSettingsKey.defaultHideContentDuringCapture
 
     func makeUIView(context: Context) -> PrivacyWindowAnchor {
-        PrivacyWindowAnchor(session: session)
+        PrivacyWindowAnchor(session: session, hideContentDuringCapture: hideContentDuringCapture)
     }
 
-    func updateUIView(_ uiView: PrivacyWindowAnchor, context: Context) {}
+    func updateUIView(_ uiView: PrivacyWindowAnchor, context: Context) {
+        uiView.setCaptureProtection(hideContentDuringCapture)
+    }
 
     static func dismantleUIView(_ uiView: PrivacyWindowAnchor, coordinator: ()) {
         uiView.detach()
@@ -23,9 +27,11 @@ final class PrivacyWindowAnchor: UIView {
     private var coverWindow: UIWindow?
     private var observers: [NSObjectProtocol] = []
     private var isSceneActive = false
+    private var hideContentDuringCapture: Bool
 
-    init(session: AppSessionViewModel) {
+    init(session: AppSessionViewModel, hideContentDuringCapture: Bool) {
         self.session = session
+        self.hideContentDuringCapture = hideContentDuringCapture
         super.init(frame: .zero)
         isUserInteractionEnabled = false
     }
@@ -83,9 +89,14 @@ final class PrivacyWindowAnchor: UIView {
         })
     }
 
+    func setCaptureProtection(_ enabled: Bool) {
+        hideContentDuringCapture = enabled
+        updateCover()
+    }
+
     private func updateCover() {
         guard let scene = observedScene else { return }
-        let isCaptured = scene.screen.isCaptured
+        let isCaptured = hideContentDuringCapture && scene.screen.isCaptured
         guard !isSceneActive || isCaptured else {
             coverWindow?.isHidden = true
             coverWindow = nil

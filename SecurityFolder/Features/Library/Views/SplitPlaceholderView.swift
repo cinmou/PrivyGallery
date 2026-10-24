@@ -21,6 +21,10 @@ struct SplitPlaceholderView: View {
                 .frame(maxWidth: 320)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #if targetEnvironment(macCatalyst)
+        .background(Color(uiColor: .systemBackground).ignoresSafeArea())
+        #else
         .background(Color(.systemGroupedBackground))
+        #endif
     }
 }

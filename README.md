@@ -44,11 +44,9 @@ Backups are first stored inside the app. Save or share a copy elsewhere to retai
 
 ## Screenshots
 
-| Library | Albums | Media Player |
-| :-----: | :----: | :----------: |
-| <img src="Materials/images/1.PNG" width="220" /> | <img src="Materials/images/2.png" width="220" /> | <img src="Materials/images/6.png" width="220" /> |
-| **Settings** | **Settings** | **Backup** |
-| <img src="Materials/images/3.PNG" width="220" /> | <img src="Materials/images/4.PNG" width="220" /> | <img src="Materials/images/5.PNG" width="220" /> |
+![PrivyGallery — iPhone, iPad and Duo](Materials/AppStore/Creative/Search-en.png)
+
+[App Store artwork and editable sources](Materials/AppStore/Creative/README.md)
 
 ## Development and documentation
 

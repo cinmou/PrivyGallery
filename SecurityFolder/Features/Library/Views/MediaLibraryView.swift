@@ -4,6 +4,15 @@ import Photos
 import UniformTypeIdentifiers
 import UIKit
 
+#if targetEnvironment(macCatalyst)
+/// macOS 侧栏的间距常量。字号与行高随动态字体缩放，见 `MediaLibraryView` 上的 `@ScaledMetric`。
+private enum MacSidebarMetrics {
+    static let iconSpacing: CGFloat = 8
+    static let contentPadding: CGFloat = 0
+    static let sectionSpacing: CGFloat = 16
+}
+#endif
+
 struct MediaLibraryView: View {
     @ObservedObject var viewModel: MediaLibraryViewModel
     let adaptiveLayoutMode: AdaptiveLayoutMode
@@ -15,6 +24,15 @@ struct MediaLibraryView: View {
     private var advancedDataProtectionEnabled = AppSettingsKey.defaultAdvancedDataProtectionEnabled
     @AppStorage(AppSettingsKey.deleteImportedSystemAssetsAfterImport)
     private var deleteImportedSystemAssetsAfterImport = AppSettingsKey.defaultDeleteImportedSystemAssetsAfterImport
+
+    #if targetEnvironment(macCatalyst)
+    @ScaledMetric(relativeTo: .body) private var macRowHeight: CGFloat = 28
+    @ScaledMetric(relativeTo: .body) private var macIconSide: CGFloat = 20
+    @ScaledMetric(relativeTo: .body) private var macTitleSize: CGFloat = 13
+    @ScaledMetric(relativeTo: .body) private var macCountSize: CGFloat = 11
+    @ScaledMetric(relativeTo: .body) private var macSymbolSize: CGFloat = 16
+    @ScaledMetric(relativeTo: .body) private var macSectionSize: CGFloat = 11
+    #endif
 
     @State private var newAlbumName = ""
     @State private var showingNewAlbumPrompt = false
@@ -167,12 +185,14 @@ struct MediaLibraryView: View {
                                 }
                             }
 
+                            #if !targetEnvironment(macCatalyst)
                             Button {
                                 showingCoverEditor = false
                                 showingCoverPhotoPicker = true
                             } label: {
                                 Label(String(localized: "从系统图库导入"), systemImage: "photo.on.rectangle")
                             }
+                            #endif
 
                             Button {
                                 showingCoverEditor = false
@@ -316,6 +336,7 @@ struct MediaLibraryView: View {
                 }
                 .presentationDetents([.medium, .large])
             }
+            #if !targetEnvironment(macCatalyst)
             .photosPicker(
                 isPresented: $showingCoverPhotoPicker,
                 selection: $coverPhotoPickerItem,
@@ -355,6 +376,7 @@ struct MediaLibraryView: View {
                     )
                 }
             }
+            #endif
     }
 
     @ViewBuilder
@@ -379,7 +401,7 @@ struct MediaLibraryView: View {
                     }
                     #endif
                     #if targetEnvironment(macCatalyst)
-                    .navigationSplitViewColumnWidth(min: 220, ideal: 285, max: 340)
+                    .navigationSplitViewColumnWidth(min: 240, ideal: 285, max: 520)
                     #else
                     .navigationSplitViewColumnWidth(min: 240, ideal: 285, max: 520)
                     #endif
@@ -533,9 +555,33 @@ struct MediaLibraryView: View {
 
     private var sidebarRowInsets: EdgeInsets {
         #if targetEnvironment(macCatalyst)
-        EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6)
+        EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)
         #else
         EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)
+        #endif
+    }
+
+    private var usesMacSidebar: Bool {
+        #if targetEnvironment(macCatalyst)
+        true
+        #else
+        false
+        #endif
+    }
+
+    private func isSidebarAlbumSelected(_ album: AlbumCellModel) -> Bool {
+        selectedAlbumID == album.id && !showingSpaceSearch && !showingEmbeddedSettings
+    }
+
+    private var sidebarRowMinHeight: CGFloat {
+        usesMacSidebar ? 0 : 44
+    }
+
+    private var sidebarSectionSpacingStyle: ListSectionSpacing {
+        #if targetEnvironment(macCatalyst)
+        .custom(MacSidebarMetrics.sectionSpacing)
+        #else
+        usesSystemSidebarRows ? .custom(16) : .default
         #endif
     }
 
@@ -591,6 +637,10 @@ struct MediaLibraryView: View {
                 ForEach(viewModel.mediaAlbums) { album in
                     sidebarAlbumRow(album)
                 }
+            } header: {
+                #if targetEnvironment(macCatalyst)
+                macSidebarSectionHeader(String(localized: "相册"))
+                #endif
             }
             Section {
                 if let archiveAlbum = viewModel.archiveAlbum {
@@ -604,11 +654,18 @@ struct MediaLibraryView: View {
                         .listRowInsets(sidebarRowInsets)
                 }
             } header: {
+                #if targetEnvironment(macCatalyst)
+                macSidebarSectionHeader(String(localized: "其他相册"))
+                #else
                 sidebarSectionSpacer
+                #endif
             }
             if usesSplitLayout, embeddedSettingsView != nil || onOpenSettings != nil {
                 Section {
                     Group {
+                        #if targetEnvironment(macCatalyst)
+                        macSidebarSettingsRow
+                        #else
                         if usesSystemSidebarRows {
                             HStack(spacing: 12) {
                                 Image(systemName: "gear").frame(width: 54)
@@ -621,24 +678,33 @@ struct MediaLibraryView: View {
                                 Image(systemName: "gear").frame(width: 24)
                             }
                         }
+                        #endif
                     }
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: sidebarRowMinHeight, alignment: .leading)
                         .contentShape(Rectangle())
                         .tag(SidebarSelection.settings)
                         .listRowInsets(sidebarRowInsets)
                 } header: {
+                    #if targetEnvironment(macCatalyst)
+                    EmptyView()
+                    #else
                     sidebarSectionSpacer
+                    #endif
                 }
             }
             if let sidebarBottomAccessory {
                 Section {
                     sidebarBottomAccessory
                 } header: {
+                    #if targetEnvironment(macCatalyst)
+                    EmptyView()
+                    #else
                     sidebarSectionSpacer
+                    #endif
                 }
             }
         }
-        .listSectionSpacing(usesSystemSidebarRows ? .custom(16) : .default)
+        .listSectionSpacing(sidebarSectionSpacingStyle)
         .listRowSpacing(usesSystemSidebarRows ? 0 : nil)
     }
 
@@ -918,9 +984,83 @@ struct MediaLibraryView: View {
         }
     }
 
+    #if targetEnvironment(macCatalyst)
+    // Mac 的辅助导航行保持紧凑，选中效果由系统 List 绘制。
+    private func macSidebarRow(icon: some View, title: String, count: String?, tag: SidebarSelection) -> some View {
+        HStack(spacing: MacSidebarMetrics.iconSpacing) {
+            icon
+                .frame(width: macIconSide)
+
+            Text(title)
+                .font(.system(size: macTitleSize))
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer(minLength: MacSidebarMetrics.iconSpacing)
+
+            if let count {
+                Text(count)
+                    .font(.system(size: macCountSize))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+        }
+        .padding(.horizontal, MacSidebarMetrics.contentPadding)
+        .frame(minHeight: macRowHeight)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .tag(tag)
+    }
+
+    private func macSidebarAlbumRow(_ album: AlbumCellModel) -> some View {
+        AlbumCellView(album: album, usesSidebarStyle: true, alignsSidebarColumns: true)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .tag(SidebarSelection.album(album.id))
+            .accessibilityAddTraits(isSidebarAlbumSelected(album) ? .isSelected : [])
+    }
+
+    private func macSidebarSecondaryRow(_ album: AlbumCellModel) -> some View {
+        macSidebarRow(
+            icon: Image(systemName: sidebarSystemImage(for: album))
+                .font(.system(size: macSymbolSize))
+                .foregroundStyle(.tint),
+            title: album.title,
+            count: album.subtitle,
+            tag: .album(album.id)
+        )
+    }
+
+    private var macSidebarSettingsRow: some View {
+        macSidebarRow(
+            icon: Image(systemName: "gear")
+                .font(.system(size: macSymbolSize))
+                .foregroundStyle(.tint),
+            title: String(localized: "设置"),
+            count: nil,
+            tag: .settings
+        )
+    }
+
+    private func macSidebarSectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: macSectionSize, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .textCase(nil)
+            .padding(.horizontal, MacSidebarMetrics.contentPadding)
+            .padding(.top, 6)
+            .padding(.bottom, 2)
+    }
+    #endif
+
     private func sidebarAlbumRow(_ album: AlbumCellModel) -> some View {
-        let isSelected = selectedAlbumID == album.id && !showingSpaceSearch && !showingEmbeddedSettings
-        return Group {
+        Group {
+            #if targetEnvironment(macCatalyst)
+            macSidebarAlbumRow(album)
+            #else
             if usesSystemSidebarRows {
                 AlbumCellView(album: album, usesSidebarStyle: true, alignsSidebarColumns: true)
                     .padding(.vertical, sidebarAlbumVerticalPadding)
@@ -932,20 +1072,21 @@ struct MediaLibraryView: View {
                     showAlbumDetail(album.id)
                 } label: {
                     AlbumCellView(album: album, usesSidebarStyle: true)
-                        .foregroundStyle(isSelected ? Color.white : .primary)
-                        .tint(isSelected ? Color.white : .accentColor)
+                        .foregroundStyle(isSidebarAlbumSelected(album) ? Color.white : .primary)
+                        .tint(isSidebarAlbumSelected(album) ? Color.white : .accentColor)
                         .padding(.horizontal, 10)
                         .padding(.vertical, sidebarAlbumVerticalPadding)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(isSelected ? Color.accentColor : .clear)
+                                .fill(isSidebarAlbumSelected(album) ? Color.accentColor : .clear)
                         }
                         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
+                .accessibilityAddTraits(isSidebarAlbumSelected(album) ? .isSelected : [])
             }
+            #endif
         }
         .listRowSeparator(.hidden)
         .listRowInsets(sidebarRowInsets)
@@ -988,6 +1129,9 @@ struct MediaLibraryView: View {
 
     private func sidebarSecondaryAlbumRow(_ album: AlbumCellModel) -> some View {
         Group {
+            #if targetEnvironment(macCatalyst)
+            macSidebarSecondaryRow(album)
+            #else
             if usesSystemSidebarRows {
                 HStack(spacing: 12) {
                     Image(systemName: sidebarSystemImage(for: album)).frame(width: 54)
@@ -1007,8 +1151,9 @@ struct MediaLibraryView: View {
                     Image(systemName: sidebarSystemImage(for: album)).frame(width: 24)
                 }
             }
+            #endif
         }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: sidebarRowMinHeight, alignment: .leading)
         .contentShape(Rectangle())
     }
 

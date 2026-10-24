@@ -44,11 +44,9 @@ PrivyGallery 是面向 iPhone、iPad 和 Mac Catalyst 的本地加密照片与�
 
 ## 截图
 
-| 媒体库 | 相册 | 播放器 |
-| :---: | :---: | :---: |
-| <img src="Materials/images/1.PNG" width="220" /> | <img src="Materials/images/2.png" width="220" /> | <img src="Materials/images/6.png" width="220" /> |
-| **设置** | **设置** | **备份** |
-| <img src="Materials/images/3.PNG" width="220" /> | <img src="Materials/images/4.PNG" width="220" /> | <img src="Materials/images/5.PNG" width="220" /> |
+![PrivyGallery — iPhone, iPad and Duo](Materials/AppStore/Creative/Search-zh-Hans.png)
+
+[商店素材与可编辑源文件](Materials/AppStore/Creative/README.md)
 
 ## 开发与文档
 

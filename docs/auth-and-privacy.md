@@ -30,7 +30,9 @@ Face ID / Touch ID 使用另一份由 `biometryCurrentSet` 保护的 DEK 副本�
 ## 屏幕隐私
 
 - 截屏开关控制收到系统截屏通知后的锁定，不能阻止或撤回已保存截图。
-- `ScreenPrivacyCover` 使用当前 scene 的非 key window，覆盖后台快照及录屏场景，
+- “录屏或投屏时隐藏内容”在所有平台默认开启，偏好键为 `hideContentDuringCapture`，切换后立即生效。
+  关闭后仅取消前台录屏遮罩，后台遮罩和截屏后锁定保持独立。
+- `ScreenPrivacyCover` 使用当前 scene 的非 key window，覆盖后台快照及开启保护时的录屏场景，
   包括 SwiftUI 页面上方的 UIKit 预览。
 - 锁定通知 `.vaultDidLock` 会关闭原生照片预览，防止其留在锁定页面之上。
 - “安全预览模式”（Secure Preview Mode）用于专用媒体库的内存解密预览，不生成原始内容的临时解密文件；

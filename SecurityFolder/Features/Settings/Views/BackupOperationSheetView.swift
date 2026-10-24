@@ -20,7 +20,7 @@ struct BackupOperationSheetView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(uiColor: .systemGroupedBackground)
+                SettingsAppearance.pageBackground
                     .ignoresSafeArea()
                 
                 ScrollView {
@@ -132,6 +132,9 @@ struct BackupOperationSheetView: View {
                 Text(String(localized: "中止后将无法恢复当前的进度，且系统会清理已生成的临时数据。"))
             }
         }
+        #if targetEnvironment(macCatalyst)
+        .frame(minWidth: 440, idealWidth: 500, minHeight: 420, idealHeight: 480)
+        #endif
     }
 
     private var byteProgressText: String {

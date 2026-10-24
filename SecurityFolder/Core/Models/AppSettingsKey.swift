@@ -13,6 +13,8 @@ enum AppSettingsKey {
     static let defaultAdvancedDataProtectionEnabled = false
     static let screenPrivacyProtectionEnabled = "screenPrivacyProtectionEnabled"
     static let defaultScreenPrivacyProtectionEnabled = true
+    static let hideContentDuringCapture = "hideContentDuringCapture"
+    static let defaultHideContentDuringCapture = true
     static let deleteImportedSystemAssetsAfterImport = "deleteImportedSystemAssetsAfterImport"
     static let defaultDeleteImportedSystemAssetsAfterImport = true
     static let biometricUnlockEnabled = "biometricUnlockEnabled"

@@ -174,7 +174,7 @@ struct MembershipCenterView: View {
                 }
             }
         }
-        .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
         .alert(storeKitManager.currentNotice?.title ?? String(localized: "购买提示"), isPresented: purchaseAlertPresented) {
             Button(String(localized: "知道了"), role: .cancel) {
                 storeKitManager.currentNotice = nil

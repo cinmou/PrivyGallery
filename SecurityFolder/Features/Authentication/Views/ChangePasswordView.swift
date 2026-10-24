@@ -121,6 +121,10 @@ struct ChangePasswordView: View {
                     .listRowBackground(Color.clear) // 隐藏红色文字的白色卡片底色
                 }
             }
+        #if targetEnvironment(macCatalyst)
+        .scrollContentBackground(.hidden)
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        #endif
             .listStyle(.insetGrouped) // 告诉系统这个 List 应该使用圆角卡片（Inset Grouped）风格
             .navigationTitle(navigationTitle) // 设置顶部导航栏中央的大标题内容（由底部的 navigationTitle 变量控制）
             .navigationBarTitleDisplayMode(.inline) // 让导航栏标题居中显示，不要变成巨大的左侧标题

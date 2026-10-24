@@ -1,10 +1,14 @@
 import Darwin
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct StoredVaultBackupFilesView: View {
     @State private var files: [StoredVaultBackupFile] = []
     @State private var selectedFileIDs: Set<StoredVaultBackupFile.ID> = []
     @State private var isSelecting = false
+    #if targetEnvironment(macCatalyst)
+    @State private var exportDocuments: [BackupFileExport] = []
+    #endif
     @State private var sharePayload: SharePayload?
     private struct SharePayload: Identifiable {
         let id = UUID()
@@ -24,6 +28,26 @@ struct StoredVaultBackupFilesView: View {
     }()
 
     var body: some View {
+        Group {
+        #if targetEnvironment(macCatalyst)
+        Group {
+            if files.isEmpty {
+                ContentUnavailableView(
+                    String(localized: "未找到备份文件"),
+                    systemImage: "externaldrive.badge.timemachine",
+                    description: Text(String(localized: "生成备份后会显示在这里。"))
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(files) { file in
+                    backupFileRow(file)
+                }
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        #else
         List {
             if files.isEmpty {
                 ContentUnavailableView(
@@ -37,6 +61,8 @@ struct StoredVaultBackupFilesView: View {
                     backupFileRow(file)
                 }
             }
+        }
+        #endif
         }
         .navigationTitle(String(localized: "当前备份文件"))
         .navigationBarTitleDisplayMode(.inline)
@@ -56,7 +82,7 @@ struct StoredVaultBackupFilesView: View {
 
             if isSelecting {
                 ToolbarItemGroup(placement: .bottomBar) {
-                    Button(String(localized: "导出")) {
+                    Button(exportActionTitle) {
                         exportSelectedFiles()
                     }
                     .disabled(selectedFiles.isEmpty)
@@ -70,6 +96,21 @@ struct StoredVaultBackupFilesView: View {
                 }
             }
         }
+        #if targetEnvironment(macCatalyst)
+        .fileExporter(
+            isPresented: Binding(
+                get: { sharePayload != nil },
+                set: { if !$0 { sharePayload = nil } }
+            ),
+            documents: exportDocuments,
+            contentType: .data
+        ) { result in
+            if case let .failure(error) = result {
+                errorMessage = error.localizedDescription
+            }
+            sharePayload = nil
+        }
+        #else
         .sheet(item: $sharePayload) { payload in
             ActivityView(activityItems: payload.urls, onPresented: {
                 #if DEBUG
@@ -81,6 +122,7 @@ struct StoredVaultBackupFilesView: View {
                 #endif
             })
         }
+        #endif
         .confirmationDialog(
             String(localized: "删除备份文件？"),
             isPresented: $showingDeleteConfirmation,
@@ -116,6 +158,14 @@ struct StoredVaultBackupFilesView: View {
         .onAppear(perform: reloadFiles)
     }
 
+    private var exportActionTitle: String {
+        #if targetEnvironment(macCatalyst)
+        String(localized: "保存")
+        #else
+        String(localized: "导出")
+        #endif
+    }
+
     private var selectedFiles: [StoredVaultBackupFile] {
         files.filter { selectedFileIDs.contains($0.id) }
     }
@@ -145,7 +195,7 @@ struct StoredVaultBackupFilesView: View {
             Spacer(minLength: 8)
 
             if !isSelecting {
-                Button(String(localized: "导出")) {
+                Button(exportActionTitle) {
                     exportFiles([file], action: "singleExport")
                 }
                 .buttonStyle(.bordered)
@@ -214,6 +264,9 @@ struct StoredVaultBackupFilesView: View {
             }
             #if DEBUG
             VaultBackupFilesDebugLog.mark("\(action).share.requested", "fileCount=\(validURLs.count)")
+            #endif
+            #if targetEnvironment(macCatalyst)
+            exportDocuments = try validURLs.map { try BackupFileExport(url: $0) }
             #endif
             sharePayload = SharePayload(urls: validURLs)
         } catch {
@@ -301,3 +354,22 @@ struct StoredVaultBackupFilesView: View {
         return Int64(fileStat.st_size)
     }
 }
+
+#if targetEnvironment(macCatalyst)
+private struct BackupFileExport: FileDocument {
+    static var readableContentTypes: [UTType] { [.data] }
+    let file: FileWrapper
+
+    init(url: URL) throws {
+        file = try FileWrapper(url: url, options: [])
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        file = configuration.file
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        file
+    }
+}
+#endif

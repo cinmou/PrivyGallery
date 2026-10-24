@@ -57,7 +57,7 @@ struct SettingsPasscodePromptView: View {
                 .frame(maxWidth: 520)
                 .frame(maxWidth: .infinity)
             }
-            .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+            .background(SettingsAppearance.pageBackground.ignoresSafeArea())
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
@@ -67,17 +67,28 @@ struct SettingsPasscodePromptView: View {
                         dismiss()
                         onCancel()
                     } label: {
+                        #if targetEnvironment(macCatalyst)
+                        Text(String(localized: "取消"))
+                        #else
                         Image(systemName: "xmark")
                             .fontWeight(.medium)
+                        #endif
                     }
                     .accessibilityLabel(String(localized: "取消"))
+                    #if targetEnvironment(macCatalyst)
+                    .keyboardShortcut(.cancelAction)
+                    #endif
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         dismiss()
                         onConfirm()
                     } label: {
+                        #if targetEnvironment(macCatalyst)
+                        Text(String(localized: "验证并继续"))
+                        #else
                         Image(systemName: "checkmark")
+                        #endif
                     }
                     .disabled(isConfirmDisabled)
                     .tint(.blue)
@@ -86,6 +97,9 @@ struct SettingsPasscodePromptView: View {
                 }
             }
         }
+        #if targetEnvironment(macCatalyst)
+        .frame(minWidth: 420, idealWidth: 460, minHeight: 360, idealHeight: 400)
+        #endif
     }
 
     private var isConfirmDisabled: Bool {

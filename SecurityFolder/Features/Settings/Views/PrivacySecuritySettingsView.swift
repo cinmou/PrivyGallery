@@ -39,7 +39,7 @@ private struct SpaceNameEditorView: View {
                 .padding(.top, 24)
             }
         }
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
         .navigationTitle(String(localized: "编辑空间名称"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -186,6 +186,10 @@ struct PasswordSettingsView: View {
                 Text(String(localized: "胁迫密码是全局唯一的。当你被迫解锁应用时，输入这个预设密码，系统会立即触发并抹除所有数据，请谨慎使用。"))
             }
         }
+        #if targetEnvironment(macCatalyst)
+        .scrollContentBackground(.hidden)
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        #endif
         .listStyle(.insetGrouped)
         .toggleStyle(.switch)
         .navigationTitle(String(localized: "密码与空间"))
@@ -466,6 +470,10 @@ private struct SecondSpaceSetupView: View {
                     }
                 }
             }
+        #if targetEnvironment(macCatalyst)
+        .scrollContentBackground(.hidden)
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        #endif
             .listStyle(.insetGrouped)
             .navigationTitle(stage == .introduction ? String.localizedStringWithFormat(String(localized: "设置%@"), session.displayName(for: .spaceB)) : String(localized: "设置密码"))
             .navigationBarTitleDisplayMode(.inline)
@@ -692,6 +700,10 @@ private struct CoercionPasscodeSetupView: View {
                     errorSection
                 }
             }
+        #if targetEnvironment(macCatalyst)
+        .scrollContentBackground(.hidden)
+        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        #endif
             .listStyle(.insetGrouped)
             .navigationTitle(stage == .warningOne || stage == .warningTwo ? String(localized: "风险确认") : String(localized: "设置胁迫密码"))
             .navigationBarTitleDisplayMode(.inline)
