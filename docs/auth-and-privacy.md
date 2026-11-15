@@ -34,6 +34,8 @@ Face ID / Touch ID 使用另一份由 `biometryCurrentSet` 保护的 DEK 副本�
   关闭后仅取消前台录屏遮罩，后台遮罩和截屏后锁定保持独立。
 - `ScreenPrivacyCover` 使用当前 scene 的非 key window，覆盖后台快照及开启保护时的录屏场景，
   包括 SwiftUI 页面上方的 UIKit 预览。
+- 锁定页进行系统认证时，忽略弹窗引起的短暂场景失活，避免遮罩闪现。
+  场景实际进入后台时仍会显示遮罩并锁定会话。
 - 锁定通知 `.vaultDidLock` 会关闭原生照片预览，防止其留在锁定页面之上。
 - “安全预览模式”（Secure Preview Mode）用于专用媒体库的内存解密预览，不生成原始内容的临时解密文件；
   普通媒体库的缩略图与预览规则不变。设置的持久化键沿用 `advancedDataProtectionEnabled`。

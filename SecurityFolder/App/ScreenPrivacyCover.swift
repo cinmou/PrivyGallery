@@ -58,6 +58,8 @@ final class PrivacyWindowAnchor: UIView {
             }
         }
         observe(UIScene.willDeactivateNotification) { anchor in
+            // A biometric prompt can deactivate the scene while the lock screen is visible.
+            if anchor.session.isAuthenticating && !anchor.session.isUnlocked { return }
             anchor.isSceneActive = false
             anchor.updateCover()
             anchor.session.handleScenePhaseChange(isActive: false)
