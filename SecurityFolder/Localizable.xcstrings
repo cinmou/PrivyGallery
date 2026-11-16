@@ -8559,67 +8559,67 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This includes %1$lld secure media items and %2$lld Secure Albums. Keep Secure Preview Mode enabled to view them."
+            "value" : "This includes %1$lld secure media items and %2$lld Protected Albums. Keep Protected Library enabled to view them."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This includes %1$lld secure media items and %2$lld Secure Albums. Keep Secure Preview Mode enabled to view them."
+            "value" : "This includes %1$lld secure media items and %2$lld Protected Albums. Keep Protected Library enabled to view them."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Incluye %1$lld elementos multimedia protegidos y %2$lld álbumes protegidos. Mantén activado el modo de vista previa segura para verlos."
+            "value" : "Incluye %1$lld elementos multimedia protegidos y %2$lld álbumes protegidos. Mantén activado el Biblioteca protegida para verlos."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ce contenu comprend %1$lld médias protégés et %2$lld albums protégés. Gardez le mode d’aperçu sécurisé activé pour les consulter."
+            "value" : "Ce contenu comprend %1$lld médias protégés et %2$lld albums protégés. Gardez le Médiathèque protégée activé pour les consulter."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include %1$lld elementi multimediali protetti e %2$lld album protetti. Mantieni attiva la modalità anteprima sicura per visualizzarli."
+            "value" : "Include %1$lld elementi multimediali protetti e %2$lld album protetti. Mantieni attiva la Libreria protetta per visualizzarli."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保護されたメディア %1$lld 件と保護されたアルバム %2$lld 個が含まれています。表示するにはセキュアプレビューモードをオンにしてください。"
+            "value" : "保護されたメディア %1$lld 件と保護されたアルバム %2$lld 個が含まれています。表示するには保護されたライブラリをオンにしてください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "보호된 미디어 %1$lld개와 보호된 앨범 %2$lld개가 포함되어 있습니다. 보려면 보안 미리보기 모드를 켜 두세요."
+            "value" : "보호된 미디어 %1$lld개와 보호된 앨범 %2$lld개가 포함되어 있습니다. 보려면 보호된 라이브러리를 켜 두세요."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Содержит защищённые медиафайлы (%1$lld) и альбомы (%2$lld). Для просмотра оставьте включённым режим защищённого просмотра."
+            "value" : "Содержит защищённые медиафайлы (%1$lld) и альбомы (%2$lld). Для просмотра оставьте включённым Защищённая медиатека."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 个受保护媒体和 %2$lld 个强加密相册；查看这部分内容前，请确保安全预览模式保持开启。"
+            "value" : "其中包含 %1$lld 个受保护媒体和 %2$lld 个受保护相册；查看这部分内容前，请确保受保护媒体库保持开启。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個強加密相簿；查看前，請確保安全預覽模式保持開啟。"
+            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個受保護相簿；查看前，請確保受保護媒體庫保持開啟。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個強加密相簿；查看前，請確保安全預覽模式保持開啟。"
+            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個受保護相簿；查看前，請確保受保護媒體庫保持開啟。"
           }
         }
       }
@@ -8635,67 +8635,67 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This includes %1$lld secure media items and %2$lld Secure Albums. A membership and Secure Preview Mode are required to view them."
+            "value" : "This includes %1$lld secure media items and %2$lld Protected Albums. A membership and Protected Library are required to view them."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This includes %1$lld secure media items and %2$lld Secure Albums. A membership and Secure Preview Mode are required to view them."
+            "value" : "This includes %1$lld secure media items and %2$lld Protected Albums. A membership and Protected Library are required to view them."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Incluye %1$lld elementos multimedia protegidos y %2$lld álbumes protegidos. Para verlos, necesitas una suscripción y el modo de vista previa segura."
+            "value" : "Incluye %1$lld elementos multimedia protegidos y %2$lld álbumes protegidos. Para verlos, necesitas una suscripción y el Biblioteca protegida."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ce contenu comprend %1$lld médias protégés et %2$lld albums protégés. Leur consultation nécessite une adhésion et le mode d’aperçu sécurisé."
+            "value" : "Ce contenu comprend %1$lld médias protégés et %2$lld albums protégés. Leur consultation nécessite une adhésion et le Médiathèque protégée."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include %1$lld elementi multimediali protetti e %2$lld album protetti. Per visualizzarli servono un’iscrizione e la modalità anteprima sicura."
+            "value" : "Include %1$lld elementi multimediali protetti e %2$lld album protetti. Per visualizzarli servono un’iscrizione e la Libreria protetta."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保護されたメディア %1$lld 件と保護されたアルバム %2$lld 個が含まれています。表示にはメンバーシップとセキュアプレビューモードが必要です。"
+            "value" : "保護されたメディア %1$lld 件と保護されたアルバム %2$lld 個が含まれています。表示にはメンバーシップと保護されたライブラリが必要です。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "보호된 미디어 %1$lld개와 보호된 앨범 %2$lld개가 포함되어 있습니다. 보려면 멤버십과 보안 미리보기 모드가 필요합니다."
+            "value" : "보호된 미디어 %1$lld개와 보호된 앨범 %2$lld개가 포함되어 있습니다. 보려면 멤버십과 보호된 라이브러리가 필요합니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Содержит защищённые медиафайлы (%1$lld) и альбомы (%2$lld). Для просмотра нужны членство и режим защищённого просмотра."
+            "value" : "Содержит защищённые медиафайлы (%1$lld) и альбомы (%2$lld). Для просмотра нужны членство и Защищённая медиатека."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 个受保护媒体和 %2$lld 个强加密相册；这部分内容需要会员并开启安全预览模式后才能查看。"
+            "value" : "其中包含 %1$lld 个受保护媒体和 %2$lld 个受保护相册；这部分内容需要会员并开启受保护媒体库后才能查看。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個強加密相簿；這部分內容需要會員並開啟安全預覽模式後才能查看。"
+            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個受保護相簿；這部分內容需要會員並開啟受保護媒體庫後才能查看。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個強加密相簿；這部分內容需要會員並開啟安全預覽模式後才能查看。"
+            "value" : "其中包含 %1$lld 個受保護媒體和 %2$lld 個受保護相簿；這部分內容需要會員並開啟受保護媒體庫後才能查看。"
           }
         }
       }
@@ -11524,13 +11524,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "When enabled, the Strong Protection Library and Strong Protection Albums use a stricter in-memory decryption preview pipeline. Thumbnails, covers, and tap-to-preview in the regular library are not affected."
+            "value" : "When enabled, the Protected Library and Protected Albums use a stricter in-memory decryption preview pipeline. Thumbnails, covers, and tap-to-preview in the regular library are not affected."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "When enabled, the Strong Protection Library and Strong Protection Albums use a stricter in-memory decryption preview pipeline. Thumbnails, covers, and tap-to-preview in the regular library are not affected."
+            "value" : "When enabled, the Protected Library and Protected Albums use a stricter in-memory decryption preview pipeline. Thumbnails, covers, and tap-to-preview in the regular library are not affected."
           }
         },
         "es" : {
@@ -11566,25 +11566,25 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Если этот параметр включен, сильно зашифрованная медиатека и сильно зашифрованный фотоальбом будут использовать более строгую ссылку предварительного просмотра расшифровки памяти; миниатюры, обложки и предварительный просмотр обычных медиабиблиотек не будут затронуты."
+            "value" : "Если этот параметр включен, сильно Защищённая медиатека и сильно зашифрованный фотоальбом будут использовать более строгую ссылку предварительного просмотра расшифровки памяти; миниатюры, обложки и предварительный просмотр обычных медиабиблиотек не будут затронуты."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "启用后，强加密媒体库与强加密相册会使用更严格的内存解密预览链路；普通媒体库的缩略图、封面和点击预览不会受到影响。"
+            "value" : "启用后，受保护媒体库与受保护相册会使用更严格的内存解密预览链路；普通媒体库的缩略图、封面和点击预览不会受到影响。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "啟用後，強加密媒體庫與強加密相簿會使用更嚴格的記憶體解密預覽連結；普通媒體庫的縮圖、封面和點擊預覽不會受到影響。"
+            "value" : "啟用後，受保護媒體庫與受保護相簿會使用更嚴格的記憶體解密預覽連結；普通媒體庫的縮圖、封面和點擊預覽不會受到影響。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "啟用後，強加密媒體庫與強加密相簿會使用更嚴格嘅記憶體解密預覽連結；普通媒體庫嘅縮圖、封面和點擊預覽不會受到影響。"
+            "value" : "啟用後，受保護媒體庫與受保護相簿會使用更嚴格嘅記憶體解密預覽連結；普通媒體庫嘅縮圖、封面和點擊預覽不會受到影響。"
           }
         }
       }
@@ -11600,67 +11600,67 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enable Secure Preview Mode?"
+            "value" : "Enable Protected Library?"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enable Secure Preview Mode?"
+            "value" : "Enable Protected Library?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Activar el modo de vista previa segura?"
+            "value" : "¿Activar el Biblioteca protegida?"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Activer le mode d’aperçu sécurisé ?"
+            "value" : "Activer le Médiathèque protégée ?"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Attivare la modalità anteprima sicura?"
+            "value" : "Attivare la Libreria protetta?"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "セキュアプレビューモードを有効にしますか？"
+            "value" : "保護されたライブラリを有効にしますか？"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "보안 미리보기 모드를 켤까요?"
+            "value" : "보호된 라이브러리를 켤까요?"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Включить режим защищённого просмотра?"
+            "value" : "Включить Защищённая медиатека?"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "启用安全预览模式？"
+            "value" : "启用受保护媒体库？"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "啟用安全預覽模式？"
+            "value" : "啟用受保護媒體庫？"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "啟用安全預覽模式？"
+            "value" : "啟用受保護媒體庫？"
           }
         }
       }
@@ -14028,73 +14028,73 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sicherer Vorschaumodus"
+            "value" : "Geschützte Mediathek"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Secure Preview Mode"
+            "value" : "Protected Library"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Secure Preview Mode"
+            "value" : "Protected Library"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Modo de vista previa segura"
+            "value" : "Biblioteca protegida"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mode d’aperçu sécurisé"
+            "value" : "Médiathèque protégée"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Modalità anteprima sicura"
+            "value" : "Libreria protetta"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "セキュアプレビューモード"
+            "value" : "保護されたライブラリ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "보안 미리보기 모드"
+            "value" : "보호된 라이브러리"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Режим защищённого просмотра"
+            "value" : "Защищённая медиатека"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全预览模式"
+            "value" : "受保护媒体库"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全預覽模式"
+            "value" : "受保護媒體庫"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全預覽模式"
+            "value" : "受保護媒體庫"
           }
         }
       }
@@ -14110,67 +14110,67 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Secure Preview Mode is enabled. Temporary decrypted files are unavailable for secure media."
+            "value" : "Protected Library is enabled. Temporary decrypted files are unavailable for secure media."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Secure Preview Mode is enabled. Temporary decrypted files are unavailable for secure media."
+            "value" : "Protected Library is enabled. Temporary decrypted files are unavailable for secure media."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El modo de vista previa segura está activado. No se proporcionan archivos temporales descifrados para los elementos protegidos."
+            "value" : "El Biblioteca protegida está activado. No se proporcionan archivos temporales descifrados para los elementos protegidos."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le mode d’aperçu sécurisé est activé. Aucun fichier temporaire déchiffré n’est fourni pour les médias protégés."
+            "value" : "Le Médiathèque protégée est activé. Aucun fichier temporaire déchiffré n’est fourni pour les médias protégés."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La modalità anteprima sicura è attiva. Non vengono forniti file temporanei decifrati per i contenuti protetti."
+            "value" : "La Libreria protetta è attiva. Non vengono forniti file temporanei decifrati per i contenuti protetti."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "セキュアプレビューモードが有効です。保護されたメディアの一時復号ファイルは作成されません。"
+            "value" : "保護されたライブラリが有効です。保護されたメディアの一時復号ファイルは作成されません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "보안 미리보기 모드가 켜져 있습니다. 보호된 미디어의 임시 복호화 파일은 제공되지 않습니다."
+            "value" : "보호된 라이브러리가 켜져 있습니다. 보호된 미디어의 임시 복호화 파일은 제공되지 않습니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Режим защищённого просмотра включён. Временные расшифрованные файлы для защищённых медиафайлов недоступны."
+            "value" : "Защищённая медиатека включён. Временные расшифрованные файлы для защищённых медиафайлов недоступны."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全预览模式已开启，受保护媒体不提供临时解密文件。"
+            "value" : "受保护媒体库已开启，受保护媒体不提供临时解密文件。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全預覽模式已開啟，受保護媒體不提供暫存解密檔案。"
+            "value" : "受保護媒體庫已開啟，受保護媒體不提供暫存解密檔案。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全預覽模式已開啟，受保護媒體不提供暫存解密檔案。"
+            "value" : "受保護媒體庫已開啟，受保護媒體不提供暫存解密檔案。"
           }
         }
       }
@@ -14180,73 +14180,73 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sicherer Vorschaumodus ist eine Mitgliedschaftsfunktion. Nach dem Einschalten erscheint die stark verschlüsselte Medienbibliothek auf der Startseite der Medienbibliothek und ermöglicht die Erstellung stark verschlüsselter Fotoalben. Bei stark verschlüsselten Medien werden keine Miniaturansichten, sondern nur Dateinamen in einer Liste angezeigt. Nach dem Klicken wird das Originalbild oder -video über einen unabhängigen Vorschaulink zur Speicherentschlüsselung angezeigt und der Originalinhalt wird nicht vorübergehend auf die Festplatte zurückgeschrieben. Die normale Medienbibliothek ist nicht betroffen und kann weiterhin Miniaturansichten, Cover und Vorschauen normal anzeigen."
+            "value" : "Geschützte Mediathek ist eine Mitgliedschaftsfunktion. Nach dem Einschalten erscheint die stark verschlüsselte Medienbibliothek auf der Startseite der Medienbibliothek und ermöglicht die Erstellung stark verschlüsselter Fotoalben. Bei stark verschlüsselten Medien werden keine Miniaturansichten, sondern nur Dateinamen in einer Liste angezeigt. Nach dem Klicken wird das Originalbild oder -video über einen unabhängigen Vorschaulink zur Speicherentschlüsselung angezeigt und der Originalinhalt wird nicht vorübergehend auf die Festplatte zurückgeschrieben. Die normale Medienbibliothek ist nicht betroffen und kann weiterhin Miniaturansichten, Cover und Vorschauen normal anzeigen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Secure Preview Mode is a member feature. When enabled, a Secure Library appears on the Library home screen and you can create Secure Albums. Secure items do not show thumbnails and appear as file names in a list. When you tap an item, the original photo or video is previewed through a separate in-memory decryption path without writing the original content back to disk. The normal library is unaffected and still shows thumbnails, covers, and previews."
+            "value" : "Protected Library is a member feature. When enabled, a Protected Library appears on the Library home screen and you can create Protected Albums. Secure items do not show thumbnails and appear as file names in a list. When you tap an item, the original photo or video is previewed through a separate in-memory decryption path without writing the original content back to disk. The normal library is unaffected and still shows thumbnails, covers, and previews."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Secure Preview Mode is a member feature. When enabled, a Secure Library appears on the Library home screen and you can create Secure Albums. Secure items do not show thumbnails and appear as file names in a list. When you tap an item, the original photo or video is previewed through a separate in-memory decryption path without writing the original content back to disk. The normal library is unaffected and still shows thumbnails, covers, and previews."
+            "value" : "Protected Library is a member feature. When enabled, a Protected Library appears on the Library home screen and you can create Protected Albums. Secure items do not show thumbnails and appear as file names in a list. When you tap an item, the original photo or video is previewed through a separate in-memory decryption path without writing the original content back to disk. The normal library is unaffected and still shows thumbnails, covers, and previews."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Modo de vista previa segura es una característica de la membresía. Después de encenderlo, la biblioteca multimedia fuertemente cifrada aparecerá en la página de inicio de la biblioteca multimedia y le permitirá crear álbumes de fotos fuertemente cifrados. Los medios fuertemente cifrados no mostrarán miniaturas, solo mostrarán nombres de archivos en una lista; después de hacer clic, la imagen o el video original se verá a través de un enlace de vista previa de descifrado de memoria independiente y el contenido original no se volverá a escribir temporalmente en el disco duro. La biblioteca multimedia normal no se ve afectada y aún puede mostrar miniaturas, portadas y vistas previas con normalidad."
+            "value" : "Biblioteca protegida es una característica de la membresía. Después de encenderlo, la biblioteca multimedia fuertemente cifrada aparecerá en la página de inicio de la biblioteca multimedia y le permitirá crear álbumes de fotos fuertemente cifrados. Los medios fuertemente cifrados no mostrarán miniaturas, solo mostrarán nombres de archivos en una lista; después de hacer clic, la imagen o el video original se verá a través de un enlace de vista previa de descifrado de memoria independiente y el contenido original no se volverá a escribir temporalmente en el disco duro. La biblioteca multimedia normal no se ve afectada y aún puede mostrar miniaturas, portadas y vistas previas con normalidad."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mode d’aperçu sécurisé est une fonctionnalité d’adhésion. Après l'avoir allumé, la médiathèque fortement cryptée apparaîtra sur la page d'accueil de la médiathèque et vous permettra de créer des albums photos fortement cryptés. Les médias fortement cryptés n'afficheront pas de vignettes, mais afficheront uniquement les noms de fichiers dans une liste ; après avoir cliqué, l'image ou la vidéo originale sera visualisée via un lien de prévisualisation de décryptage de mémoire indépendant, et le contenu original ne sera pas temporairement réécrit sur le disque dur. La médiathèque ordinaire n’est pas affectée et peut toujours afficher normalement les vignettes, les couvertures et l’aperçu."
+            "value" : "Médiathèque protégée est une fonctionnalité d’adhésion. Après l'avoir allumé, la médiathèque fortement cryptée apparaîtra sur la page d'accueil de la médiathèque et vous permettra de créer des albums photos fortement cryptés. Les médias fortement cryptés n'afficheront pas de vignettes, mais afficheront uniquement les noms de fichiers dans une liste ; après avoir cliqué, l'image ou la vidéo originale sera visualisée via un lien de prévisualisation de décryptage de mémoire indépendant, et le contenu original ne sera pas temporairement réécrit sur le disque dur. La médiathèque ordinaire n’est pas affectée et peut toujours afficher normalement les vignettes, les couvertures et l’aperçu."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Modalità anteprima sicura è una funzionalità dell'abbonamento. Dopo averlo attivato, il catalogo multimediale fortemente crittografato apparirà sulla home page del catalogo multimediale e consentirà di creare album fotografici con crittografia avanzata. I supporti fortemente crittografati non visualizzeranno le miniature, ma visualizzeranno solo i nomi dei file in un elenco; dopo aver fatto clic, l'immagine o il video originale verranno visualizzati tramite un collegamento di anteprima di decrittografia della memoria indipendente e il contenuto originale non verrà temporaneamente riscritto sul disco rigido. Il normale catalogo multimediale non è interessato e può comunque visualizzare normalmente miniature, copertine e anteprime."
+            "value" : "Libreria protetta è una funzionalità dell'abbonamento. Dopo averlo attivato, il catalogo multimediale fortemente crittografato apparirà sulla home page del catalogo multimediale e consentirà di creare album fotografici con crittografia avanzata. I supporti fortemente crittografati non visualizzeranno le miniature, ma visualizzeranno solo i nomi dei file in un elenco; dopo aver fatto clic, l'immagine o il video originale verranno visualizzati tramite un collegamento di anteprima di decrittografia della memoria indipendente e il contenuto originale non verrà temporaneamente riscritto sul disco rigido. Il normale catalogo multimediale non è interessato e può comunque visualizzare normalmente miniature, copertine e anteprime."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "セキュアプレビューモードはメンバーシップ機能です。オンにすると、強力に暗号化されたメディア ライブラリがメディア ライブラリのホームページに表示され、強力に暗号化されたフォト アルバムを作成できるようになります。強力に暗号化されたメディアはサムネイルを表示せず、リスト内のファイル名のみを表示します。クリックすると、独立したメモリ復号化プレビュー リンクを通じて元の画像またはビデオが表示され、元のコンテンツが一時的にハードディスクに書き戻されることはありません。通常のメディア ライブラリは影響を受けず、サムネイル、カバー、プレビューを通常どおり表示できます。"
+            "value" : "保護されたライブラリはメンバーシップ機能です。オンにすると、強力に暗号化されたメディア ライブラリがメディア ライブラリのホームページに表示され、強力に暗号化されたフォト アルバムを作成できるようになります。強力に暗号化されたメディアはサムネイルを表示せず、リスト内のファイル名のみを表示します。クリックすると、独立したメモリ復号化プレビュー リンクを通じて元の画像またはビデオが表示され、元のコンテンツが一時的にハードディスクに書き戻されることはありません。通常のメディア ライブラリは影響を受けず、サムネイル、カバー、プレビューを通常どおり表示できます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "보안 미리보기 모드는 멤버십 기능입니다. 이 기능을 켜면 강력하게 암호화된 미디어 라이브러리가 미디어 라이브러리 홈페이지에 나타나며 이를 통해 강력한 암호화된 사진 앨범을 만들 수 있습니다. 강력하게 암호화된 미디어는 썸네일을 표시하지 않고 목록에 파일 이름만 표시합니다. 클릭한 후에는 독립된 메모리 암호 해독 미리보기 링크를 통해 원본 이미지 또는 비디오를 볼 수 있으며 원본 콘텐츠는 일시적으로 하드 디스크에 다시 기록되지 않습니다. 일반 미디어 라이브러리는 영향을 받지 않으며 여전히 썸네일, 표지 및 미리보기를 정상적으로 표시할 수 있습니다."
+            "value" : "보호된 라이브러리는 멤버십 기능입니다. 이 기능을 켜면 강력하게 암호화된 미디어 라이브러리가 미디어 라이브러리 홈페이지에 나타나며 이를 통해 강력한 암호화된 사진 앨범을 만들 수 있습니다. 강력하게 암호화된 미디어는 썸네일을 표시하지 않고 목록에 파일 이름만 표시합니다. 클릭한 후에는 독립된 메모리 암호 해독 미리보기 링크를 통해 원본 이미지 또는 비디오를 볼 수 있으며 원본 콘텐츠는 일시적으로 하드 디스크에 다시 기록되지 않습니다. 일반 미디어 라이브러리는 영향을 받지 않으며 여전히 썸네일, 표지 및 미리보기를 정상적으로 표시할 수 있습니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Режим защищённого просмотра — это функция членства. После включения сильно зашифрованная медиатека появится на главной странице медиатеки и позволит вам создавать надежно зашифрованные фотоальбомы. На сильно зашифрованных носителях миниатюры не отображаются, а отображаются только имена файлов в списке; после нажатия исходное изображение или видео будет просмотрено по независимой ссылке предварительного просмотра расшифровки памяти, а исходный контент не будет временно записан обратно на жесткий диск. Обычная медиатека не затронута и по-прежнему может нормально отображать миниатюры, обложки и предварительный просмотр."
+            "value" : "Защищённая медиатека — это функция членства. После включения сильно Защищённая медиатека появится на главной странице медиатеки и позволит вам создавать надежно зашифрованные фотоальбомы. На сильно зашифрованных носителях миниатюры не отображаются, а отображаются только имена файлов в списке; после нажатия исходное изображение или видео будет просмотрено по независимой ссылке предварительного просмотра расшифровки памяти, а исходный контент не будет временно записан обратно на жесткий диск. Обычная медиатека не затронута и по-прежнему может нормально отображать миниатюры, обложки и предварительный просмотр."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全预览模式是会员功能。开启后，媒体库首页会出现强加密媒体库，并允许你创建强加密相册。强加密媒体不会显示缩略图，只会以列表方式展示文件名称；点击后会通过独立的内存解密预览链路查看原图或原视频，不会把原始内容临时写回硬盘。普通媒体库不受影响，仍然可以正常显示缩略图、封面并进行预览。"
+            "value" : "受保护媒体库是会员功能。开启后，媒体库首页会出现受保护媒体库，并允许你创建受保护相册。受保护媒体不会显示缩略图，只会以列表方式展示文件名称；点击后会通过独立的内存解密预览链路查看原图或原视频，不会把原始内容临时写回硬盘。普通媒体库不受影响，仍然可以正常显示缩略图、封面并进行预览。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全預覽模式是會員功能。開啟後，媒體庫首頁會出現強加密媒體庫，並允許你建立強加密相簿。強加密媒體不會顯示縮圖，只會以列表方式展示文件名稱；點擊後會通過獨立的內存解密預覽鏈路查看原圖或原影片，不會把原始內容臨時寫回硬碟。普通媒體庫不受影響，仍可正常顯示縮圖、封面並進行預覽。"
+            "value" : "受保護媒體庫是會員功能。開啟後，媒體庫首頁會出現受保護媒體庫，並允許你建立受保護相簿。強加密媒體不會顯示縮圖，只會以列表方式展示文件名稱；點擊後會通過獨立的內存解密預覽鏈路查看原圖或原影片，不會把原始內容臨時寫回硬碟。普通媒體庫不受影響，仍可正常顯示縮圖、封面並進行預覽。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全預覽模式是會員功能。開啟後，媒體庫首頁會出現強加密媒體庫，並允許你建立強加密相簿。強加密媒體不會顯示縮圖，只會以列表方式展示文件名稱；點擊後會通過獨立嘅內存解密預覽鏈路查看原圖或原視頻，不會把原始內容臨時寫回硬碟。普通媒體庫不受影響，仍可正常顯示縮圖、封面並進行預覽。"
+            "value" : "受保護媒體庫是會員功能。開啟後，媒體庫首頁會出現受保護媒體庫，並允許你建立受保護相簿。強加密媒體不會顯示縮圖，只會以列表方式展示文件名稱；點擊後會通過獨立嘅內存解密預覽鏈路查看原圖或原視頻，不會把原始內容臨時寫回硬碟。普通媒體庫不受影響，仍可正常顯示縮圖、封面並進行預覽。"
           }
         }
       }
@@ -14262,43 +14262,43 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Secure Preview Mode uses a separate in-memory preview path for secure media. The regular library still shows thumbnails and previews normally."
+            "value" : "Protected Library uses a separate in-memory preview path for secure media. The regular library still shows thumbnails and previews normally."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Secure Preview Mode uses a separate in-memory preview path for secure media. The regular library still shows thumbnails and previews normally."
+            "value" : "Protected Library uses a separate in-memory preview path for secure media. The regular library still shows thumbnails and previews normally."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El modo de vista previa segura descifra los elementos protegidos en memoria para mostrarlos. La biblioteca normal sigue mostrando miniaturas y vistas previas."
+            "value" : "El Biblioteca protegida descifra los elementos protegidos en memoria para mostrarlos. La biblioteca normal sigue mostrando miniaturas y vistas previas."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le mode d’aperçu sécurisé déchiffre les médias protégés en mémoire pour les afficher. La médiathèque normale conserve ses vignettes et aperçus."
+            "value" : "Le Médiathèque protégée déchiffre les médias protégés en mémoire pour les afficher. La médiathèque normale conserve ses vignettes et aperçus."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La modalità anteprima sicura decifra in memoria i contenuti protetti per mostrarli. La libreria normale continua a mostrare miniature e anteprime."
+            "value" : "La Libreria protetta decifra in memoria i contenuti protetti per mostrarli. La libreria normale continua a mostrare miniature e anteprime."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "セキュアプレビューモードでは、保護されたメディアをメモリ内で復号して表示します。通常のライブラリでは引き続きサムネイルとプレビューを表示できます。"
+            "value" : "保護されたライブラリでは、保護されたメディアをメモリ内で復号して表示します。通常のライブラリでは引き続きサムネイルとプレビューを表示できます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "보안 미리보기 모드는 보호된 미디어를 메모리에서 복호화하여 표시합니다. 일반 라이브러리는 계속 썸네일과 미리보기를 표시합니다."
+            "value" : "보호된 라이브러리는 보호된 미디어를 메모리에서 복호화하여 표시합니다. 일반 라이브러리는 계속 썸네일과 미리보기를 표시합니다."
           }
         },
         "ru" : {
@@ -14310,19 +14310,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全预览模式通过独立的内存解密链路预览受保护媒体；普通媒体库仍会正常显示缩略图和预览。"
+            "value" : "受保护媒体库通过独立的内存解密链路预览受保护媒体；普通媒体库仍会正常显示缩略图和预览。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全預覽模式透過獨立的記憶體解密流程預覽受保護媒體；一般媒體庫仍會正常顯示縮圖和預覽。"
+            "value" : "受保護媒體庫透過獨立的記憶體解密流程預覽受保護媒體；一般媒體庫仍會正常顯示縮圖和預覽。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安全預覽模式透過獨立嘅記憶體解密流程預覽受保護媒體；一般媒體庫仍會正常顯示縮圖和預覽。"
+            "value" : "受保護媒體庫透過獨立嘅記憶體解密流程預覽受保護媒體；一般媒體庫仍會正常顯示縮圖和預覽。"
           }
         }
       }
@@ -19021,13 +19021,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Encrypt"
+            "value" : "Move to Protected Library"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Encrypt"
+            "value" : "Move to Protected Library"
           }
         },
         "es" : {
@@ -19069,19 +19069,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "强加密"
+            "value" : "移入受保护媒体库"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "強加密"
+            "value" : "移入受保護媒體庫"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "強加密"
+            "value" : "移入受保護媒體庫"
           }
         }
       }
@@ -19091,73 +19091,73 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verschlüsselte Mediathek"
+            "value" : "Geschützte Mediathek"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Encrypted Library"
+            "value" : "Protected Library"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Encrypted Library"
+            "value" : "Protected Library"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Biblioteca cifrada"
+            "value" : "Biblioteca protegida"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Médiathèque chiffrée"
+            "value" : "Médiathèque protégée"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Libreria cifrata"
+            "value" : "Libreria protetta"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "暗号化ライブラリ"
+            "value" : "保護されたライブラリ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "암호화 라이브러리"
+            "value" : "보호된 라이브러리"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Зашифрованная медиатека"
+            "value" : "Защищённая медиатека"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "强加密媒体库"
+            "value" : "受保护媒体库"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "強加密媒體庫"
+            "value" : "受保護媒體庫"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "強加密媒體庫"
+            "value" : "受保護媒體庫"
           }
         }
       }
@@ -19173,13 +19173,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Strong Protection Albums show file names only. Content is decrypted for preview only after you tap an item."
+            "value" : "Protected Albums show file names only. Content is decrypted for preview only after you tap an item."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Strong Protection Albums show file names only. Content is decrypted for preview only after you tap an item."
+            "value" : "Protected Albums show file names only. Content is decrypted for preview only after you tap an item."
           }
         },
         "es" : {
@@ -19221,19 +19221,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "强加密相册只显示文件名称，只有点击对应项目时才会解密预览。"
+            "value" : "受保护相册只显示文件名称，只有点击对应项目时才会解密预览。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "強加密相簿只顯示檔案名稱，只有點擊對應項目才會解密預覽。"
+            "value" : "受保護相簿只顯示檔案名稱，只有點擊對應項目才會解密預覽。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "強加密相簿只顯示檔案名稱，只有點擊對應項目才會解密預覽。"
+            "value" : "受保護相簿只顯示檔案名稱，只有點擊對應項目才會解密預覽。"
           }
         }
       }
@@ -19249,13 +19249,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Encrypted Items: %lld items"
+            "value" : "Protected Items: %lld items"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Encrypted Items: %lld items"
+            "value" : "Protected Items: %lld items"
           }
         },
         "es" : {
@@ -19297,19 +19297,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "强加密项目：%lld 项"
+            "value" : "受保护项目：%lld 项"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "強加密項目：%lld 項"
+            "value" : "受保護項目：%lld 項"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "強加密項目：%lld 項"
+            "value" : "受保護項目：%lld 項"
           }
         }
       }
@@ -21438,6 +21438,234 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "恢復成功"
+          }
+        }
+      }
+    },
+    "启用临时会员" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporäre Mitgliedschaft aktivieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Temporary Membership"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Temporary Membership"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activar membresía temporal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activer l’abonnement temporaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva l’abbonamento temporaneo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一時メンバーシップを有効にする"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "임시 멤버십 켜기"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включить временное членство"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用临时会员"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "啟用臨時會員"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "啟用臨時會員"
+          }
+        }
+      }
+    },
+    "关闭临时会员" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporäre Mitgliedschaft deaktivieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disable Temporary Membership"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disable Temporary Membership"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivar membresía temporal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver l’abonnement temporaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattiva l’abbonamento temporaneo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一時メンバーシップを無効にする"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "임시 멤버십 끄기"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключить временное членство"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭临时会员"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉臨時會員"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉臨時會員"
+          }
+        }
+      }
+    },
+    "文件太大，拖出请使用「导出」。" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu groß zum Ziehen. Verwende „Exportieren“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too large to drag out. Use Export."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too large to drag out. Use Export."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demasiado grande para arrastrar. Usa Exportar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop volumineux pour être glissé. Utilisez Exporter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Troppo grande da trascinare. Usa Esporta."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ドラッグするには大きすぎます。「書き出す」を使ってください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "드래그하기에 너무 큽니다. 내보내기를 사용하세요."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слишком большой размер. Используйте «Экспорт»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件太大，拖出请使用「导出」。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "檔案太大，拖出請使用「匯出」。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "檔案太大，拖出請使用「匯出」。"
           }
         }
       }
@@ -24493,73 +24721,73 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Erstellen Sie ein neues stark verschlüsseltes Fotoalbum"
+            "value" : "Neues geschütztes Album"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Encrypted Album"
+            "value" : "New Protected Album"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Encrypted Album"
+            "value" : "New Protected Album"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Crea un nuevo álbum de fotos fuertemente cifrado"
+            "value" : "Nuevo álbum protegido"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Créez un nouvel album photo fortement crypté"
+            "value" : "Nouvel album protégé"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Crea un nuovo album fotografico fortemente crittografato"
+            "value" : "Nuovo album protetto"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "強力に暗号化された新しいフォト アルバムを作成する"
+            "value" : "新規保護アルバム"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "강력하게 암호화된 새 사진 앨범 만들기"
+            "value" : "새 보호 앨범"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Создайте новый сильно зашифрованный фотоальбом."
+            "value" : "Новый защищённый альбом"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新建强加密相册"
+            "value" : "新建受保护相册"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新建強加密相冊"
+            "value" : "新增受保護相簿"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新建強加密相冊"
+            "value" : "新增受保護相簿"
           }
         }
       }
@@ -33251,13 +33479,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move to Encrypted Library"
+            "value" : "Move to Protected Library"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move to Encrypted Library"
+            "value" : "Move to Protected Library"
           }
         },
         "es" : {
@@ -33299,19 +33527,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移入强加密媒体库"
+            "value" : "移入受保护媒体库"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移入強加密媒體庫"
+            "value" : "移入受保護媒體庫"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移入強加密媒體庫"
+            "value" : "移入受保護媒體庫"
           }
         }
       }
@@ -33480,13 +33708,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove from Encryption?"
+            "value" : "Remove from Protected Library?"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove from Encryption?"
+            "value" : "Remove from Protected Library?"
           }
         },
         "es" : {
@@ -33528,19 +33756,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移出强加密？"
+            "value" : "移出受保护媒体库？"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移出強加密？"
+            "value" : "移出受保護媒體庫？"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移出強加密？"
+            "value" : "移出受保護媒體庫？"
           }
         }
       }
@@ -33556,13 +33784,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove from Encrypted Library"
+            "value" : "Remove from Protected Library"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove from Encrypted Library"
+            "value" : "Remove from Protected Library"
           }
         },
         "es" : {
@@ -33604,19 +33832,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移出强加密媒体库"
+            "value" : "移出受保护媒体库媒体库"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移出強加密媒體庫"
+            "value" : "移出受保護媒體庫"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移出強加密媒體庫"
+            "value" : "移出受保護媒體庫"
           }
         }
       }
@@ -33632,13 +33860,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove from Encrypted Library?"
+            "value" : "Remove from Protected Library?"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove from Encrypted Library?"
+            "value" : "Remove from Protected Library?"
           }
         },
         "es" : {
@@ -33680,19 +33908,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移出强加密媒体库？"
+            "value" : "移出受保护媒体库媒体库？"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移出強加密媒體庫？"
+            "value" : "移出受保護媒體庫？"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "移出強加密媒體庫？"
+            "value" : "移出受保護媒體庫？"
           }
         }
       }
@@ -41539,13 +41767,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This item will be removed from the current album but kept in the encrypted library."
+            "value" : "This item will be removed from the current album but kept in the Protected Library."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This item will be removed from the current album but kept in the encrypted library."
+            "value" : "This item will be removed from the current album but kept in the Protected Library."
           }
         },
         "es" : {
@@ -41587,19 +41815,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这个项目会从当前相册移出，但仍保留在强加密媒体库中。"
+            "value" : "这个项目会从当前相册移出，但仍保留在受保护媒体库中。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這個項目會從目前相簿移出，但仍保留在強加密媒體庫中。"
+            "value" : "這個項目會從目前相簿移出，但仍保留在受保護媒體庫中。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "呢個項目會從目前相簿移出，但仍保留在強加密媒體庫中。"
+            "value" : "呢個項目會從目前相簿移出，但仍保留在受保護媒體庫中。"
           }
         }
       }
@@ -41663,19 +41891,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这个项目会关闭强加密保护，并回到普通媒体库。"
+            "value" : "这个项目会关闭额外保护，并回到普通媒体库。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這個項目會關閉強加密保護，並回到普通媒體庫。"
+            "value" : "這個項目會關閉額外保護，並回到普通媒體庫。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "呢個項目會關閉強加密保護，並回到普通媒體庫。"
+            "value" : "呢個項目會關閉額外保護，並回到普通媒體庫。"
           }
         }
       }
@@ -41919,13 +42147,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This item will only be removed from the current secure album, but it will remain in the secure library."
+            "value" : "This item will only be removed from the current protected album, but it will remain in the protected library."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This item will only be removed from the current secure album, but it will remain in the secure library."
+            "value" : "This item will only be removed from the current protected album, but it will remain in the protected library."
           }
         },
         "es" : {
@@ -41967,19 +42195,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这个项目只会从当前强加密相册移出，但仍保留在强加密媒体库中。"
+            "value" : "这个项目只会从当前受保护相册移出，但仍保留在受保护媒体库中。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這個項目只會從目前強加密相簿移出，但仍保留在強加密媒體庫中。"
+            "value" : "這個項目只會從目前受保護相簿移出，但仍保留在受保護媒體庫中。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "呢個項目只會從目前強加密相簿移出，但仍保留在強加密媒體庫中。"
+            "value" : "呢個項目只會從目前受保護相簿移出，但仍保留在受保護媒體庫中。"
           }
         }
       }
@@ -42604,13 +42832,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Selected items will be removed from the encrypted library and returned to the regular library. They will no longer be protected by encryption."
+            "value" : "Selected items will be removed from the Protected Library and returned to the regular library. They will no longer have the additional preview restrictions."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Selected items will be removed from the encrypted library and returned to the regular library. They will no longer be protected by encryption."
+            "value" : "Selected items will be removed from the Protected Library and returned to the regular library. They will no longer have the additional preview restrictions."
           }
         },
         "es" : {
@@ -42652,19 +42880,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "选中的媒体将移出强加密媒体库，并回到普通相册中。移出后将不再受到强加密保护。"
+            "value" : "选中的媒体将移出受保护媒体库媒体库，并回到普通相册中。移出后将不再受到额外保护。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "選取的媒體將移出強加密媒體庫，並回到普通相簿。移出後將不再受到強加密保護。"
+            "value" : "選取的媒體將移出受保護媒體庫，並回到普通相簿。移出後將不再受到額外保護。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "選取嘅媒體將移出強加密媒體庫，並回到普通相簿。移出後將不再受到強加密保護。"
+            "value" : "選取嘅媒體將移出受保護媒體庫，並回到普通相簿。移出後將不再受到額外保護。"
           }
         }
       }

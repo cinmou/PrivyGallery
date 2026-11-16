@@ -58,8 +58,7 @@ struct AlbumDetailView: View {
 
     @State private var selectedItemIDs = Set<UUID>()
     @State private var isSelecting = false
-    @State private var showingManagedPhotoImporter = false
-    @State private var showingFileImporter = false
+    @StateObject private var importFlow = MediaImportFlowController()
     @State private var showingAlbumPicker = false
     @State private var showingCustomSort = false
     @State private var previewSelection: PreviewSelection?
@@ -71,11 +70,6 @@ struct AlbumDetailView: View {
     @State private var renamingItem: VaultItem?
     @State private var renameText = ""
     @State private var detailItemID: UUID?
-    @State private var isDropTargeted = false
-    @State private var dropOverlayResetToken = UUID()
-    @State private var pendingImportedSystemAssetIdentifiers: [String] = []
-    @State private var importedSystemAssetsDeletionPrompt: ImportedSystemAssetsDeletionPrompt?
-    @State private var presentedImportResultSummary: MediaImportResultSummary?
     @State private var isPreparingExport = false
     @State private var exportPreparationCompletedCount = 0
     @State private var exportPreparationTotalCount = 0
@@ -168,23 +162,17 @@ struct AlbumDetailView: View {
                 isSecureAlbum: isSecureAlbum,
                 scrollProxy: scrollProxy
             )
-            .onDrop(of: DroppedMediaImportSupport.supportedTypeIdentifiers, isTargeted: $isDropTargeted) { providers in
-                handleDroppedMedia(providers)
+            .onDrop(of: viewModel.vaultDropTypeIdentifiers, isTargeted: $importFlow.isDropTargeted) { providers in
+                importFlow.handleDroppedMedia(providers, targetAlbumID: albumID, viewModel: viewModel)
             }
             // Always-present overlay driven by opacity; toggling it with `if`
             // during a drag breaks Catalyst's drag tracking and leaves the
             // "Drop to import" overlay stuck on screen.
             .overlay {
                 DropImportOverlayView()
-                    .opacity(isDropTargeted ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.15), value: isDropTargeted)
+                    .opacity(importFlow.isDropTargeted ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.15), value: importFlow.isDropTargeted)
             }
-            #if targetEnvironment(macCatalyst)
-            .onChange(of: isDropTargeted) { _, isTargeted in
-                guard isTargeted else { return }
-                scheduleDropOverlayReset()
-            }
-            #endif
         }
         .task(id: items.map(\.id)) {
             await viewModel.loadMissingVideoDurations(itemIDs: items.map(\.id))
@@ -249,6 +237,7 @@ struct AlbumDetailView: View {
             if usesSearchResults { matchingItems = [] }
         }
         .onReceive(NotificationCenter.default.publisher(for: .vaultDidLock)) { _ in
+            viewModel.isDraggingVaultItems = false
             searchIsAvailable = false
             matchingItems = []
             isSearching = false
@@ -258,6 +247,9 @@ struct AlbumDetailView: View {
             previewSelection = nil
             photoPreviewItemID = nil
             exitSelectionMode()
+        }
+        .onDisappear {
+            viewModel.isDraggingVaultItems = false
         }
         .toolbar {
             if searchFocused {
@@ -279,23 +271,12 @@ struct AlbumDetailView: View {
                     .animation(.spring(response: 0.30, dampingFraction: 0.86), value: isSelecting)
             }
         }
-        .fileImporter(
-            isPresented: $showingFileImporter,
-            allowedContentTypes: [.image, .movie],
-            allowsMultipleSelection: true
-        ) { result in
-            guard case let .success(urls) = result else { return }
-            pendingImportedSystemAssetIdentifiers = []
-            viewModel.importFiles(urls, directlyInto: albumID)
-        }
-        .sheet(isPresented: $showingManagedPhotoImporter) {
-            SystemPhotoImporterSheet(selectionLimit: MediaLibraryViewModel.maximumBatchImportCount) { importedAssets in
-                showingManagedPhotoImporter = false
-                guard !importedAssets.isEmpty else { return }
-                pendingImportedSystemAssetIdentifiers = importedAssets.compactMap(\.assetIdentifier)
-                viewModel.importPickerAssets(importedAssets, directlyInto: albumID)
-            }
-        }
+        .mediaImportFlow(
+            controller: importFlow,
+            viewModel: viewModel,
+            deleteOriginalAfterImport: deleteImportedSystemAssetsAfterImport,
+            targetAlbumID: { albumID }
+        )
         .sheet(isPresented: $showingAlbumPicker) {
             AlbumSelectionSheet(viewModel: viewModel, currentAlbumID: albumID, selectedItemIDs: selectedItemIDs)
         }
@@ -357,66 +338,6 @@ struct AlbumDetailView: View {
             }
         } message: {
             Text(viewModel.lastErrorMessage ?? String(localized: "出现了一点问题。"))
-        }
-        .onChange(of: viewModel.importResultSummary?.id) { _, _ in
-            presentImportResultIfNeeded()
-        }
-        .sheet(item: $presentedImportResultSummary) { summary in
-            NavigationStack {
-                List {
-                    Section {
-                        Text(
-                            String.localizedStringWithFormat(
-                                String(localized: "已导入 %1$lld 张照片和 %2$lld 个视频。"),
-                                Int64(summary.photoCount),
-                                Int64(summary.videoCount)
-                            )
-                        )
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                    }
-
-                    Section {
-                        Button(String(localized: "知道了")) {
-                            showingManagedPhotoImporter = false
-                            presentedImportResultSummary = nil
-                            scheduleDeletePromptAfterImport(importedCount: summary.photoCount + summary.videoCount)
-                        }
-                    }
-                }
-                .navigationTitle(String(localized: "导入完成"))
-                .navigationBarTitleDisplayMode(.inline)
-            }
-        }
-        .sheet(item: $importedSystemAssetsDeletionPrompt) { prompt in
-            NavigationStack {
-                List {
-                    Section {
-                        Text(
-                            String.localizedStringWithFormat(
-                                String(localized: "已成功导入 %lld 个项目。要不要把这些原始项目从系统图库里删掉？"),
-                                Int64(prompt.importedCount)
-                            )
-                        )
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                    }
-
-                    Section {
-                        Button(String(localized: "删除原件"), role: .destructive) {
-                            let assetIdentifiers = prompt.assetIdentifiers
-                            importedSystemAssetsDeletionPrompt = nil
-                            deleteImportedSystemAssets(assetIdentifiers)
-                        }
-
-                        Button(String(localized: "保留原件"), role: .cancel) {
-                            importedSystemAssetsDeletionPrompt = nil
-                        }
-                    }
-                }
-                .navigationTitle(String(localized: "从系统图库删除？"))
-                .navigationBarTitleDisplayMode(.inline)
-            }
         }
         .alert(item: $pendingOperation) { pendingOperation in
             let primaryButton: Alert.Button = pendingOperation.kind == .removeFromStrongProtection
@@ -600,23 +521,62 @@ struct AlbumDetailView: View {
             onContextMenuForItem: { item in
                 buildRegularGridContextMenu(for: item, albumKind: albumKind)
             },
-            onDragItem: makeDragItemProvider
+            onDragItem: { makeDragItemProvider(for: $0, allowExternalExport: $1 && albumKind != .trash) },
+            onDragActivityChanged: { viewModel.isDraggingVaultItems = $0 }
         )
         .ignoresSafeArea(.container, edges: .bottom)
     }
 
-    /// macOS Catalyst drag-out: decrypt to a temp file and wrap in NSItemProvider.
-    /// The provider is backed by `viewModel.exportURL` which returns an already-
-    /// decrypted temp file — the same file used for the regular "export / share"
-    /// action. Never exposes the raw encrypted vault file.
-    ///
-    /// Returns nil when:
-    ///   - the album is trash or archive (no export allowed from those views)
-    ///   - the item's temp file cannot be produced (iCloud asset unavailable, etc.)
-    private func makeDragItemProvider(for item: VaultItem) -> NSItemProvider? {
-        guard let exportURL = viewModel.exportURL(for: item.id) else { return nil }
-        let provider = NSItemProvider(contentsOf: exportURL)
-        provider?.suggestedName = item.name
+    /// The internal payload is available without decrypting the file.
+    private func makeDragItemProvider(for item: VaultItem, allowExternalExport: Bool) -> NSItemProvider? {
+        let provider = NSItemProvider()
+        provider.suggestedName = item.name
+
+        let payload = VaultItemDragPayload(
+            space: item.space,
+            sourceAlbumID: albumID,
+            itemID: item.id
+        )
+        if let encodedPayload = try? JSONEncoder().encode(payload) {
+            provider.registerDataRepresentation(
+                forTypeIdentifier: UTType.privyVaultItemTransfer.identifier,
+                visibility: .ownProcess
+            ) { completion in
+                completion(encodedPayload, nil)
+                return nil
+            }
+        }
+
+        if allowExternalExport, !item.isStrongProtected, !item.isInTrash,
+           let generation = VaultCryptoService.shared.temporaryExportGeneration(for: item.space) {
+            let itemID = item.id
+            let space = item.space
+            let path = item.relativePath
+            let filename = item.originalFilename
+            let library = viewModel
+            provider.registerDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier, visibility: .all) { completion in
+                // Catalyst can synchronously wait on the main thread for this pasteboard flavor.
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let url = try VaultFileStorageService.shared.decryptedTemporaryURL(
+                            for: path, originalFilename: filename, space: space, exportGeneration: generation
+                        )
+                        guard VaultCryptoService.shared.temporaryExportGeneration(for: space) == generation,
+                              FileManager.default.fileExists(atPath: url.path()) else {
+                            throw CocoaError(.fileReadNoSuchFile)
+                        }
+                        completion(url.dataRepresentation, nil)
+                        Task { @MainActor in
+                            library.markDragExportPrepared(itemID: itemID, relativePath: path, generation: generation)
+                        }
+                    } catch {
+                        completion(nil, error)
+                    }
+                }
+                return nil
+            }
+        }
+
         return provider
     }
 
@@ -635,11 +595,9 @@ struct AlbumDetailView: View {
             detailItemID = item.id
         })
 
-        let exportURL = viewModel.exportURL(for: item.id)
-        if let exportURL {
+        if albumKind != .trash {
             actions.append(UIAction(title: String(localized: "导出"), image: UIImage(systemName: "square.and.arrow.up")) { _ in
-                shareURLs = [exportURL]
-                showingShareSheet = true
+                prepareItemsForExport(Set([item.id]))
             })
         }
 
@@ -735,7 +693,9 @@ struct AlbumDetailView: View {
             },
             onPermanentDeleteItem: { item in
                 requestPermanentDeletion(for: Set([item.id]))
-            }
+            },
+            onDragItem: { makeDragItemProvider(for: $0, allowExternalExport: false) },
+            onDragActivityChanged: { viewModel.isDraggingVaultItems = $0 }
         )
         .background(platformAlbumBackground.ignoresSafeArea())
     }
@@ -771,8 +731,10 @@ struct AlbumDetailView: View {
     }
 
     private func loadMoreItemsIfNeeded(currentItem: VaultItem, displayedItems: [VaultItem], totalItemCount: Int) {
+        let prefetchThreshold = max(regularGridColumnCount * 2, 10)
         guard totalItemCount > visibleItemLimit,
-              currentItem.id == displayedItems.last?.id else {
+              displayedItems.count == visibleItemLimit,
+              displayedItems.suffix(prefetchThreshold).contains(where: { $0.id == currentItem.id }) else {
             return
         }
 
@@ -818,10 +780,15 @@ struct AlbumDetailView: View {
                     if !searchesWholeSpace {
                         if !isSelecting {
                             Menu {
-                                Button { beginSystemPhotoImport() } label: {
+                                Button {
+                                    importFlow.beginSystemPhotoImport(
+                                        deleteOriginalAfterImport: deleteImportedSystemAssetsAfterImport,
+                                        viewModel: viewModel
+                                    )
+                                } label: {
                                     Label(String(localized: "从相册导入"), systemImage: "photo.on.rectangle")
                                 }
-                                Button { showingFileImporter = true } label: {
+                                Button { importFlow.showingFileImporter = true } label: {
                                     Label(String(localized: "从文件导入"), systemImage: "folder")
                                 }
                             } label: {
@@ -860,16 +827,29 @@ struct AlbumDetailView: View {
 
     private func selectionActionBar(albumKind: MediaAlbumKind?) -> some View {
         HStack(spacing: 0) {
-            selectionActionButton(
-                title: String(localized: "导出"),
-                systemImage: "square.and.arrow.up",
-                role: nil,
-                isDisabled: selectedItemIDs.isEmpty || isPreparingExport
-            ) {
-                prepareSelectedItemsForExport()
+            if albumKind != .trash {
+                selectionActionButton(
+                    title: String(localized: "导出"),
+                    systemImage: "square.and.arrow.up",
+                    role: nil,
+                    isDisabled: selectedItemIDs.isEmpty || isPreparingExport
+                ) {
+                    prepareSelectedItemsForExport()
+                }
             }
 
-            if albumKind == .archive {
+            if albumKind == .trash {
+                selectionActionButton(
+                    title: String(localized: "恢复"),
+                    systemImage: "arrow.uturn.backward",
+                    role: nil,
+                    isDisabled: selectedItemIDs.isEmpty
+                ) {
+                    viewModel.restoreFromTrash(itemIDs: selectedItemIDs)
+                    isSelecting = false
+                    selectedItemIDs.removeAll()
+                }
+            } else if albumKind == .archive {
                 selectionDivider
 
                 selectionActionButton(
@@ -878,13 +858,11 @@ struct AlbumDetailView: View {
                     role: nil,
                     isDisabled: selectedItemIDs.isEmpty
                 ) {
-                    for itemID in selectedItemIDs {
-                        viewModel.unarchive(itemID: itemID)
-                    }
+                    viewModel.unarchive(itemIDs: selectedItemIDs)
                     isSelecting = false
                     selectedItemIDs.removeAll()
                 }
-            } else if albumKind != .trash && albumKind?.isSecure != true {
+            } else if albumKind?.isSecure != true {
                 selectionDivider
 
                 selectionActionButton(
@@ -1236,7 +1214,10 @@ struct AlbumDetailView: View {
     }
 
     private func prepareSelectedItemsForExport() {
-        let itemIDs = selectedItemIDs
+        prepareItemsForExport(selectedItemIDs)
+    }
+
+    private func prepareItemsForExport(_ itemIDs: Set<UUID>) {
         guard !itemIDs.isEmpty, !isPreparingExport else { return }
         exportPreparationCompletedCount = 0
         exportPreparationTotalCount = itemIDs.count
@@ -1263,109 +1244,6 @@ struct AlbumDetailView: View {
         }
     }
 
-    private func maybePromptToDeleteImportedSystemAssets(afterImportCount importedCount: Int) {
-        defer { pendingImportedSystemAssetIdentifiers = [] }
-        guard deleteImportedSystemAssetsAfterImport else {
-            return
-        }
-        let assetIdentifiers = Array(Set(pendingImportedSystemAssetIdentifiers.filter { !$0.isEmpty }))
-        guard !assetIdentifiers.isEmpty else {
-            return
-        }
-        importedSystemAssetsDeletionPrompt = ImportedSystemAssetsDeletionPrompt(
-            assetIdentifiers: assetIdentifiers,
-            importedCount: importedCount
-        )
-    }
-
-    private func scheduleDeletePromptAfterImport(importedCount: Int) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            maybePromptToDeleteImportedSystemAssets(afterImportCount: importedCount)
-        }
-    }
-
-    private func presentImportResultIfNeeded() {
-        guard !viewModel.isImportingMedia,
-              viewModel.importResultSummary != nil,
-              presentedImportResultSummary == nil else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            guard !viewModel.isImportingMedia,
-                  let latestSummary = viewModel.importResultSummary,
-                  presentedImportResultSummary == nil else { return }
-            presentedImportResultSummary = latestSummary
-            viewModel.dismissImportResult()
-        }
-    }
-
-    private func deleteImportedSystemAssets(_ assetIdentifiers: [String]) {
-        Task {
-            do {
-                _ = try await SystemPhotoLibraryCleanupService.shared.deleteAssets(withLocalIdentifiers: assetIdentifiers)
-            } catch {
-                await MainActor.run {
-                    viewModel.lastErrorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
-
-    private func beginSystemPhotoImport() {
-        guard deleteImportedSystemAssetsAfterImport else {
-            showingManagedPhotoImporter = true
-            return
-        }
-
-        Task {
-            let status = await SystemPhotoLibraryCleanupService.shared.ensureReadWriteAuthorization()
-            await MainActor.run {
-                if status == .authorized || status == .limited {
-                    showingManagedPhotoImporter = true
-                } else {
-                    viewModel.lastErrorMessage = String(localized: "如果你想在导入后删除系统图库原件，请先允许本应用访问\u{201C}照片\u{201D}。")
-                }
-            }
-        }
-    }
-
-    private func handleDroppedMedia(_ providers: [NSItemProvider]) -> Bool {
-        isDropTargeted = false
-        if let albumKind = viewModel.album(for: albumID)?.kind,
-           albumKind == .trash || albumKind == .archive {
-            return false
-        }
-
-        guard viewModel.canShowRealData else {
-            return false
-        }
-
-        guard viewModel.canImportAdditionalItems(providers.count) else {
-            return false
-        }
-
-        Task {
-            let urls = await DroppedMediaImportSupport.loadURLs(from: providers)
-            await MainActor.run {
-                guard !urls.isEmpty else { return }
-                pendingImportedSystemAssetIdentifiers = []
-                viewModel.importFiles(urls, directlyInto: albumID)
-            }
-        }
-
-        return true
-    }
-
-    #if targetEnvironment(macCatalyst)
-    private func scheduleDropOverlayReset() {
-        let token = UUID()
-        dropOverlayResetToken = token
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 900_000_000)
-            guard dropOverlayResetToken == token else { return }
-            isDropTargeted = false
-        }
-    }
-    #endif
-
     private var trashAlbumID: UUID {
         viewModel.trashAlbum?.id ?? albumID
     }
@@ -1390,6 +1268,8 @@ private struct SecureMediaListView: UIViewControllerRepresentable {
     let onRemoveFromStrongProtection: (VaultItem) -> Void
     let onDeleteItem: (VaultItem) -> Void
     let onPermanentDeleteItem: (VaultItem) -> Void
+    let onDragItem: (VaultItem) -> NSItemProvider?
+    let onDragActivityChanged: (Bool) -> Void
 
     func makeUIViewController(context: Context) -> SecureMediaListViewController {
         let controller = SecureMediaListViewController()
@@ -1411,6 +1291,8 @@ private struct SecureMediaListView: UIViewControllerRepresentable {
         controller.onRemoveFromStrongProtection = onRemoveFromStrongProtection
         controller.onDeleteItem = onDeleteItem
         controller.onPermanentDeleteItem = onPermanentDeleteItem
+        controller.onDragItem = onDragItem
+        controller.onDragActivityChanged = onDragActivityChanged
         return controller
     }
 
@@ -1432,6 +1314,8 @@ private struct SecureMediaListView: UIViewControllerRepresentable {
         controller.onRemoveFromStrongProtection = onRemoveFromStrongProtection
         controller.onDeleteItem = onDeleteItem
         controller.onPermanentDeleteItem = onPermanentDeleteItem
+        controller.onDragItem = onDragItem
+        controller.onDragActivityChanged = onDragActivityChanged
         controller.selectedItemIDs = selectedItemIDs
         controller.isSelecting = isSelecting
         controller.updateItems(items)
@@ -1464,6 +1348,8 @@ private final class SecureMediaListViewController: UIViewController, UITableView
     var onRemoveFromStrongProtection: ((VaultItem) -> Void)?
     var onDeleteItem: ((VaultItem) -> Void)?
     var onPermanentDeleteItem: ((VaultItem) -> Void)?
+    var onDragItem: ((VaultItem) -> NSItemProvider?)?
+    var onDragActivityChanged: ((Bool) -> Void)?
 
     private let tableView = UITableView(frame: .zero, style: .insetGrouped)
     private var lastRenderedItemIDs: [UUID] = []
@@ -1540,10 +1426,17 @@ private final class SecureMediaListViewController: UIViewController, UITableView
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "SecureMediaRowCell")
         view.addSubview(tableView)
 
+        #if targetEnvironment(macCatalyst)
+        tableView.dragDelegate = self
+        tableView.dragInteractionEnabled = true
+        #endif
         let dragSelectGesture = UILongPressGestureRecognizer(target: self, action: #selector(handleDragSelection(_:)))
         dragSelectGesture.minimumPressDuration = 0.35
         dragSelectGesture.cancelsTouchesInView = false
         dragSelectGesture.delaysTouchesBegan = false
+        #if targetEnvironment(macCatalyst)
+        dragSelectGesture.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        #endif
         dragSelectGesture.delegate = self
         tableView.addGestureRecognizer(dragSelectGesture)
         self.dragSelectGesture = dragSelectGesture
@@ -1923,9 +1816,8 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
     let onSelectionModeChanged: (Bool) -> Void
     let footerText: ((VaultItem) -> String?)?
     let onContextMenuForItem: ((VaultItem) -> UIMenu?)?
-    /// macOS Catalyst drag-out: returns an NSItemProvider backed by a decrypted
-    /// temporary file for the given vault item, or nil if export is not possible.
-    let onDragItem: ((VaultItem) -> NSItemProvider?)?
+    let onDragItem: ((VaultItem, Bool) -> NSItemProvider?)?
+    let onDragActivityChanged: (Bool) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(columnCount: $columnCount)
@@ -1951,6 +1843,7 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
         controller.footerText = footerText
         controller.onContextMenuForItem = onContextMenuForItem
         controller.onDragItem = onDragItem
+        controller.onDragActivityChanged = onDragActivityChanged
         configureTransitionSource(controller)
         controller.onColumnCountChanged = { nextValue in
             DispatchQueue.main.async {
@@ -1981,6 +1874,7 @@ private struct ZoomableMediaGridView: UIViewControllerRepresentable {
         controller.footerText = footerText
         controller.onContextMenuForItem = onContextMenuForItem
         controller.onDragItem = onDragItem
+        controller.onDragActivityChanged = onDragActivityChanged
         configureTransitionSource(controller)
         controller.onColumnCountChanged = { nextValue in
             DispatchQueue.main.async {
@@ -2029,13 +1923,15 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
     var currentAlbumID: UUID?
     var columnCount: Int = 5 {
         didSet {
+            guard columnCount != oldValue else { return }
             effectiveColumnCount = CGFloat(columnCount)
             updateLayout(animated: false)
         }
     }
     /// macOS Catalyst drag-out: provides an NSItemProvider for a given vault item.
     /// Set by ZoomableMediaGridView; nil means drag-out is disabled.
-    var onDragItem: ((VaultItem) -> NSItemProvider?)?
+    var onDragItem: ((VaultItem, Bool) -> NSItemProvider?)?
+    var onDragActivityChanged: ((Bool) -> Void)?
     var contentInsetBottom: CGFloat = 0 {
         didSet {
             collectionView.contentInset.bottom = contentInsetBottom
@@ -2087,6 +1983,44 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
     private var preheatBatchTask: Task<Void, Never>?
     private var lastPreheatRangeKey: String?
     private weak var dragSelectGesture: UILongPressGestureRecognizer?
+    #if targetEnvironment(macCatalyst)
+    private weak var marqueePanGesture: UIPanGestureRecognizer?
+    private weak var backgroundTapGesture: UITapGestureRecognizer?
+    private let marqueeSelectionView: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor.tintColor.withAlphaComponent(0.14)
+        view.layer.borderColor = UIColor.tintColor.cgColor
+        view.layer.borderWidth = 1.5
+        view.layer.cornerRadius = 4
+        view.isUserInteractionEnabled = false
+        view.isHidden = true
+        return view
+    }()
+    private var isMarqueeSelecting = false
+    private var marqueeStartPoint: CGPoint = .zero
+    private var marqueeBaselineSelectedIDs = Set<UUID>()
+    private var marqueePreviewSelectedIDs: Set<UUID>?
+    private var marqueeModifierFlags: UIKeyModifierFlags = []
+    private let externalDragHint: UIStackView = {
+        let label = UILabel()
+        label.text = String(localized: "文件太大，拖出请使用「导出」。")
+        label.font = .preferredFont(forTextStyle: .subheadline)
+        label.adjustsFontForContentSizeCategory = true
+        label.numberOfLines = 0
+        label.textAlignment = .center
+
+        let hint = UIStackView(arrangedSubviews: [label])
+        hint.isLayoutMarginsRelativeArrangement = true
+        hint.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 8, leading: 14, bottom: 8, trailing: 14)
+        hint.backgroundColor = .secondarySystemBackground
+        hint.layer.cornerRadius = 8
+        hint.isUserInteractionEnabled = false
+        hint.isHidden = true
+        hint.translatesAutoresizingMaskIntoConstraints = false
+        return hint
+    }()
+    private var hideExternalDragHintTask: Task<Void, Never>?
+    #endif
     private var isDraggingGrid = false
     private var isDeceleratingGrid = false
     private var isPinchingGrid = false
@@ -2124,6 +2058,13 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
         // in the extension below; it decrypts to a temp file on demand.
         collectionView.dragDelegate = self
         collectionView.dragInteractionEnabled = true
+        view.addSubview(externalDragHint)
+        let safeArea = view.safeAreaLayoutGuide
+        NSLayoutConstraint.activate([
+            externalDragHint.topAnchor.constraint(equalTo: safeArea.topAnchor, constant: 12),
+            externalDragHint.centerXAnchor.constraint(equalTo: safeArea.centerXAnchor),
+            externalDragHint.leadingAnchor.constraint(greaterThanOrEqualTo: safeArea.leadingAnchor, constant: 12)
+        ])
         #endif
     }
 
@@ -2132,8 +2073,13 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
         #if DEBUG
         let layoutStart = CFAbsoluteTimeGetCurrent()
         #endif
-        collectionView.frame = view.bounds
-        updateLayout(animated: false)
+        if collectionView.frame != view.bounds {
+            let sizeChanged = collectionView.frame.size != view.bounds.size
+            collectionView.frame = view.bounds
+            if sizeChanged {
+                updateLayout(animated: false)
+            }
+        }
         #if DEBUG
         MediaPerformanceLog.mark("grid.viewDidLayoutSubviews", "duration=\(String(format: "%.1f", (CFAbsoluteTimeGetCurrent() - layoutStart) * 1000))ms bounds=\(Int(view.bounds.width))x\(Int(view.bounds.height))")
         #endif
@@ -2142,6 +2088,10 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        #if targetEnvironment(macCatalyst)
+        updateExternalDragHint(isOversized: false)
+        finishMarqueeSelection(commit: false)
+        #endif
         collectionView.isScrollEnabled = true
         isDragSelecting = false
         stopNativeAutoScroll()
@@ -2227,10 +2177,10 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
 
     func reconfigureSelectionChanges(from previousSelectedItemIDs: Set<UUID>, previousIsSelecting: Bool) {
         let changedIDs: Set<UUID>
-        if previousIsSelecting != isSelecting {
+        if previousIsSelecting != displaysSelection {
             changedIDs = Set(items.map(\.id))
         } else {
-            changedIDs = previousSelectedItemIDs.symmetricDifference(selectedItemIDs)
+            changedIDs = previousSelectedItemIDs.symmetricDifference(displayedSelectedItemIDs)
         }
 
         let indexPaths = collectionView.indexPathsForVisibleItems.filter { indexPath in
@@ -2255,7 +2205,12 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
     }
 
     @objc private func handleNativeAutoScrollTick() {
-        guard isDragSelecting, let autoScrollDirection else {
+        #if targetEnvironment(macCatalyst)
+        let isSelectingWithAutoScroll = isDragSelecting || isMarqueeSelecting
+        #else
+        let isSelectingWithAutoScroll = isDragSelecting
+        #endif
+        guard isSelectingWithAutoScroll, let autoScrollDirection else {
             stopNativeAutoScroll()
             return
         }
@@ -2266,7 +2221,15 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
             // space, so keep the stored finger point aligned with auto-scroll.
             lastDragLocation.y += delta
             self.lastDragLocation = lastDragLocation
+            #if targetEnvironment(macCatalyst)
+            if isMarqueeSelecting {
+                updateMarqueeSelection(to: lastDragLocation)
+            } else {
+                selectRange(at: lastDragLocation)
+            }
+            #else
             selectRange(at: lastDragLocation)
+            #endif
         }
         trimPrefetchTasksToCurrentRange()
     }
@@ -2292,8 +2255,8 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
             guard let self else { return }
             cell.configure(
                 item: item,
-                isSelected: selectedItemIDs.contains(item.id),
-                isSelecting: isSelecting,
+                isSelected: displayedSelectedItemIDs.contains(item.id),
+                isSelecting: displaysSelection,
                 footerText: footerText?(item),
                 currentAlbumID: currentAlbumID
             )
@@ -2307,9 +2270,31 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
         let dragSelectGesture = UILongPressGestureRecognizer(target: self, action: #selector(handleDragSelection(_:)))
         dragSelectGesture.minimumPressDuration = 0.3
         dragSelectGesture.cancelsTouchesInView = true
+        #if targetEnvironment(macCatalyst)
+        dragSelectGesture.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        #endif
         dragSelectGesture.delegate = self
         collectionView.addGestureRecognizer(dragSelectGesture)
         self.dragSelectGesture = dragSelectGesture
+
+        #if targetEnvironment(macCatalyst)
+        collectionView.addSubview(marqueeSelectionView)
+        let marqueePanGesture = UIPanGestureRecognizer(target: self, action: #selector(handleMarqueeSelection(_:)))
+        marqueePanGesture.maximumNumberOfTouches = 1
+        marqueePanGesture.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
+        marqueePanGesture.allowedScrollTypesMask = []
+        marqueePanGesture.delegate = self
+        collectionView.addGestureRecognizer(marqueePanGesture)
+        self.marqueePanGesture = marqueePanGesture
+
+        let backgroundTapGesture = UITapGestureRecognizer(target: self, action: #selector(clearSelectionFromBackgroundTap))
+        backgroundTapGesture.allowedTouchTypes = marqueePanGesture.allowedTouchTypes
+        backgroundTapGesture.cancelsTouchesInView = false
+        backgroundTapGesture.delegate = self
+        backgroundTapGesture.require(toFail: marqueePanGesture)
+        collectionView.addGestureRecognizer(backgroundTapGesture)
+        self.backgroundTapGesture = backgroundTapGesture
+        #endif
     }
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -2341,7 +2326,8 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
         #if DEBUG
         MediaPerformanceLog.recordFirstContentVisibleIfNeeded()
         #endif
-        guard indexPath.item == items.count - 1 else { return }
+        let prefetchStartIndex = max(0, items.count - max(columnCount * 2, 10))
+        guard indexPath.item >= prefetchStartIndex else { return }
         onReachEnd?(items[indexPath.item])
     }
 
@@ -2638,7 +2624,12 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
 
     private func updateAutoScroll(for location: CGPoint) {
         lastDragLocation = location
-        guard isDragSelecting else {
+        #if targetEnvironment(macCatalyst)
+        let isSelectingWithAutoScroll = isDragSelecting || isMarqueeSelecting
+        #else
+        let isSelectingWithAutoScroll = isDragSelecting
+        #endif
+        guard isSelectingWithAutoScroll else {
             stopNativeAutoScroll()
             return
         }
@@ -2956,6 +2947,15 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
             let location = gestureRecognizer.location(in: collectionView)
             return collectionView.indexPathForItem(at: location) != nil
         }
+        #if targetEnvironment(macCatalyst)
+        if gestureRecognizer === backgroundTapGesture {
+            return isSelecting && !isMarqueeSelecting
+                && collectionView.indexPathForItem(at: gestureRecognizer.location(in: collectionView)) == nil
+        }
+        if gestureRecognizer === marqueePanGesture {
+            return !isDragSelecting && !isPinchingGrid
+        }
+        #endif
         if gestureRecognizer === pinchGesture {
             return !isDragSelecting
         }
@@ -2966,10 +2966,120 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
         if gestureRecognizer === dragSelectGesture || otherGestureRecognizer === dragSelectGesture {
             return false
         }
+        #if targetEnvironment(macCatalyst)
+        if gestureRecognizer === marqueePanGesture || otherGestureRecognizer === marqueePanGesture {
+            return false
+        }
+        #endif
         if gestureRecognizer === pinchGesture || otherGestureRecognizer === pinchGesture {
             return !isDragSelecting
         }
         return true
+    }
+
+    #if targetEnvironment(macCatalyst)
+    @objc private func clearSelectionFromBackgroundTap() {
+        guard !isMarqueeSelecting else { return }
+        applySelection([])
+        setSelectionMode(false)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard gestureRecognizer === marqueePanGesture else { return true }
+        let startPoint = touch.location(in: collectionView)
+        guard collectionView.indexPathForItem(at: startPoint) == nil else { return false }
+        marqueeStartPoint = startPoint
+        return true
+    }
+
+    @objc private func handleMarqueeSelection(_ gesture: UIPanGestureRecognizer) {
+        let location = gesture.location(in: collectionView)
+
+        switch gesture.state {
+        case .began:
+            isMarqueeSelecting = true
+            marqueeModifierFlags = gesture.modifierFlags
+            let keepsExistingSelection = marqueeModifierFlags.contains(.command) || marqueeModifierFlags.contains(.shift)
+            marqueeBaselineSelectedIDs = keepsExistingSelection ? selectedItemIDs : []
+            marqueeSelectionView.frame = CGRect(origin: location, size: .zero)
+            marqueeSelectionView.isHidden = false
+            collectionView.bringSubviewToFront(marqueeSelectionView)
+            updateMarqueeSelection(to: location)
+            updateAutoScroll(for: location)
+        case .changed:
+            guard isMarqueeSelecting else { return }
+            updateMarqueeSelection(to: location)
+            updateAutoScroll(for: location)
+        case .ended:
+            finishMarqueeSelection(commit: true)
+        case .cancelled, .failed:
+            finishMarqueeSelection(commit: false)
+        default:
+            break
+        }
+    }
+
+    private func updateMarqueeSelection(to location: CGPoint) {
+        let rect = CGRect(
+            x: min(marqueeStartPoint.x, location.x),
+            y: min(marqueeStartPoint.y, location.y),
+            width: abs(location.x - marqueeStartPoint.x),
+            height: abs(location.y - marqueeStartPoint.y)
+        )
+        marqueeSelectionView.frame = rect
+
+        let hitAttributes = collectionView.collectionViewLayout.layoutAttributesForElements(in: rect) ?? []
+        let hitIDs = Set(
+            hitAttributes
+                .filter { $0.representedElementCategory == .cell }
+                .compactMap { items[safe: $0.indexPath.item]?.id }
+        )
+
+        let nextSelection: Set<UUID>
+        if marqueeModifierFlags.contains(.command) {
+            nextSelection = marqueeBaselineSelectedIDs.symmetricDifference(hitIDs)
+        } else {
+            nextSelection = marqueeBaselineSelectedIDs.union(hitIDs)
+        }
+        let previousIDs = displayedSelectedItemIDs
+        let previousIsSelecting = displaysSelection
+        marqueePreviewSelectedIDs = nextSelection
+        reconfigureSelectionChanges(from: previousIDs, previousIsSelecting: previousIsSelecting)
+    }
+
+    private func finishMarqueeSelection(commit: Bool) {
+        guard isMarqueeSelecting else { return }
+        let previewIDs = displayedSelectedItemIDs
+        marqueePreviewSelectedIDs = nil
+        isMarqueeSelecting = false
+        lastDragLocation = nil
+        stopNativeAutoScroll()
+        marqueeSelectionView.isHidden = true
+        marqueeSelectionView.frame = .zero
+        marqueeBaselineSelectedIDs.removeAll()
+        marqueeModifierFlags = []
+        if commit {
+            applySelection(previewIDs)
+            setSelectionMode(!previewIDs.isEmpty)
+        }
+        reconfigureSelectionChanges(from: previewIDs, previousIsSelecting: true)
+    }
+    #endif
+
+    private var displayedSelectedItemIDs: Set<UUID> {
+        #if targetEnvironment(macCatalyst)
+        marqueePreviewSelectedIDs ?? selectedItemIDs
+        #else
+        selectedItemIDs
+        #endif
+    }
+
+    private var displaysSelection: Bool {
+        #if targetEnvironment(macCatalyst)
+        isSelecting || marqueePreviewSelectedIDs != nil
+        #else
+        isSelecting
+        #endif
     }
 
     private func nearestColumnCount(to value: CGFloat) -> Int {
@@ -2991,27 +3101,82 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
 // MARK: - macOS Catalyst drag-out
 
 #if targetEnvironment(macCatalyst)
+extension SecureMediaListViewController: UITableViewDragDelegate {
+    func tableView(_ tableView: UITableView, itemsForBeginning session: UIDragSession, at indexPath: IndexPath) -> [UIDragItem] {
+        guard let item = items[safe: indexPath.row], let onDragItem else { return [] }
+        return mediaDragTargets(startingWith: item, items: items, selecting: isSelecting, selectedItemIDs: selectedItemIDs)
+            .compactMap { onDragItem($0).map { UIDragItem(itemProvider: $0) } }
+    }
+
+    func tableView(_ tableView: UITableView, dragSessionWillBegin session: UIDragSession) {
+        onDragActivityChanged?(true)
+    }
+
+    func tableView(_ tableView: UITableView, dragSessionDidEnd session: UIDragSession) {
+        onDragActivityChanged?(false)
+    }
+}
+
+private func mediaDragTargets(
+    startingWith item: VaultItem,
+    items: [VaultItem],
+    selecting: Bool,
+    selectedItemIDs: Set<UUID>
+) -> [VaultItem] {
+    selecting && selectedItemIDs.contains(item.id)
+        ? items.filter { selectedItemIDs.contains($0.id) }
+        : [item]
+}
+
 extension ZoomableMediaGridViewController: UICollectionViewDragDelegate {
-    /// Provide drag items when the user begins dragging a cell to Finder.
-    /// Only active on macOS Catalyst. Falls through to nothing when:
-    ///   - the grid is in multi-select mode (drag = extend selection)
-    ///   - `onDragItem` is not set (e.g., trash / archive albums)
-    ///   - the export pipeline can't produce a temp file (encrypted inaccessible, etc.)
     func collectionView(
         _ collectionView: UICollectionView,
         itemsForBeginning session: UIDragSession,
         at indexPath: IndexPath
     ) -> [UIDragItem] {
-        guard !isSelecting,
-              indexPath.item < items.count,
-              let onDragItem else { return [] }
+        guard let item = items[safe: indexPath.item] else { return [] }
+        return makeDragItems(startingWith: item)
+    }
 
-        let item = items[indexPath.item]
-        guard let provider = onDragItem(item) else { return [] }
+    private func makeDragItems(startingWith item: VaultItem) -> [UIDragItem] {
+        guard let onDragItem else { return [] }
+        let targets = mediaDragTargets(startingWith: item, items: items, selecting: isSelecting, selectedItemIDs: selectedItemIDs)
+        // Finder can wait synchronously for the URL. Larger batches use the export sheet.
+        var remainingBytes = Int64(10 * 1024 * 1024)
+        var isOversized = false
+        let allowsExport = targets.allSatisfy { !$0.isInTrash && !$0.isStrongProtected }
+        let offersExternalFiles = allowsExport && targets.allSatisfy { item in
+            let bytes = VaultFileStorageService.shared.byteCount(for: item.relativePath)
+            guard bytes > 0 else { return false }
+            guard bytes <= remainingBytes else {
+                isOversized = true
+                return false
+            }
+            remainingBytes -= bytes
+            return true
+        }
+        updateExternalDragHint(isOversized: isOversized)
+        return targets.compactMap { onDragItem($0, offersExternalFiles).map { UIDragItem(itemProvider: $0) } }
+    }
 
-        let dragItem = UIDragItem(itemProvider: provider)
-        dragItem.localObject = item
-        return [dragItem]
+    private func updateExternalDragHint(isOversized: Bool) {
+        hideExternalDragHintTask?.cancel()
+        externalDragHint.isHidden = !isOversized
+        guard isOversized else { return }
+        let deadline = ContinuousClock.now + .seconds(4)
+        hideExternalDragHintTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(until: deadline, clock: .continuous)
+            guard !Task.isCancelled else { return }
+            self?.externalDragHint.isHidden = true
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, dragSessionWillBegin session: UIDragSession) {
+        onDragActivityChanged?(true)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, dragSessionDidEnd session: UIDragSession) {
+        onDragActivityChanged?(false)
     }
 
     /// Round-rect preview that matches the cell corner radius.
@@ -3275,6 +3440,7 @@ private final class MediaGridCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        cancelPendingRequest()
     }
 }
 

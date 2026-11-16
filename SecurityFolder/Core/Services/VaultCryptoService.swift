@@ -38,6 +38,7 @@ final class VaultCryptoService {
 
     nonisolated(unsafe) private var activeKeys: [VaultSpaceKind: SymmetricKey] = [:]
     nonisolated(unsafe) private var temporaryFilesByPath: [String: URL] = [:]
+    nonisolated(unsafe) private var temporaryFileGeneration = 0
 
     private init() {}
 
@@ -175,7 +176,7 @@ final class VaultCryptoService {
         }
 
         if let temporaryURL {
-            try? fileManager.removeItem(at: temporaryURL)
+            removeManagedTemporaryFile(at: temporaryURL)
         }
     }
 
@@ -183,6 +184,7 @@ final class VaultCryptoService {
         let temporaryFiles = stateQueue.sync {
             let files = Array(temporaryFilesByPath.values)
             temporaryFilesByPath.removeAll()
+            temporaryFileGeneration &+= 1
             if clearActiveKeys {
                 activeKeys.removeAll()
             }
@@ -262,13 +264,21 @@ final class VaultCryptoService {
         return decryptedData
     }
 
+    nonisolated func temporaryExportGeneration(for space: VaultSpaceKind) -> Int? {
+        stateQueue.sync { activeKeys[space] == nil ? nil : temporaryFileGeneration }
+    }
+
     nonisolated func decryptedTemporaryURL(
         forEncryptedFileAt encryptedURL: URL,
         relativePath: String,
         originalFilename: String,
         space: VaultSpaceKind,
-        cacheResult: Bool = true
+        cacheResult: Bool = true,
+        exportGeneration: Int? = nil
     ) throws -> URL {
+        if let exportGeneration, temporaryExportGeneration(for: space) != exportGeneration {
+            throw VaultCryptoError.keyUnavailable
+        }
         guard fileManager.fileExists(atPath: encryptedURL.path()) else {
             return encryptedURL
         }
@@ -286,26 +296,54 @@ final class VaultCryptoService {
 
         let key = try activeKey(for: space)
         try ensureTemporaryDirectoryExists()
-        let tempURL = temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension((originalFilename as NSString).pathExtension)
+        let itemDirectory = temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: itemDirectory, withIntermediateDirectories: true)
+        let tempURL = itemDirectory.appendingPathComponent(sanitizedTemporaryFilename(from: originalFilename))
 
-        try decryptFile(from: encryptedURL, to: tempURL, using: key)
-        try protectFile(at: tempURL)
+        do {
+            try decryptFile(from: encryptedURL, to: tempURL, using: key)
+            try protectFile(at: tempURL)
+        } catch {
+            try? fileManager.removeItem(at: itemDirectory)
+            throw error
+        }
 
         if cacheResult {
-            stateQueue.sync {
+            let saved = stateQueue.sync {
+                guard exportGeneration == nil || temporaryFileGeneration == exportGeneration else { return false }
                 temporaryFilesByPath[relativePath] = tempURL
+                return true
+            }
+            if !saved {
+                try? fileManager.removeItem(at: itemDirectory)
+                throw VaultCryptoError.keyUnavailable
             }
         }
         return tempURL
     }
 
     nonisolated func clearTemporaryURLIfManaged(_ url: URL) {
-        guard url.deletingLastPathComponent().path() == temporaryDirectory.path() else {
-            return
+        removeManagedTemporaryFile(at: url)
+    }
+
+    nonisolated private func removeManagedTemporaryFile(at url: URL) {
+        let parent = url.deletingLastPathComponent()
+        if parent.path() == temporaryDirectory.path() {
+            try? fileManager.removeItem(at: url)
+        } else if parent.deletingLastPathComponent().path() == temporaryDirectory.path() {
+            try? fileManager.removeItem(at: parent)
         }
-        try? fileManager.removeItem(at: url)
+    }
+
+    nonisolated private func sanitizedTemporaryFilename(from originalFilename: String) -> String {
+        let lastComponent = (originalFilename as NSString).lastPathComponent
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !lastComponent.isEmpty, lastComponent != ".", lastComponent != ".." else {
+            return UUID().uuidString
+        }
+        return lastComponent
     }
 
     func migrateFileToEncryptedStorageIfNeeded(at fileURL: URL, space: VaultSpaceKind) throws -> Bool {
@@ -436,6 +474,25 @@ final class VaultCryptoService {
             fileManager: fileManager,
             fileMagic: Self.fileMagic,
             fileVersion: Self.fileVersion
+        )
+    }
+
+    /// 创建按需分块解密流读取器，避免把大视频完整解密进内存。
+    nonisolated func makeEncryptedStreamReader(
+        forEncryptedFileAt encryptedURL: URL,
+        space: VaultSpaceKind
+    ) throws -> VaultEncryptedStreamReader {
+        guard fileManager.fileExists(atPath: encryptedURL.path()) else {
+            throw VaultCryptoError.invalidEncryptedFile
+        }
+        let isEncrypted = try isEncryptedVaultFile(at: encryptedURL)
+        let key = isEncrypted ? try activeKey(for: space) : nil
+        return try VaultEncryptedStreamReader(
+            fileURL: encryptedURL,
+            isEncrypted: isEncrypted,
+            key: key,
+            headerByteCount: Self.fileMagic.count + 1 + 4,
+            maxPlaintextChunkSize: chunkSize
         )
     }
 
@@ -894,6 +951,147 @@ final class VaultEncryptedFileWriter {
         if !isFinished {
             abort()
         }
+    }
+}
+
+nonisolated final class VaultEncryptedStreamReader: @unchecked Sendable {
+    private struct ChunkEntry {
+        let fileOffset: UInt64
+        let sealedLength: Int
+        let plaintextOffset: Int64
+        let plaintextLength: Int64
+    }
+
+    let totalPlaintextBytes: Int64
+
+    private let handle: FileHandle
+    private let isEncrypted: Bool
+    private let key: SymmetricKey?
+    private let chunks: [ChunkEntry]
+    private let lock = NSLock()
+    private var isClosed = false
+
+    init(fileURL: URL, isEncrypted: Bool, key: SymmetricKey?, headerByteCount: Int, maxPlaintextChunkSize: Int) throws {
+        self.handle = try FileHandle(forReadingFrom: fileURL)
+        self.isEncrypted = isEncrypted
+        self.key = key
+
+        if !isEncrypted {
+            let endOffset = try handle.seekToEnd()
+            self.totalPlaintextBytes = Int64(endOffset)
+            self.chunks = []
+            return
+        }
+
+        try handle.seek(toOffset: UInt64(headerByteCount))
+        var scannedChunks: [ChunkEntry] = []
+        var plaintextCursor: Int64 = 0
+        let fileEnd = try handle.seekToEnd()
+        var fileCursor = UInt64(headerByteCount)
+
+        while fileCursor < fileEnd {
+            try handle.seek(toOffset: fileCursor)
+            let lengthData = try handle.read(upToCount: 4) ?? Data()
+            if lengthData.isEmpty { break }
+            guard lengthData.count == 4 else {
+                try? handle.close()
+                throw VaultCryptoError.invalidEncryptedFile
+            }
+            let sealedLength = Int(UInt32(bigEndianData: lengthData))
+            let payloadOffset = fileCursor + 4
+            guard sealedLength >= 28,
+                  sealedLength - 28 <= maxPlaintextChunkSize,
+                  UInt64(sealedLength) <= fileEnd - payloadOffset else {
+                try? handle.close()
+                throw VaultCryptoError.invalidEncryptedFile
+            }
+            let plaintextLength = Int64(sealedLength - 28)
+            scannedChunks.append(ChunkEntry(
+                fileOffset: payloadOffset,
+                sealedLength: sealedLength,
+                plaintextOffset: plaintextCursor,
+                plaintextLength: plaintextLength
+            ))
+            plaintextCursor += plaintextLength
+            fileCursor = payloadOffset + UInt64(sealedLength)
+        }
+
+        self.chunks = scannedChunks
+        self.totalPlaintextBytes = plaintextCursor
+    }
+
+    func readSlice(offset: Int64, length: Int) throws -> Data {
+        guard offset >= 0, offset < totalPlaintextBytes, length > 0 else {
+            return Data()
+        }
+        let clampedLength = Int(min(Int64(length), totalPlaintextBytes - offset))
+
+        lock.lock()
+        defer { lock.unlock() }
+        guard !isClosed else { return Data() }
+
+        if !isEncrypted {
+            try handle.seek(toOffset: UInt64(offset))
+            return try handle.read(upToCount: clampedLength) ?? Data()
+        }
+
+        guard let key else { throw VaultCryptoError.keyUnavailable }
+
+        var result = Data()
+        result.reserveCapacity(clampedLength)
+        var currentOffset = offset
+        let targetEnd = offset + Int64(clampedLength)
+
+        var chunkIndex = findChunkIndex(forPlaintextOffset: currentOffset)
+        while currentOffset < targetEnd, chunkIndex < chunks.count {
+            let entry = chunks[chunkIndex]
+            try handle.seek(toOffset: entry.fileOffset)
+            guard let combined = try handle.read(upToCount: entry.sealedLength),
+                  combined.count == entry.sealedLength else {
+                throw VaultCryptoError.invalidEncryptedFile
+            }
+            let sealedBox = try AES.GCM.SealedBox(combined: combined)
+            let plaintext = try AES.GCM.open(sealedBox, using: key)
+
+            let localStart = Int(currentOffset - entry.plaintextOffset)
+            let localEnd = Int(min(entry.plaintextLength, targetEnd - entry.plaintextOffset))
+            if localEnd > localStart, localEnd <= plaintext.count {
+                result.append(plaintext.subdata(in: localStart..<localEnd))
+            }
+            currentOffset = entry.plaintextOffset + entry.plaintextLength
+            chunkIndex += 1
+        }
+
+        return result
+    }
+
+    func close() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !isClosed else { return }
+        isClosed = true
+        try? handle.close()
+    }
+
+    deinit {
+        close()
+    }
+
+    private func findChunkIndex(forPlaintextOffset offset: Int64) -> Int {
+        var low = 0
+        var high = chunks.count - 1
+        while low <= high {
+            let mid = (low + high) / 2
+            let entry = chunks[mid]
+            if offset < entry.plaintextOffset {
+                high = mid - 1
+            } else if offset >= entry.plaintextOffset + entry.plaintextLength {
+                low = mid + 1
+            } else {
+                return mid
+            }
+        }
+        return chunks.count
     }
 }
 

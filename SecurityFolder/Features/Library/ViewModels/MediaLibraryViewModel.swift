@@ -21,6 +21,7 @@ final class MediaLibraryViewModel: ObservableObject {
     let space: VaultSpaceKind
 
     @Published private(set) var mediaPresentationRevision = 0
+    @Published var isDraggingVaultItems = false
     @Published var albums: [VaultAlbum] = []
     @Published var items: [VaultItem] = []
     @Published var librarySortOption: LibraryAlbumSortOption = .manual
@@ -530,15 +531,15 @@ final class MediaLibraryViewModel: ObservableObject {
 
     func exportURL(for itemID: UUID) -> URL? {
         guard let item = items.first(where: { $0.id == itemID }) else { return nil }
-        let exportURL = try? fileStorage.decryptedTemporaryURL(
+        guard let exportURL = try? fileStorage.decryptedTemporaryURL(
             for: item.relativePath,
             originalFilename: item.originalFilename,
             space: item.space
-        )
-        if exportURL != nil {
-            item.lastExportedAt = .now
-            try? persistCurrentState()
+        ), FileManager.default.fileExists(atPath: exportURL.path()) else {
+            return nil
         }
+        item.lastExportedAt = .now
+        try? persistCurrentState()
         return exportURL
     }
 
@@ -562,6 +563,7 @@ final class MediaLibraryViewModel: ObservableObject {
         }
         let storage = fileStorage
         var exportedURLs: [URL] = []
+        var exportedItemIDs = Set<UUID>()
         var failedCount = 0
 
         progress?(0, total)
@@ -574,8 +576,9 @@ final class MediaLibraryViewModel: ObservableObject {
                 )
             }.value
 
-            if let exportURL {
+            if let exportURL, FileManager.default.fileExists(atPath: exportURL.path()) {
                 exportedURLs.append(exportURL)
+                exportedItemIDs.insert(snapshot.id)
             } else {
                 failedCount += 1
             }
@@ -584,13 +587,21 @@ final class MediaLibraryViewModel: ObservableObject {
 
         if !exportedURLs.isEmpty {
             let exportedAt = Date.now
-            for item in selectedItems {
+            for item in selectedItems where exportedItemIDs.contains(item.id) {
                 item.lastExportedAt = exportedAt
             }
             try? persistCurrentState()
         }
 
         return MediaExportPreparationResult(urls: exportedURLs, failedCount: failedCount)
+    }
+
+    func markDragExportPrepared(itemID: UUID, relativePath: String, generation: Int) {
+        guard VaultCryptoService.shared.temporaryExportGeneration(for: space) == generation,
+              let item = items.first(where: { $0.id == itemID && $0.relativePath == relativePath }),
+              !item.isInTrash, !item.isStrongProtected else { return }
+        item.lastExportedAt = .now
+        try? persistCurrentState()
     }
 
     func clearExportedTemporaryURLs(_ urls: [URL]) {
@@ -718,20 +729,44 @@ final class MediaLibraryViewModel: ObservableObject {
     }
 
     func restoreFromTrash(itemID: UUID) {
-        guard let item = items.first(where: { $0.id == itemID }) else { return }
+        restoreFromTrash(itemIDs: Set([itemID]))
+    }
 
-        do {
-            item.relativePath = try fileStorage.restoreFromTrash(relativePath: item.relativePath, space: item.space)
-            if let companionPath = item.livePhotoCompanionRelativePath,
-               let restoredPath = try? fileStorage.restoreFromTrash(relativePath: companionPath, space: item.space) {
-                item.livePhotoCompanionRelativePath = restoredPath
+    func restoreFromTrash(itemIDs: Set<UUID>) {
+        let targets = items.filter { itemIDs.contains($0.id) && $0.isInTrash }
+        guard !targets.isEmpty else { return }
+
+        var needsSave = false
+        for item in targets {
+            do {
+                let restoredPath = try fileStorage.restoreFromTrash(relativePath: item.relativePath, space: item.space)
+                if let companionPath = item.livePhotoCompanionRelativePath {
+                    do {
+                        item.livePhotoCompanionRelativePath = try fileStorage.restoreFromTrash(relativePath: companionPath, space: item.space)
+                    } catch {
+                        do {
+                            item.relativePath = try fileStorage.moveToTrash(relativePath: restoredPath, space: item.space)
+                        } catch {
+                            // Keep the actual path so the item can be retried from Trash.
+                            item.relativePath = restoredPath
+                            needsSave = true
+                            throw error
+                        }
+                        throw error
+                    }
+                }
+                item.relativePath = restoredPath
+                item.isInTrash = false
+                item.trashedAt = nil
+                item.updatedAt = .now
+                needsSave = true
+            } catch {
+                lastErrorMessage = error.localizedDescription
             }
-            item.isInTrash = false
-            item.trashedAt = nil
-            item.updatedAt = .now
+        }
+
+        if needsSave {
             saveAndRefresh()
-        } catch {
-            lastErrorMessage = error.localizedDescription
         }
     }
 
@@ -746,44 +781,217 @@ final class MediaLibraryViewModel: ObservableObject {
     }
 
     func unarchive(itemID: UUID) {
-        guard let item = items.first(where: { $0.id == itemID }) else { return }
-        item.isArchived = false
-        item.updatedAt = .now
+        unarchive(itemIDs: Set([itemID]))
+    }
+
+    func unarchive(itemIDs: Set<UUID>) {
+        let targets = items.filter { itemIDs.contains($0.id) && $0.isArchived }
+        guard !targets.isEmpty else { return }
+        for item in targets {
+            item.isArchived = false
+            item.updatedAt = .now
+        }
         saveAndRefresh()
     }
 
     func duplicate(itemIDs: Set<UUID>) {
-        do {
-            let sourceItems = items.filter { itemIDs.contains($0.id) }
-            guard checkImportQuota(requestedCount: sourceItems.count) else { return }
+        let sourceItems = items.filter { itemIDs.contains($0.id) }
+        guard !sourceItems.isEmpty, checkImportQuota(requestedCount: sourceItems.count) else { return }
 
-            for sourceItem in sourceItems {
-                let storedFile = try fileStorage.duplicateFile(at: sourceItem.relativePath, space: sourceItem.space)
-                let duplicate = VaultItem(
-                    name: availableItemName(for: copyName(for: sourceItem.name)),
-                    createdAt: .now,
-                    importedAt: .now,
-                    lastExportedAt: nil,
-                    originalCapturedAt: sourceItem.originalCapturedAt,
-                    updatedAt: .now,
-                    mediaKind: storedFile.mediaKind,
-                    space: sourceItem.space,
-                    isInTrash: false,
-                    isArchived: false,
-                    isStrongProtected: sourceItem.isStrongProtected,
-                    relativePath: storedFile.relativePath,
-                    originalFilename: storedFile.originalFilename,
-                    contentTypeIdentifier: sourceItem.contentTypeIdentifier,
-                    locationLatitude: sourceItem.locationLatitude,
-                    locationLongitude: sourceItem.locationLongitude,
-                    albums: sourceItem.albums,
-                    videoDuration: sourceItem.videoDuration
-                )
-                items.append(duplicate)
+        struct DuplicateSnapshot: Sendable {
+            let name: String
+            let originalCapturedAt: Date?
+            let mediaKind: MediaKind
+            let space: VaultSpaceKind
+            let isStrongProtected: Bool
+            let relativePath: String
+            let originalFilename: String
+            let contentTypeIdentifier: String
+            let locationLatitude: Double?
+            let locationLongitude: Double?
+            let albumIDs: [UUID]
+            let livePhotoCompanionRelativePath: String?
+            let videoDuration: Double?
+        }
+
+        struct DuplicatedOutput: Sendable {
+            let snapshot: DuplicateSnapshot
+            let relativePath: String
+            let companionRelativePath: String?
+        }
+
+        let snapshots = sourceItems.map { item in
+            DuplicateSnapshot(
+                name: item.name,
+                originalCapturedAt: item.originalCapturedAt,
+                mediaKind: item.mediaKind,
+                space: item.space,
+                isStrongProtected: item.isStrongProtected,
+                relativePath: item.relativePath,
+                originalFilename: item.originalFilename,
+                contentTypeIdentifier: item.contentTypeIdentifier,
+                locationLatitude: item.locationLatitude,
+                locationLongitude: item.locationLongitude,
+                albumIDs: item.albums.map(\.id),
+                livePhotoCompanionRelativePath: item.livePhotoCompanionRelativePath,
+                videoDuration: item.videoDuration
+            )
+        }
+        let storage = fileStorage
+
+        Task {
+            let result = await Task.detached(priority: .userInitiated) { () -> (outputs: [DuplicatedOutput], errorMessage: String?) in
+                var outputs: [DuplicatedOutput] = []
+                outputs.reserveCapacity(snapshots.count)
+                do {
+                    for snapshot in snapshots {
+                        let storedFile = try storage.duplicateFile(at: snapshot.relativePath, space: snapshot.space)
+                        let duplicatedCompanionPath: String?
+                        if let companionPath = snapshot.livePhotoCompanionRelativePath {
+                            do {
+                                duplicatedCompanionPath = try storage.duplicateFile(at: companionPath, space: snapshot.space).relativePath
+                            } catch {
+                                try? storage.removeFile(relativePath: storedFile.relativePath)
+                                throw error
+                            }
+                        } else {
+                            duplicatedCompanionPath = nil
+                        }
+                        outputs.append(DuplicatedOutput(
+                            snapshot: snapshot,
+                            relativePath: storedFile.relativePath,
+                            companionRelativePath: duplicatedCompanionPath
+                        ))
+                    }
+                    return (outputs, nil)
+                } catch {
+                    return (outputs, error.localizedDescription)
+                }
+            }.value
+
+            if !result.outputs.isEmpty {
+                let albumsByID = Dictionary(uniqueKeysWithValues: albums.map { ($0.id, $0) })
+                for output in result.outputs {
+                    let s = output.snapshot
+                    let resolvedAlbums = s.albumIDs.compactMap { albumsByID[$0] }
+                    let duplicate = VaultItem(
+                        name: availableItemName(for: copyName(for: s.name)),
+                        createdAt: .now,
+                        importedAt: .now,
+                        lastExportedAt: nil,
+                        originalCapturedAt: s.originalCapturedAt,
+                        updatedAt: .now,
+                        mediaKind: s.mediaKind,
+                        space: s.space,
+                        isInTrash: false,
+                        isArchived: false,
+                        isStrongProtected: s.isStrongProtected,
+                        relativePath: output.relativePath,
+                        originalFilename: s.originalFilename,
+                        contentTypeIdentifier: s.contentTypeIdentifier,
+                        locationLatitude: s.locationLatitude,
+                        locationLongitude: s.locationLongitude,
+                        albums: resolvedAlbums,
+                        livePhotoCompanionRelativePath: output.companionRelativePath,
+                        videoDuration: s.videoDuration
+                    )
+                    items.append(duplicate)
+                }
+                saveAndRefresh()
+            }
+
+            if let errorMessage = result.errorMessage {
+                lastErrorMessage = errorMessage
+            }
+        }
+    }
+
+    func handleInternalMediaDrop(itemIDs: Set<UUID>, sourceAlbumID: UUID?, targetAlbumID: UUID) {
+        guard !itemIDs.isEmpty,
+              sourceAlbumID != targetAlbumID,
+              let targetAlbum = album(for: targetAlbumID),
+              targetAlbum.space == space else {
+            return
+        }
+
+        let targetItems = items.filter { itemIDs.contains($0.id) && $0.space == space }
+        guard !targetItems.isEmpty else { return }
+
+        switch targetAlbum.kind {
+        case .trash:
+            let movable = targetItems.filter { !$0.isStrongProtected }
+            if movable.isEmpty {
+                lastErrorMessage = String(localized: "强加密项目不支持移入回收站，请先移出强加密媒体库或直接永久删除。")
+                return
+            }
+            for item in movable {
+                moveItemToTrash(item)
             }
             saveAndRefresh()
-        } catch {
-            lastErrorMessage = error.localizedDescription
+
+        case .archive:
+            let archivableIDs = Set(targetItems.filter { !$0.isStrongProtected && !$0.isInTrash }.map(\.id))
+            guard !archivableIDs.isEmpty else { return }
+            archive(itemIDs: archivableIDs)
+
+        case .custom:
+            let eligibleIDs = Set(targetItems.filter { !$0.isStrongProtected }.map(\.id))
+            guard !eligibleIDs.isEmpty else { return }
+            let trashedIDs = Set(targetItems.filter { eligibleIDs.contains($0.id) && $0.isInTrash }.map(\.id))
+            if !trashedIDs.isEmpty {
+                restoreFromTrash(itemIDs: trashedIDs)
+            }
+            guard let targetAlbum = album(for: targetAlbumID) else { return }
+            var changed = false
+            for item in items where eligibleIDs.contains(item.id) && !item.isInTrash {
+                let alreadyBelongs = item.albums.contains { $0.id == targetAlbumID }
+                guard item.isArchived || !alreadyBelongs else { continue }
+                item.isArchived = false
+                if !alreadyBelongs {
+                    item.albums.append(targetAlbum)
+                }
+                item.updatedAt = .now
+                changed = true
+            }
+            if changed {
+                saveAndRefresh()
+            }
+
+        case .secureCustom:
+            guard secureFeatureEnabled else { return }
+            let eligible = targetItems.filter { $0.isStrongProtected && !$0.isInTrash }
+            guard !eligible.isEmpty else {
+                lastErrorMessage = String(localized: "只有强加密项目才能拖入强加密相册。")
+                return
+            }
+            var changed = false
+            for item in eligible where !item.albums.contains(where: { $0.id == targetAlbum.id }) {
+                item.albums.append(targetAlbum)
+                item.updatedAt = .now
+                changed = true
+            }
+            if changed {
+                saveAndRefresh()
+            }
+
+        case .allPhotos, .allVideos:
+            let eligible = targetItems.filter {
+                !$0.isStrongProtected && ($0.mediaKind == .video) == (targetAlbum.kind == .allVideos)
+            }
+            let trashedIDs = Set(eligible.filter(\.isInTrash).map(\.id))
+            if !trashedIDs.isEmpty {
+                restoreFromTrash(itemIDs: trashedIDs)
+            }
+            let archivedIDs = Set(eligible.filter { $0.isArchived && !$0.isInTrash }.map(\.id))
+            if !archivedIDs.isEmpty {
+                unarchive(itemIDs: archivedIDs)
+            }
+
+        case .secureLibrary:
+            guard secureFeatureEnabled else { return }
+            let eligibleIDs = Set(targetItems.filter { !$0.isStrongProtected && !$0.isInTrash }.map(\.id))
+            guard !eligibleIDs.isEmpty else { return }
+            enableStrongProtection(itemIDs: eligibleIDs)
         }
     }
 
@@ -899,15 +1107,7 @@ final class MediaLibraryViewModel: ObservableObject {
         guard let targetAlbum = album(for: albumID) else { return }
 
         var orderedIDs = customOrderedIDs(for: albumID)
-        let sourceIndexes = source.sorted()
-        let movingItems = sourceIndexes.map { orderedIDs[$0] }
-
-        for index in sourceIndexes.reversed() {
-            orderedIDs.remove(at: index)
-        }
-
-        let adjustedDestination = min(destination, orderedIDs.count)
-        orderedIDs.insert(contentsOf: movingItems, at: adjustedDestination)
+        orderedIDs.move(fromOffsets: source, toOffset: destination)
         targetAlbum.customOrderedUUIDs = orderedIDs
         targetAlbum.sortOption = .custom
         saveAndRefresh()
@@ -949,15 +1149,7 @@ final class MediaLibraryViewModel: ObservableObject {
     }
 
     private func moveElements<T>(in array: inout [T], from source: IndexSet, to destination: Int) {
-        let sourceIndexes = source.sorted()
-        let movingElements = sourceIndexes.map { array[$0] }
-
-        for index in sourceIndexes.reversed() {
-            array.remove(at: index)
-        }
-
-        let adjustedDestination = min(destination, array.count)
-        array.insert(contentsOf: movingElements, at: adjustedDestination)
+        array.move(fromOffsets: source, toOffset: destination)
     }
 
     private func ensureRequiredAlbumsPresent() -> Bool {
@@ -1695,7 +1887,7 @@ final class MediaLibraryViewModel: ObservableObject {
         case .spaceB:
             state.spaceBCount = items.count
         }
-        state.currentTierRawValue = SubscriptionManager.shared.currentTier.rawValue
+        state.currentTierRawValue = SubscriptionManager.shared.purchasedTier.rawValue
         state.spaceADisplayName = SpaceDisplaySettings.displayName(for: .spaceA)
         state.spaceBDisplayName = SpaceDisplaySettings.displayName(for: .spaceB)
         state.isSpaceBConfigured = AppLockService().isPasscodeConfigured(for: .spaceB)

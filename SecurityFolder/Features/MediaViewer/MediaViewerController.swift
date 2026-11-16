@@ -49,6 +49,11 @@ final class MediaViewerController: UIViewController {
     private var secureOverlayTapRecognizer: UITapGestureRecognizer?
     private weak var pointerPanRecognizer: UIPanGestureRecognizer?
     private var captureObserver: NSObjectProtocol?
+    private var lockObserver: NSObjectProtocol?
+    private var backgroundObserver: NSObjectProtocol?
+    private var isMuted = false
+    private var isLooping = false
+    private var preferredPlaybackRate: Float = 1
 
     init(items: [VaultItem], initialItemID: UUID, provider: MediaAssetProvider) {
         self.items = items
@@ -70,6 +75,7 @@ final class MediaViewerController: UIViewController {
             UIKeyCommand(title: String(localized: "快退 15 秒"), action: #selector(keySkipBackward), input: UIKeyCommand.inputLeftArrow, modifierFlags: []),
             UIKeyCommand(title: String(localized: "快进 15 秒"), action: #selector(keySkipForward), input: UIKeyCommand.inputRightArrow, modifierFlags: []),
             UIKeyCommand(title: String(localized: "播放/暂停"), action: #selector(keyTogglePlayPause), input: " ", modifierFlags: []),
+            UIKeyCommand(title: String(localized: "静音/取消静音"), action: #selector(muteTapped), input: "m", modifierFlags: []),
             UIKeyCommand(title: String(localized: "关闭"), action: #selector(keyClose), input: UIKeyCommand.inputEscape, modifierFlags: [])
         ]
     }
@@ -82,6 +88,7 @@ final class MediaViewerController: UIViewController {
         configureOverlay()
         configureGestures()
         configureCaptureProtectionIfNeeded()
+        configureLifecycleObservers()
         showInitialPage()
         registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (controller: MediaViewerController, _: UITraitCollection) in
             controller.view.setNeedsLayout()
@@ -133,6 +140,7 @@ final class MediaViewerController: UIViewController {
 
     private func configureOverlay() {
         topOverlay.closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        topOverlay.muteButton.addTarget(self, action: #selector(muteTapped), for: .touchUpInside)
         topOverlay.moreButton.addTarget(self, action: #selector(moreTapped), for: .touchUpInside)
         view.addSubview(topOverlay)
         view.addSubview(bottomScrubber)
@@ -330,6 +338,7 @@ final class MediaViewerController: UIViewController {
         page.onFastForwardChanged = { [weak self] active, rate in
             self?.setFastForwardIndicator(active: active, rate: rate)
         }
+        page.applyPlaybackPreferences(rate: preferredPlaybackRate, isMuted: isMuted, isLooping: isLooping)
         pageCache[item.id] = page
         return page
     }
@@ -339,8 +348,11 @@ final class MediaViewerController: UIViewController {
         currentPage = page
         photoTransitionSource?.currentItemID = page.item.id
         currentIndex = items.firstIndex(of: page.item) ?? currentIndex
+        evictDistantCachedPages(around: currentIndex)
+        page.applyPlaybackPreferences(rate: preferredPlaybackRate, isMuted: isMuted, isLooping: isLooping)
         page.setActive(true)
         topOverlay.update(title: page.item.name, subtitle: items.count > 1 ? "\(currentIndex + 1) / \(items.count)" : nil)
+        topOverlay.updateMuteButton(visible: page.item.mediaKind == .video, isMuted: isMuted)
         renderCurrentPlaybackState(scheduleAutoHide: false)
         // Instantly reflect whether the new item is a Live Photo (no animation so
         // the badge appears in sync with the page change, not after a fade delay).
@@ -369,6 +381,42 @@ final class MediaViewerController: UIViewController {
             NotificationCenter.default.removeObserver(captureObserver)
         }
         captureObserver = nil
+    }
+
+    private func configureLifecycleObservers() {
+        lockObserver = NotificationCenter.default.addObserver(
+            forName: .vaultDidLock,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.cleanupAllPages()
+        }
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.currentPage?.pausePlayback()
+        }
+    }
+
+    private func removeLifecycleObservers() {
+        if let lockObserver {
+            NotificationCenter.default.removeObserver(lockObserver)
+        }
+        lockObserver = nil
+        if let backgroundObserver {
+            NotificationCenter.default.removeObserver(backgroundObserver)
+        }
+        backgroundObserver = nil
+    }
+
+    private func evictDistantCachedPages(around index: Int) {
+        let keepIDs = Set((max(0, index - 1)...min(items.count - 1, index + 1)).map { items[$0].id })
+        for (id, cachedPage) in pageCache where !keepIDs.contains(id) {
+            cachedPage.cleanup()
+            pageCache.removeValue(forKey: id)
+        }
     }
 
     private func updateCapturePrivacyOverlay(animated: Bool) {
@@ -512,7 +560,9 @@ final class MediaViewerController: UIViewController {
         hideControlsWorkItem?.cancel()
         hideControlsWorkItem = nil
         pageCache.values.forEach { $0.cleanup() }
+        pageCache.removeAll()
         removeCaptureObserver()
+        removeLifecycleObservers()
     }
 
     @objc private func closeTapped() {
@@ -525,6 +575,16 @@ final class MediaViewerController: UIViewController {
         isMenuVisible = true
         showControls(lock: true)
         let sheet = UIAlertController(title: item.name, message: nil, preferredStyle: .actionSheet)
+        if item.mediaKind == .video {
+            let loopTitle = isLooping ? String(localized: "关闭循环播放") : String(localized: "开启循环播放")
+            sheet.addAction(UIAlertAction(title: loopTitle, style: .default) { [weak self] _ in
+                guard let self else { return }
+                self.isLooping.toggle()
+                self.currentPage?.applyPlaybackPreferences(rate: self.preferredPlaybackRate, isMuted: self.isMuted, isLooping: self.isLooping)
+                self.isMenuVisible = false
+                self.scheduleHideControlsIfNeeded(reset: true)
+            })
+        }
         sheet.addAction(UIAlertAction(title: String(localized: "显示详情"), style: .default) { [weak self] _ in
             self?.isMenuVisible = false
             self?.scheduleHideControlsIfNeeded(reset: true)
@@ -564,6 +624,17 @@ final class MediaViewerController: UIViewController {
 
     @objc private func rateTapped() {
         currentPage?.cyclePlaybackRate()
+        if let updatedRate = currentPage?.videoState.playbackRate {
+            preferredPlaybackRate = Float(updatedRate)
+        }
+        showControls(lock: false)
+    }
+
+    @objc private func muteTapped() {
+        guard currentPage?.item.mediaKind == .video else { return }
+        isMuted.toggle()
+        currentPage?.applyPlaybackPreferences(rate: preferredPlaybackRate, isMuted: isMuted, isLooping: isLooping)
+        topOverlay.updateMuteButton(visible: true, isMuted: isMuted)
         showControls(lock: false)
     }
 
@@ -781,6 +852,7 @@ extension MediaViewerController: UIPageViewControllerDataSource, UIPageViewContr
 
 final class MediaTopOverlayView: UIView {
     let closeButton = MediaGlassIconButton(frame: .zero)
+    let muteButton = MediaGlassIconButton(frame: .zero)
     let moreButton = MediaGlassIconButton(frame: .zero)
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
@@ -809,14 +881,25 @@ final class MediaTopOverlayView: UIView {
         superview?.setNeedsLayout()
     }
 
+    func updateMuteButton(visible: Bool, isMuted: Bool) {
+        muteButton.isHidden = !visible
+        let symbolName = isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"
+        muteButton.setImage(UIImage(systemName: symbolName), for: .normal)
+        muteButton.accessibilityLabel = isMuted ? String(localized: "取消静音") : String(localized: "静音")
+        setNeedsLayout()
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         let buttonSize: CGFloat = 44
-        closeButton.frame = CGRect(x: 0, y: (bounds.height - buttonSize) / 2, width: buttonSize, height: buttonSize)
-        moreButton.frame = CGRect(x: bounds.width - buttonSize, y: (bounds.height - buttonSize) / 2, width: buttonSize, height: buttonSize)
+        let buttonY = (bounds.height - buttonSize) / 2
+        closeButton.frame = CGRect(x: 0, y: buttonY, width: buttonSize, height: buttonSize)
+        moreButton.frame = CGRect(x: bounds.width - buttonSize, y: buttonY, width: buttonSize, height: buttonSize)
+        muteButton.frame = CGRect(x: moreButton.frame.minX - buttonSize - 8, y: buttonY, width: buttonSize, height: buttonSize)
 
-        let maxTitleWidth = max(0, bounds.width - buttonSize * 2 - 24)
-        let titleWidth = min(maxTitleWidth, max(150, intrinsicTitleWidth + 28))
+        let sideReserved = muteButton.isHidden ? (buttonSize + 12) : (buttonSize * 2 + 20)
+        let maxTitleWidth = max(0, bounds.width - sideReserved * 2)
+        let titleWidth = min(maxTitleWidth, max(120, intrinsicTitleWidth + 28))
         titleContainer.frame = CGRect(x: (bounds.width - titleWidth) / 2, y: 0, width: titleWidth, height: bounds.height)
         titleGlassView.frame = titleContainer.bounds
         titleGlassView.update(cornerRadius: bounds.height / 2, isDark: true, tintStyle: .panel, isInteractive: false)
@@ -833,15 +916,19 @@ final class MediaTopOverlayView: UIView {
     private func setup() {
         addSubview(closeButton)
         addSubview(titleContainer)
+        addSubview(muteButton)
         addSubview(moreButton)
         titleContainer.contentView.addSubview(titleGlassView)
         titleGlassView.contentView.addSubview(titleLabel)
         titleGlassView.contentView.addSubview(subtitleLabel)
         closeButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+        muteButton.setImage(UIImage(systemName: "speaker.wave.2.fill"), for: .normal)
+        muteButton.isHidden = true
         moreButton.setImage(UIImage(systemName: "ellipsis"), for: .normal)
         closeButton.accessibilityLabel = String(localized: "关闭")
+        muteButton.accessibilityLabel = String(localized: "静音")
         moreButton.accessibilityLabel = String(localized: "更多")
-        [closeButton, moreButton].forEach { $0.tintColor = .white }
+        [closeButton, muteButton, moreButton].forEach { $0.tintColor = .white }
         titleLabel.textColor = .white
         titleLabel.font = UIFontMetrics(forTextStyle: .subheadline).scaledFont(for: .systemFont(ofSize: 14, weight: .semibold))
         titleLabel.adjustsFontForContentSizeCategory = true

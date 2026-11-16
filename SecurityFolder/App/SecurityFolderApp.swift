@@ -4,6 +4,10 @@ import SwiftUI
 struct SecurityFolderApp: App {
     @StateObject private var session: AppSessionViewModel
 
+    #if targetEnvironment(macCatalyst)
+    @FocusedValue(\.showVersionInfo) private var showVersionInfo
+    #endif
+
     init() {
         AppLockService().reconcilePersistentSecurityState()
         let recoveryNotice = BackupOperationRecoveryService.shared.recoverIfNeeded()
@@ -17,8 +21,24 @@ struct SecurityFolderApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if targetEnvironment(macCatalyst)
+            MacVersionInfoHost {
+                AppRootView(session: session)
+            }
+            #else
             AppRootView(session: session)
+            #endif
         }
+        #if targetEnvironment(macCatalyst)
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button(String.localizedStringWithFormat(String(localized: "关于 %@"), AppMetadata.appName)) {
+                    showVersionInfo?()
+                }
+                .disabled(showVersionInfo == nil)
+            }
+        }
+        #endif
         // On Mac Catalyst the initial window size and minimum are set at runtime
         // via UIWindowScene (requestGeometryUpdate / sizeRestrictions) in
         // AppRootView; SwiftUI's .defaultSize is ignored in the Mac idiom.
@@ -59,3 +79,30 @@ struct SecurityFolderApp: App {
         }
     }
 }
+
+
+#if targetEnvironment(macCatalyst)
+private extension FocusedValues {
+    @Entry var showVersionInfo: (() -> Void)?
+}
+
+private struct MacVersionInfoHost<Content: View>: View {
+    @ViewBuilder let content: Content
+    @State private var isShowingVersionInfo = false
+
+    var body: some View {
+        content
+            .focusedSceneValue(\.showVersionInfo, { isShowingVersionInfo = true })
+            .sheet(isPresented: $isShowingVersionInfo) {
+                VStack(spacing: 0) {
+                    AboutAppView()
+                    Button(String(localized: "关闭")) { isShowingVersionInfo = false }
+                        .keyboardShortcut(.cancelAction)
+                        .padding(.bottom, 20)
+                }
+                .frame(minWidth: 400, idealWidth: 480, minHeight: 400, idealHeight: 480)
+                .background(SettingsAppearance.pageBackground)
+            }
+    }
+}
+#endif

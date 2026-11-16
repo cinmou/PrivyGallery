@@ -119,6 +119,7 @@ struct MembershipCenterView: View {
                 .padding(.horizontal, 24)
                 .background(Color(UIColor.secondarySystemGroupedBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .macSettingsCardBorder(cornerRadius: 28)
                 
                 // MARK: - 权益说明
                 VStack(alignment: .leading, spacing: 14) {
@@ -133,8 +134,19 @@ struct MembershipCenterView: View {
                 .padding(20)
                 .background(Color(UIColor.secondarySystemGroupedBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .macSettingsCardBorder(cornerRadius: 24)
 
                 purchaseSection
+
+                #if DEBUG
+                Button {
+                    subscriptionManager.isTemporaryMembershipEnabled.toggle()
+                } label: {
+                    Text(subscriptionManager.isTemporaryMembershipEnabled
+                         ? String(localized: "关闭临时会员")
+                         : String(localized: "启用临时会员"))
+                }
+                #endif
 
                 Button {
                     Task {
@@ -161,6 +173,19 @@ struct MembershipCenterView: View {
         }
         .navigationTitle(String(localized: "会员中心"))
         .navigationBarTitleDisplayMode(.inline)
+        #if targetEnvironment(macCatalyst)
+        .safeAreaInset(edge: .bottom) {
+            if isPresentedAsSheet {
+                Button(String(localized: "关闭")) {
+                    dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(SettingsAppearance.pageBackground)
+            }
+        }
+        #else
         .toolbar {
             if isPresentedAsSheet {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -174,6 +199,7 @@ struct MembershipCenterView: View {
                 }
             }
         }
+        #endif
         .background(SettingsAppearance.pageBackground.ignoresSafeArea())
         .alert(storeKitManager.currentNotice?.title ?? String(localized: "购买提示"), isPresented: purchaseAlertPresented) {
             Button(String(localized: "知道了"), role: .cancel) {
@@ -262,6 +288,7 @@ struct MembershipCenterView: View {
         .padding(20)
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .macSettingsCardBorder(cornerRadius: 24)
     }
 
     private var availableProducts: [MembershipProductKind] {
@@ -326,6 +353,7 @@ struct MembershipCenterView: View {
         .padding(16)
         .background(Color(UIColor.tertiarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .macSettingsCardBorder(cornerRadius: 20)
     }
     
     private func membershipArtwork(for kind: MembershipProductKind) -> some View {

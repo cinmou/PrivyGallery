@@ -15,6 +15,8 @@ enum VaultImportError: LocalizedError {
     case invalidManifest
     case invalidPasswordEncoding
     case cancelled
+    case exceedsFreeMediaLimit
+    case insufficientDiskSpace(requiredBytes: Int64, availableBytes: Int64)
 
     var errorDescription: String? {
         switch self {
@@ -40,6 +42,16 @@ enum VaultImportError: LocalizedError {
             return String(localized: "导入密码编码失败。")
         case .cancelled:
             return String(localized: "恢复已停止。")
+        case .exceedsFreeMediaLimit:
+            return String(localized: "当前备份会超过免费版 20 个媒体项目上限，请开通会员后再恢复。")
+        case let .insufficientDiskSpace(requiredBytes, availableBytes):
+            let requiredText = ByteCountFormatter.string(fromByteCount: requiredBytes, countStyle: .file)
+            let availableText = ByteCountFormatter.string(fromByteCount: availableBytes, countStyle: .file)
+            return String.localizedStringWithFormat(
+                String(localized: "设备可用存储空间不足（需要约 %1$@，当前可用 %2$@），请清理空间后重试。"),
+                requiredText,
+                availableText
+            )
         }
     }
 }
@@ -89,17 +101,20 @@ struct VaultImportInspectionResult {
     }
 }
 
-struct VaultImportService {
+nonisolated struct VaultImportService: Sendable {
     private static let vaultMagic = Data("SVEX".utf8)
     private static let vaultVersion: UInt8 = 2
     private static let archiveMagic = Data("SVAR".utf8)
     private static let archiveVersion: UInt8 = 1
+    private static let maxHeaderBytes = 2 * 1_024 * 1_024
+    private static let maxManifestBytes = 64 * 1_024 * 1_024
+    private static let maxPathBytes = 4_096
 
-    private let fileManager = FileManager.default
+    private var fileManager: FileManager { FileManager() }
     private let mediaStorage = VaultFileStorageService.shared
     private let metadataStore = EncryptedMetadataStore.shared
 
-    func inspectBackupsForImport(
+    nonisolated func inspectBackupsForImport(
         from backupURLs: [URL],
         password: String,
         onProgress: ((VaultTransferProgress) -> Void)? = nil
@@ -109,48 +124,45 @@ struct VaultImportService {
             throw VaultImportError.invalidBackupFile
         }
 
-        #if DEBUG
-        VaultTransferLog.mark("import.inspect.start", "fileCount=\(urls.count)")
-        #endif
-        var combined = VaultImportInspectionResult.empty
-        for (index, url) in urls.enumerated() {
-            let result = try await inspectBackupForImport(
-                from: url,
-                password: password,
-                onProgress: { progress in
-                    let overall = progress.fractionCompleted.map { (Double(index) + $0) / Double(urls.count) }
-                    onProgress?(VaultTransferProgress(
-                        phase: progress.phase,
-                        currentPart: index + 1,
-                        totalParts: urls.count,
-                        currentItem: progress.currentItem,
-                        totalItems: progress.totalItems,
-                        currentBytes: progress.currentBytes,
-                        totalBytes: progress.totalBytes,
-                        message: progress.message,
-                        fractionCompleted: overall
-                    ))
-                    #if DEBUG
-                    let fractionDescription = overall.map { String(format: "%.4f", $0) } ?? "indeterminate"
-                    VaultTransferLog.mark(
-                        "import.inspect.progress.aggregate",
-                        "file=\(index + 1)/\(urls.count) phase=\(progress.phase.rawValue) fraction=\(fractionDescription)"
-                    )
-                    #endif
-                }
-            )
-            combined = combined.combined(with: result)
-        }
-        #if DEBUG
-        VaultTransferLog.mark("import.inspect.complete", "mediaCount=\(combined.mediaItemCount)")
-        #endif
-        return combined
+        return try await Task.detached(priority: .userInitiated) { [self] in
+            #if DEBUG
+            VaultTransferLog.mark("import.inspect.start", "fileCount=\(urls.count)")
+            #endif
+            var combined = VaultImportInspectionResult.empty
+            for (index, url) in urls.enumerated() {
+                let result = try inspectBackupForImportSync(
+                    from: url,
+                    password: password,
+                    onProgress: { progress in
+                        let overall = progress.fractionCompleted.map { (Double(index) + $0) / Double(urls.count) }
+                        onProgress?(VaultTransferProgress(
+                            phase: progress.phase,
+                            currentPart: index + 1,
+                            totalParts: urls.count,
+                            currentItem: progress.currentItem,
+                            totalItems: progress.totalItems,
+                            currentBytes: progress.currentBytes,
+                            totalBytes: progress.totalBytes,
+                            message: progress.message,
+                            fractionCompleted: overall
+                        ))
+                    }
+                )
+                combined = combined.combined(with: result)
+            }
+            #if DEBUG
+            VaultTransferLog.mark("import.inspect.complete", "mediaCount=\(combined.mediaItemCount)")
+            #endif
+            return combined
+        }.value
     }
 
-    func importBackups(
+    nonisolated func importBackups(
         from backupURLs: [URL],
         into targetSpace: VaultSpaceKind,
         password: String,
+        maxAllowedTotalMediaCount: Int? = nil,
+        currentMediaCount: Int = 0,
         onProgress: ((VaultTransferProgress) -> Void)? = nil
     ) async throws -> VaultImportResult {
         let urls = backupURLs.sorted { $0.lastPathComponent < $1.lastPathComponent }
@@ -158,58 +170,118 @@ struct VaultImportService {
             throw VaultImportError.invalidBackupFile
         }
 
-        #if DEBUG
-        VaultTransferLog.mark("import.start", "fileCount=\(urls.count)")
-        #endif
-        var combined = VaultImportResult.empty
-        var session = VaultImportSession()
-        for (index, url) in urls.enumerated() {
-            #if DEBUG
-            VaultTransferLog.mark("import.file.open", "index=\(index + 1) total=\(urls.count) ext=\(url.pathExtension)")
-            #endif
-            let result = try await importBackup(
-                from: url,
-                into: targetSpace,
-                password: password,
-                session: &session,
-                onProgress: { progress in
-                    let overall = progress.fractionCompleted.map { (Double(index) + $0) / Double(urls.count) }
-                    onProgress?(VaultTransferProgress(
-                        phase: progress.phase,
-                        currentPart: index + 1,
-                        totalParts: urls.count,
-                        currentItem: progress.currentItem,
-                        totalItems: progress.totalItems,
-                        currentBytes: progress.currentBytes,
-                        totalBytes: progress.totalBytes,
-                        message: progress.message,
-                        fractionCompleted: overall
-                    ))
-                    #if DEBUG
-                    let fractionDescription = overall.map { String(format: "%.4f", $0) } ?? "indeterminate"
-                    VaultTransferLog.mark(
-                        "import.progress.aggregate",
-                        "file=\(index + 1)/\(urls.count) phase=\(progress.phase.rawValue) fraction=\(fractionDescription)"
-                    )
-                    #endif
+        return try await Task.detached(priority: .userInitiated) { [self] in
+            try checkAvailableDiskSpaceForImport(backupURLs: urls)
+
+            let stagingRootDirectory = try makeTemporaryImportDirectory()
+            BackupOperationRecoveryService.shared.beginImport(stagingDirectoryURL: stagingRootDirectory)
+            var importFinishedSuccessfully = false
+            defer {
+                try? fileManager.removeItem(at: stagingRootDirectory)
+                if importFinishedSuccessfully {
+                    BackupOperationRecoveryService.shared.complete()
+                } else {
+                    BackupOperationRecoveryService.shared.abortAndCleanup()
                 }
-            )
-            combined = combined.combined(with: result)
+            }
+
             #if DEBUG
-            VaultTransferLog.mark("import.file.finish", "index=\(index + 1) total=\(urls.count)")
+            VaultTransferLog.mark("import.start", "fileCount=\(urls.count)")
             #endif
-        }
-        #if DEBUG
-        VaultTransferLog.mark("import.complete", "media=\(combined.importedMediaCount) photos=\(combined.importedRegularPhotoCount) videos=\(combined.importedRegularVideoCount) secure=\(combined.importedStrongProtectedMediaCount)")
-        #endif
-        return combined
+
+            var preparedParts: [VaultPreparedImportPart] = []
+            var accumulatedIncomingItems = 0
+            for (index, url) in urls.enumerated() {
+                try Task.checkCancellation()
+                #if DEBUG
+                VaultTransferLog.mark("import.file.open", "index=\(index + 1) total=\(urls.count) ext=\(url.pathExtension)")
+                #endif
+                let partStagingDirectory = stagingRootDirectory.appendingPathComponent("part-\(index)", isDirectory: true)
+                try fileManager.createDirectory(at: partStagingDirectory, withIntermediateDirectories: true)
+                defer {
+                    try? fileManager.removeItem(at: partStagingDirectory)
+                }
+
+                let prepared = try prepareImportPart(
+                    from: url,
+                    into: targetSpace,
+                    password: password,
+                    stagingDirectory: partStagingDirectory,
+                    maxAllowedTotalMediaCount: maxAllowedTotalMediaCount,
+                    currentAccumulatedCount: currentMediaCount + accumulatedIncomingItems,
+                    onProgress: { progress in
+                        let overall = progress.fractionCompleted.map { (Double(index) + $0) / Double(urls.count) * 0.90 }
+                        onProgress?(VaultTransferProgress(
+                            phase: progress.phase,
+                            currentPart: index + 1,
+                            totalParts: urls.count,
+                            currentItem: progress.currentItem,
+                            totalItems: progress.totalItems,
+                            currentBytes: progress.currentBytes,
+                            totalBytes: progress.totalBytes,
+                            message: progress.message,
+                            fractionCompleted: overall
+                        ))
+                    }
+                )
+                accumulatedIncomingItems += prepared.manifest.items.count
+                preparedParts.append(prepared)
+                #if DEBUG
+                VaultTransferLog.mark("import.file.finish", "index=\(index + 1) total=\(urls.count)")
+                #endif
+            }
+
+            emitImportProgress(
+                VaultTransferProgress(
+                    phase: .refreshing,
+                    currentPart: urls.count,
+                    totalParts: urls.count,
+                    message: String(localized: "正在刷新媒体库"),
+                    fractionCompleted: 0.94
+                ),
+                to: onProgress
+            )
+
+            let combined = try await MainActor.run {
+                try commitPreparedParts(preparedParts, targetSpace: targetSpace)
+            }
+
+            BackupOperationRecoveryService.shared.markImportEnteringMetadataSave()
+            importFinishedSuccessfully = true
+
+            emitImportProgress(
+                VaultTransferProgress(
+                    phase: .completed,
+                    currentPart: urls.count,
+                    totalParts: urls.count,
+                    message: String(localized: "恢复完成"),
+                    fractionCompleted: 1
+                ),
+                to: onProgress
+            )
+
+            #if DEBUG
+            VaultTransferLog.mark("import.complete", "media=\(combined.importedMediaCount) photos=\(combined.importedRegularPhotoCount) videos=\(combined.importedRegularVideoCount) secure=\(combined.importedStrongProtectedMediaCount)")
+            #endif
+            return combined
+        }.value
     }
 
-    func inspectBackupForImport(
+    nonisolated func inspectBackupForImport(
         from backupURL: URL,
         password: String,
         onProgress: ((VaultTransferProgress) -> Void)? = nil
     ) async throws -> VaultImportInspectionResult {
+        try await Task.detached(priority: .userInitiated) { [self] in
+            try inspectBackupForImportSync(from: backupURL, password: password, onProgress: onProgress)
+        }.value
+    }
+
+    nonisolated private func inspectBackupForImportSync(
+        from backupURL: URL,
+        password: String,
+        onProgress: ((VaultTransferProgress) -> Void)? = nil
+    ) throws -> VaultImportInspectionResult {
         let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPassword.isEmpty else {
             throw VaultImportError.emptyPassword
@@ -288,13 +360,15 @@ struct VaultImportService {
         return VaultImportInspectionResult(mediaItemCount: mediaCount)
     }
 
-    private func importBackup(
+    nonisolated private func prepareImportPart(
         from backupURL: URL,
         into targetSpace: VaultSpaceKind,
         password: String,
-        session: inout VaultImportSession,
+        stagingDirectory: URL,
+        maxAllowedTotalMediaCount: Int?,
+        currentAccumulatedCount: Int,
         onProgress: ((VaultTransferProgress) -> Void)? = nil
-    ) async throws -> VaultImportResult {
+    ) throws -> VaultPreparedImportPart {
         let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPassword.isEmpty else {
             throw VaultImportError.emptyPassword
@@ -315,19 +389,7 @@ struct VaultImportService {
             }
         }
 
-        let tempImportDirectory = try makeTemporaryImportDirectory()
-        BackupOperationRecoveryService.shared.beginImport(stagingDirectoryURL: tempImportDirectory)
-        var importFinishedSuccessfully = false
-        defer {
-            try? fileManager.removeItem(at: tempImportDirectory)
-            if importFinishedSuccessfully {
-                BackupOperationRecoveryService.shared.complete()
-            } else {
-                BackupOperationRecoveryService.shared.abortAndCleanup()
-            }
-        }
-
-        let archiveURL = tempImportDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("archive")
+        let archiveURL = stagingDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("archive")
         try decryptVaultFile(
             backupURL,
             password: trimmedPassword,
@@ -373,18 +435,23 @@ struct VaultImportService {
             to: onProgress
         )
         let archive = try readArchiveHeader(from: archiveURL)
+        let manifest = archive.manifest
+        if let maxAllowedTotalMediaCount,
+           currentAccumulatedCount + manifest.items.count > maxAllowedTotalMediaCount {
+            throw VaultImportError.exceedsFreeMediaLimit
+        }
+
         emitImportProgress(
             VaultTransferProgress(
                 phase: .extracting,
-                currentItem: archive.manifest.blobEntries.count,
-                totalItems: archive.manifest.blobEntries.count,
+                currentItem: manifest.blobEntries.count,
+                totalItems: manifest.blobEntries.count,
                 message: String(localized: "备份索引已读取，正在准备恢复媒体"),
                 fractionCompleted: nil
             ),
             to: onProgress
         )
 
-        let manifest = archive.manifest
         let manifestBlobMap = Dictionary(uniqueKeysWithValues: manifest.blobEntries.map { ($0.relativePath, $0) })
         let manifestItemsByRelativePath = Dictionary(uniqueKeysWithValues: manifest.items.map { ($0.relativePath, $0) })
         let manifestItemsByCompanionPath = Dictionary(
@@ -393,6 +460,7 @@ struct VaultImportService {
         )
         var restoredMediaRelativePaths: [String: String] = [:]
         var restoredCompanionPaths: [String: String] = [:]
+        var restoredCoverPaths: [String: String] = [:]
 
         let handle = try FileHandle(forReadingFrom: archiveURL)
         defer {
@@ -435,7 +503,7 @@ struct VaultImportService {
                     targetSpace: targetSpace
                 )
             case .albumCover:
-                session.coverPaths[entryPath] = try restoreEncryptedBlob(
+                restoredCoverPaths[entryPath] = try restoreEncryptedBlob(
                     from: handle,
                     expectedByteCount: expectedByteCount,
                     to: restoredRelativePath(bucket: "AlbumCovers", extensionSource: entryPath, targetSpace: targetSpace),
@@ -451,55 +519,71 @@ struct VaultImportService {
                     currentItem: restoredBlobCount,
                     totalItems: blobCount,
                     message: String.localizedStringWithFormat(String(localized: "正在恢复项目 %1$lld / %2$lld"), restoredBlobCount, blobCount),
-                    fractionCompleted: min(0.44 + progress * 0.40, 0.84)
+                    fractionCompleted: min(0.44 + progress * 0.50, 0.94)
                 ),
                 to: onProgress
             )
         }
 
-        emitImportProgress(
-            VaultTransferProgress(
-                phase: .refreshing,
-                message: String(localized: "正在刷新媒体库"),
-                fractionCompleted: nil
-            ),
-            to: onProgress
+        return VaultPreparedImportPart(
+            manifest: manifest,
+            restoredMediaRelativePaths: restoredMediaRelativePaths,
+            restoredCompanionPaths: restoredCompanionPaths,
+            restoredCoverPaths: restoredCoverPaths
         )
-        let mediaPaths = restoredMediaRelativePaths
-        let companionPaths = restoredCompanionPaths
-        let currentSession = session
-        let mediaCount = try await MainActor.run {
-            try restoreMedia(
-                manifest: manifest,
-                restoredMediaRelativePaths: mediaPaths,
-                restoredCompanionPaths: companionPaths,
-                session: currentSession,
+    }
+
+    @MainActor
+    private func commitPreparedParts(
+        _ preparedParts: [VaultPreparedImportPart],
+        targetSpace: VaultSpaceKind
+    ) throws -> VaultImportResult {
+        var session = VaultImportSession()
+        let existingSnapshot = try metadataStore.loadSnapshot(for: targetSpace)
+        var existingAlbums = existingSnapshot.albums
+        var existingItems = existingSnapshot.items
+        var combined = VaultImportResult.empty
+
+        for part in preparedParts {
+            for (oldCoverPath, newCoverPath) in part.restoredCoverPaths {
+                session.coverPaths[oldCoverPath] = newCoverPath
+            }
+            let result = try restoreMedia(
+                manifest: part.manifest,
+                restoredMediaRelativePaths: part.restoredMediaRelativePaths,
+                restoredCompanionPaths: part.restoredCompanionPaths,
+                session: &session,
+                existingAlbums: &existingAlbums,
+                existingItems: &existingItems,
                 targetSpace: targetSpace
             )
+            combined = combined.combined(with: result)
         }
-        session = mediaCount.session
 
-        BackupOperationRecoveryService.shared.markImportEnteringMetadataSave()
-        emitImportProgress(
-            VaultTransferProgress(
-                phase: .completed,
-                message: String(localized: "恢复完成"),
-                fractionCompleted: 1
-            ),
-            to: onProgress
-        )
-        importFinishedSuccessfully = true
+        try metadataStore.saveSnapshot(space: targetSpace, albums: existingAlbums, items: existingItems)
+        return combined
+    }
 
-        return VaultImportResult(
-            importedMediaCount: mediaCount.itemCount,
-            importedAlbumCount: mediaCount.albumCount,
-            importedStrongProtectedMediaCount: mediaCount.strongProtectedItemCount,
-            importedStrongProtectedAlbumCount: mediaCount.strongProtectedAlbumCount,
-            importedRegularPhotoCount: mediaCount.regularPhotoCount,
-            importedRegularVideoCount: mediaCount.regularVideoCount,
-            skippedItemCount: 0,
-            failedItemCount: 0
-        )
+    nonisolated private func checkAvailableDiskSpaceForImport(backupURLs: [URL]) throws {
+        var totalBackupBytes: Int64 = 0
+        var maxSinglePartBytes: Int64 = 0
+        for url in backupURLs {
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer {
+                if didAccess {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+            let values = try? url.resourceValues(forKeys: [.fileSizeKey])
+            let fileSize = Int64(values?.fileSize ?? 0)
+            totalBackupBytes += fileSize
+            maxSinglePartBytes = max(maxSinglePartBytes, fileSize)
+        }
+        let requiredSpace = totalBackupBytes + maxSinglePartBytes + 64 * 1_024 * 1_024
+        if let availableSpace = VaultBackupCryptoHelper.availableDiskCapacity(at: fileManager.temporaryDirectory),
+           availableSpace < requiredSpace {
+            throw VaultImportError.insufficientDiskSpace(requiredBytes: requiredSpace, availableBytes: availableSpace)
+        }
     }
 
     private func decryptVaultFile(
@@ -524,6 +608,9 @@ struct VaultImportService {
         }
 
         let headerLength = Int(try readUInt32(from: inputHandle))
+        guard headerLength > 0, headerLength <= Self.maxHeaderBytes else {
+            throw VaultImportError.invalidBackupFile
+        }
         let headerData = try readData(count: headerLength, from: inputHandle)
         let header = try JSONDecoder.vaultImportDecoder.decode(VaultBackupHeader.self, from: headerData)
         #if DEBUG
@@ -544,6 +631,7 @@ struct VaultImportService {
         let importKey = try deriveImportKey(password: password, salt: salt, rounds: header.kdf.rounds)
 
         fileManager.createFile(atPath: archiveURL.path(), contents: nil)
+        try? fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: archiveURL.path())
         let outputHandle = try FileHandle(forWritingTo: archiveURL)
         defer {
             try? outputHandle.close()
@@ -552,6 +640,7 @@ struct VaultImportService {
         var completedBytes: Int64 = 0
         var expectedChunkIndex = 0
         let importChunkSize = max(header.chunkSize, 1)
+        let maxCiphertextBytes = importChunkSize + 4_096
         let estimatedTotalChunks = max(1, Int((header.archiveByteCount + Int64(importChunkSize) - 1) / Int64(importChunkSize)))
         while true {
             try Task.checkCancellation()
@@ -569,9 +658,18 @@ struct VaultImportService {
             let plaintextLength = Int(try readUInt64(from: inputHandle))
             let ciphertextLength = Int(try readUInt64(from: inputHandle))
             let nonceLength = Int(try readUInt32(from: inputHandle))
+            guard nonceLength > 0, nonceLength <= 64 else {
+                throw VaultImportError.invalidBackupFile
+            }
             let nonceData = try readData(count: nonceLength, from: inputHandle)
             let tagLength = Int(try readUInt32(from: inputHandle))
+            guard tagLength > 0, tagLength <= 64 else {
+                throw VaultImportError.invalidBackupFile
+            }
             let tagData = try readData(count: tagLength, from: inputHandle)
+            guard ciphertextLength >= 0, ciphertextLength <= maxCiphertextBytes else {
+                throw VaultImportError.invalidBackupFile
+            }
             let ciphertext = try readData(count: ciphertextLength, from: inputHandle)
 
             do {
@@ -632,6 +730,9 @@ struct VaultImportService {
             throw VaultImportError.unsupportedVersion
         }
         let manifestLength = Int(try readUInt64(from: handle))
+        guard manifestLength > 0, manifestLength <= Self.maxManifestBytes else {
+            throw VaultImportError.invalidBackupFile
+        }
         let manifestData = try readData(count: manifestLength, from: handle)
         let manifest = try JSONDecoder.vaultImportDecoder.decode(VaultBackupPartManifest.self, from: manifestData)
         #if DEBUG
@@ -646,21 +747,11 @@ struct VaultImportService {
         manifest: VaultBackupPartManifest,
         restoredMediaRelativePaths: [String: String],
         restoredCompanionPaths: [String: String],
-        session: VaultImportSession,
+        session: inout VaultImportSession,
+        existingAlbums: inout [VaultAlbum],
+        existingItems: inout [VaultItem],
         targetSpace: VaultSpaceKind
-    ) throws -> (
-        itemCount: Int,
-        albumCount: Int,
-        strongProtectedItemCount: Int,
-        strongProtectedAlbumCount: Int,
-        regularPhotoCount: Int,
-        regularVideoCount: Int,
-        session: VaultImportSession
-    ) {
-        var session = session
-        let existingSnapshot = try metadataStore.loadSnapshot(for: targetSpace)
-        var existingAlbums = existingSnapshot.albums
-        var existingItems = existingSnapshot.items
+    ) throws -> VaultImportResult {
         var usedAlbumNames = Set(existingAlbums.map(\.name))
         var importedAlbumsByOldID: [String: VaultAlbum] = [:]
         var newAlbumIDs = Set<UUID>()
@@ -755,20 +846,19 @@ struct VaultImportService {
             }
         }
 
-        try metadataStore.saveSnapshot(space: targetSpace, albums: existingAlbums, items: existingItems)
-
         let importedItems = Array(importedItemsByOldID.values)
         let newAlbums = existingAlbums.filter { newAlbumIDs.contains($0.id) }
-        return (
-            itemCount: importedItems.count,
-            albumCount: newAlbums.count,
-            strongProtectedItemCount: importedItems.filter(\.isStrongProtected).count,
-            strongProtectedAlbumCount: newAlbums.filter(\.isSecureAlbum).count,
+        return VaultImportResult(
+            importedMediaCount: importedItems.count,
+            importedAlbumCount: newAlbums.count,
+            importedStrongProtectedMediaCount: importedItems.filter(\.isStrongProtected).count,
+            importedStrongProtectedAlbumCount: newAlbums.filter(\.isSecureAlbum).count,
             // Live Photos are photos from the user's perspective; count them with photos,
             // not as a separate category, and never count the paired companion video.
-            regularPhotoCount: importedItems.filter { !$0.isStrongProtected && ($0.mediaKind == .photo || $0.mediaKind == .livePhoto) }.count,
-            regularVideoCount: importedItems.filter { !$0.isStrongProtected && $0.mediaKind == .video }.count,
-            session: session
+            importedRegularPhotoCount: importedItems.filter { !$0.isStrongProtected && ($0.mediaKind == .photo || $0.mediaKind == .livePhoto) }.count,
+            importedRegularVideoCount: importedItems.filter { !$0.isStrongProtected && $0.mediaKind == .video }.count,
+            skippedItemCount: 0,
+            failedItemCount: 0
         )
     }
 
@@ -823,39 +913,18 @@ struct VaultImportService {
         }
     }
 
-    private func deriveImportKey(password: String, salt: Data, rounds: Int) throws -> SymmetricKey {
-        guard let passwordData = password.data(using: .utf8) else {
-            throw VaultImportError.invalidPasswordEncoding
-        }
-
-        var derivedKey = Data(count: 32)
-        let derivedKeyCount = derivedKey.count
-        let status = derivedKey.withUnsafeMutableBytes { derivedBytes in
-            salt.withUnsafeBytes { saltBytes in
-                passwordData.withUnsafeBytes { passwordBytes in
-                    CCKeyDerivationPBKDF(
-                        CCPBKDFAlgorithm(kCCPBKDF2),
-                        passwordBytes.bindMemory(to: Int8.self).baseAddress,
-                        passwordData.count,
-                        saltBytes.bindMemory(to: UInt8.self).baseAddress,
-                        salt.count,
-                        CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                        UInt32(rounds),
-                        derivedBytes.bindMemory(to: UInt8.self).baseAddress,
-                        derivedKeyCount
-                    )
-                }
-            }
-        }
-
-        guard status == kCCSuccess else {
-            throw VaultImportError.failedToDeriveImportKey
-        }
-        return SymmetricKey(data: derivedKey)
+    nonisolated private func deriveImportKey(password: String, salt: Data, rounds: Int) throws -> SymmetricKey {
+        try VaultBackupCryptoHelper.derivePBKDF2Key(
+            password: password,
+            salt: salt,
+            rounds: rounds,
+            encodingError: VaultImportError.invalidPasswordEncoding,
+            derivationError: VaultImportError.failedToDeriveImportKey
+        )
     }
 
-    private func authenticatedData(for header: VaultBackupHeader, chunkIndex: Int) -> Data {
-        Data("SVEX-v2|\(header.partIndex)|\(header.totalParts)|\(chunkIndex)|\(header.archiveByteCount)".utf8)
+    nonisolated private func authenticatedData(for header: VaultBackupHeader, chunkIndex: Int) -> Data {
+        VaultBackupCryptoHelper.authenticatedData(for: header, chunkIndex: chunkIndex)
     }
 
     private func decompressedArchivePayload(_ payload: Data, codec: VaultArchiveChunkCodec, plaintextLength: Int) throws -> Data {
@@ -919,6 +988,9 @@ struct VaultImportService {
 
     private func readString(from handle: FileHandle) throws -> String {
         let byteCount = Int(try readUInt32(from: handle))
+        guard byteCount >= 0, byteCount <= Self.maxPathBytes else {
+            throw VaultImportError.invalidBackupFile
+        }
         let data = try readData(count: byteCount, from: handle)
         guard let string = String(data: data, encoding: .utf8) else {
             throw VaultImportError.invalidBackupFile
@@ -966,87 +1038,16 @@ struct VaultImportService {
     }
 }
 
-private struct VaultArchiveReadState {
+nonisolated private struct VaultPreparedImportPart {
+    let manifest: VaultBackupPartManifest
+    let restoredMediaRelativePaths: [String: String]
+    let restoredCompanionPaths: [String: String]
+    let restoredCoverPaths: [String: String]
+}
+
+nonisolated private struct VaultArchiveReadState {
     let manifest: VaultBackupPartManifest
     let blobsOffset: UInt64
-}
-
-private struct VaultBackupHeader: Codable {
-    let exportedAt: Date
-    let appName: String
-    let formatVersion: Int
-    let partIndex: Int
-    let totalParts: Int
-    let archiveEncoding: String
-    let kdf: VaultBackupKDFInfo
-    let cipher: String
-    let chunkSize: Int
-    let archiveByteCount: Int64
-}
-
-private struct VaultBackupKDFInfo: Codable {
-    let algorithm: String
-    let rounds: Int
-    let saltBase64: String
-}
-
-private struct VaultBackupPartManifest: Codable {
-    let exportedAt: Date
-    let spaceRawValue: String
-    let partIndex: Int
-    let totalParts: Int
-    let albums: [VaultBackupAlbumRecord]
-    let items: [VaultBackupItemRecord]
-    let blobEntries: [VaultBackupBlobEntry]
-}
-
-private struct VaultBackupAlbumRecord: Codable {
-    let id: String
-    let name: String
-    let kindRawValue: String
-    let coverItemIDRawValue: String?
-    let coverImageRelativePath: String?
-    let coverSymbolName: String?
-    let sortOptionRawValue: String
-    let customOrderedItemIDs: [String]
-    let showsCover: Bool
-    let libraryOrderIndex: Int
-    let colorRawValue: String?
-}
-
-private struct VaultBackupItemRecord: Codable {
-    let id: String
-    let name: String
-    let createdAt: Date
-    let importedAt: Date?
-    let lastExportedAt: Date?
-    let originalCapturedAt: Date?
-    let updatedAt: Date
-    let videoDuration: Double?
-    let mediaKindRawValue: String
-    let isInTrash: Bool
-    let isArchived: Bool
-    let isStrongProtected: Bool
-    let relativePath: String
-    let originalFilename: String
-    let contentTypeIdentifier: String
-    let locationLatitude: Double?
-    let locationLongitude: Double?
-    let albumIDs: [String]
-    let trashedAt: Date?
-    let livePhotoCompanionRelativePath: String?
-}
-
-private struct VaultBackupBlobEntry: Codable {
-    let relativePath: String
-    let sourceDomain: VaultBackupSourceDomain
-    let byteCount: Int64
-}
-
-private enum VaultBackupSourceDomain: UInt8, Codable {
-    case media = 1
-    case livePhotoCompanion = 2
-    case albumCover = 3
 }
 
 /// State shared across the parts of one multi-file restore.
@@ -1057,12 +1058,7 @@ private struct VaultImportSession {
     var coverPaths: [String: String] = [:]
 }
 
-private enum VaultArchiveChunkCodec: UInt8 {
-    case raw = 0
-    case lzfse = 1
-}
-
-private extension JSONDecoder {
+nonisolated private extension JSONDecoder {
     static var vaultImportDecoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

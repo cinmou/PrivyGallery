@@ -361,7 +361,7 @@ final class AppSessionViewModel: ObservableObject {
 
     private func syncSharedImportAppState() {
         var state = SharedImportStore.shared.appState
-        state.currentTierRawValue = SubscriptionManager.shared.currentTier.rawValue
+        state.currentTierRawValue = SubscriptionManager.shared.purchasedTier.rawValue
         state.isSpaceBConfigured = isPasscodeConfigured(for: .spaceB)
         state.spaceADisplayName = displayName(for: .spaceA)
         state.spaceBDisplayName = displayName(for: .spaceB)

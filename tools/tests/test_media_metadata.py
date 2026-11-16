@@ -18,10 +18,10 @@ def record(file, name, replacement):
 records = '\n'.join([
     record('EncryptedMetadataStore.swift', 'EncryptedAlbumRecord', 'MetadataAlbum'),
     record('EncryptedMetadataStore.swift', 'EncryptedItemRecord', 'MetadataItem'),
-    record('VaultExportService.swift', 'VaultBackupAlbumRecord', 'ExportAlbum'),
-    record('VaultExportService.swift', 'VaultBackupItemRecord', 'ExportItem'),
-    record('VaultImportService.swift', 'VaultBackupAlbumRecord', 'ImportAlbum'),
-    record('VaultImportService.swift', 'VaultBackupItemRecord', 'ImportItem'),
+    record('VaultBackupFormat.swift', 'VaultBackupAlbumRecord', 'ExportAlbum'),
+    record('VaultBackupFormat.swift', 'VaultBackupItemRecord', 'ExportItem'),
+    record('VaultBackupFormat.swift', 'VaultBackupAlbumRecord', 'ImportAlbum'),
+    record('VaultBackupFormat.swift', 'VaultBackupItemRecord', 'ImportItem'),
 ])
 def declaration(source, marker):
     start = source.index(marker)

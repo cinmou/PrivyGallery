@@ -283,8 +283,8 @@ struct AboutAppView: View {
 }
 
 private struct PressableAppIconCard: View {
-    @State private var isPressing = false
-    @State private var touchLocation: CGPoint = CGPoint(x: 50, y: 50)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @GestureState private var pressLocation: CGPoint?
 
     #if targetEnvironment(macCatalyst)
     private let cardSize: CGFloat = 80
@@ -299,32 +299,40 @@ private struct PressableAppIconCard: View {
                 
                 GeometryReader { proxy in
                     let size = proxy.size
-                    let normalizedX = ((touchLocation.x / max(size.width, 1)) - 0.5) * 2
-                    let normalizedY = ((touchLocation.y / max(size.height, 1)) - 0.5) * 2
-                    let rotationX = isPressing ? max(-10, min(10, -normalizedY * 10)) : 0
-                    let rotationY = isPressing ? max(-10, min(10, normalizedX * 10)) : 0
+                    let location = pressLocation ?? CGPoint(x: size.width / 2, y: size.height / 2)
+                    let x = reduceMotion ? 0 : min(1, max(-1, location.x / size.width * 2 - 1))
+                    let y = reduceMotion ? 0 : min(1, max(-1, location.y / size.height * 2 - 1))
 
-                    Image("Logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: size.width, height: size.height)
-                        .scaleEffect(isPressing ? 0.96 : 1)
-                        .rotation3DEffect(.degrees(rotationX), axis: (x: 1, y: 0, z: 0))
-                        .rotation3DEffect(.degrees(rotationY), axis: (x: 0, y: 1, z: 0))
-                        .animation(.spring(response: 0.24, dampingFraction: 0.72), value: isPressing)
-                        .gesture(
-                            DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                                .onChanged { value in
-                                    touchLocation = value.location
-                                    if !isPressing {
-                                        isPressing = true
-                                    }
-                                }
-                                .onEnded { _ in
-                                    isPressing = false
-                                    touchLocation = CGPoint(x: size.width / 2, y: size.height / 2)
-                                }
-                        )
+                    ZStack {
+                        iconLayer("background")
+                        ZStack {
+                            iconLayer("album-card")
+                            iconLayer("album-sun")
+                            iconLayer("mountain-far")
+                            iconLayer("mountain-near")
+                            iconLayer("lock-ring")
+                            ZStack {
+                                iconLayer("lock-spokes")
+                                iconLayer("lock-hub")
+                            }
+                            .offset(x: x * 0.8, y: y * 0.8)
+                        }
+                        .offset(x: x * 1.6, y: y * 1.6)
+                    }
+                    .frame(width: size.width, height: size.height)
+                    .clipShape(RoundedRectangle(cornerRadius: cardSize * 0.22, style: .continuous))
+                    .rotation3DEffect(.degrees(-y * 7), axis: (x: 1, y: 0, z: 0))
+                    .rotation3DEffect(.degrees(x * 7), axis: (x: 0, y: 1, z: 0))
+                    .scaleEffect(pressLocation == nil ? 1 : 0.96)
+                    .animation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.24, dampingFraction: 0.78), value: pressLocation != nil)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .updating($pressLocation) { value, location, _ in
+                                location = value.location
+                            }
+                    )
+                    .accessibilityHidden(true)
                 }
                 .frame(width: cardSize, height: cardSize)
                 
@@ -340,6 +348,12 @@ private struct PressableAppIconCard: View {
         .padding(.vertical, 8)
     }
     
+    private func iconLayer(_ name: String) -> some View {
+        Image("AboutIcon-" + name)
+            .resizable()
+            .scaledToFit()
+    }
+
 }
 
 

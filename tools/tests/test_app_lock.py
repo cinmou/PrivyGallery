@@ -56,7 +56,7 @@ struct SharedState {
 @MainActor final class SubscriptionManager {
     enum Tier: String { case free }
     static let shared = SubscriptionManager()
-    var currentTier: Tier = .free
+    var purchasedTier: Tier = .free
 }
 @MainActor enum SpaceDisplaySettings {
     static func displayName(for space: VaultSpaceKind) -> String { space.rawValue }

@@ -13,7 +13,6 @@ struct MediaThumbnailView: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
-                        .opacity(loader.didLoadFromMemoryCache ? 1 : 0.98)
                         .transition(.opacity.animation(.easeInOut(duration: 0.16)))
                 } else {
                     Rectangle()
@@ -44,9 +43,8 @@ struct MediaThumbnailView: View {
 @MainActor
 private final class MediaThumbnailLoader: ObservableObject {
     @Published var image: UIImage?
-    @Published var didLoadFromMemoryCache = false
 
-    private var requestID: UUID?
+    private var loadTask: Task<Void, Never>?
     private var itemID: UUID?
 
     func load(_ item: VaultItem) {
@@ -55,7 +53,6 @@ private final class MediaThumbnailLoader: ObservableObject {
 
         if itemID != item.id {
             image = nil
-            didLoadFromMemoryCache = false
             itemID = item.id
         }
 
@@ -65,34 +62,30 @@ private final class MediaThumbnailLoader: ObservableObject {
             #if DEBUG
             MediaPerformanceLog.recordThumbnailMemoryHit()
             #endif
-            didLoadFromMemoryCache = true
             image = cached
             return
         }
 
-        guard VisibleThumbnailRequestCoordinator.shared.allowsVisibleRequests else {
-            didLoadFromMemoryCache = false
-            return
-        }
-
-        didLoadFromMemoryCache = false
-        let nextRequestID = VisibleThumbnailRequestCoordinator.shared.enqueue(item: item, size: targetSize) { [weak self] requestID, itemID, loadedImage in
-            guard let self,
-                  self.requestID == requestID,
-                  self.itemID == itemID,
+        let targetItemID = item.id
+        loadTask = Task { [weak self] in
+            let loadedImage = await MediaThumbnailService.shared.thumbnail(
+                for: item,
+                size: targetSize,
+                priority: .userInitiated
+            )
+            guard !Task.isCancelled,
+                  let self,
+                  self.itemID == targetItemID,
                   let loadedImage else { return }
             withAnimation(.easeInOut(duration: 0.16)) {
                 self.image = loadedImage
             }
         }
-        requestID = nextRequestID
     }
 
     func cancel() {
-        if let requestID {
-            VisibleThumbnailRequestCoordinator.shared.cancel(requestID)
-        }
-        requestID = nil
+        loadTask?.cancel()
+        loadTask = nil
     }
 }
 

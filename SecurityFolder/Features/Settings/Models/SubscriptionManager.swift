@@ -64,8 +64,14 @@ class SubscriptionManager: ObservableObject {
     static let shared = SubscriptionManager()
 
     @Published private(set) var purchasedTier: MembershipTier = .free
+    #if DEBUG
+    @Published var isTemporaryMembershipEnabled = false
+    #endif
 
     var currentTier: MembershipTier {
+        #if DEBUG
+        if isTemporaryMembershipEnabled { return .fullMember }
+        #endif
         return purchasedTier
     }
 
@@ -102,7 +108,7 @@ class SubscriptionManager: ObservableObject {
 
     private func syncSharedImportMembershipState() {
         var state = SharedImportStore.shared.appState
-        state.currentTierRawValue = currentTier.rawValue
+        state.currentTierRawValue = purchasedTier.rawValue
         SharedImportStore.shared.appState = state
     }
 }

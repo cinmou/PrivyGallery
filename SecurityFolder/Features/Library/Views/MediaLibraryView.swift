@@ -49,13 +49,8 @@ struct MediaLibraryView: View {
     @State private var showingCoverCropper = false
     @State private var showingLibraryCustomSort = false
     @State private var selectedAlbumID: UUID?
-    @State private var showingManagedPhotoImporter = false
-    @State private var pendingImportedSystemAssetIdentifiers: [String] = []
-    @State private var importedSystemAssetsDeletionPrompt: ImportedSystemAssetsDeletionPrompt?
-    @State private var presentedImportResultSummary: MediaImportResultSummary?
-    @State private var showingFileImporter = false
-    @State private var isLibraryDropTargeted = false
-    @State private var dropOverlayResetToken = UUID()
+    @State private var dropTargetedAlbumID: UUID?
+    @StateObject private var importFlow = MediaImportFlowController()
     @State private var showingEmbeddedSettings = false
     @State private var embeddedSettingsResetToken = UUID()
     @State private var showingSpaceSearch = false
@@ -93,33 +88,13 @@ struct MediaLibraryView: View {
                     showingEmbeddedSettings = false
                 }
             }
-            #if targetEnvironment(macCatalyst)
-            .onChange(of: isLibraryDropTargeted) { _, isTargeted in
-                guard isTargeted else { return }
-                scheduleDropOverlayReset()
-            }
-            #endif
-            .fileImporter(
-                isPresented: $showingFileImporter,
-                allowedContentTypes: [.image, .movie],
-                allowsMultipleSelection: true
-            ) { result in
-                guard case let .success(urls) = result else { return }
-                pendingImportedSystemAssetIdentifiers = []
-                if let importAlbumID {
-                    viewModel.importFiles(urls, directlyInto: importAlbumID)
-                }
-        }
-            .sheet(isPresented: $showingManagedPhotoImporter) {
-                SystemPhotoImporterSheet(selectionLimit: MediaLibraryViewModel.maximumBatchImportCount) { importedAssets in
-                    showingManagedPhotoImporter = false
-                    guard !importedAssets.isEmpty else { return }
-                    pendingImportedSystemAssetIdentifiers = importedAssets.compactMap(\.assetIdentifier)
-                    if let importAlbumID {
-                        viewModel.importPickerAssets(importedAssets, directlyInto: importAlbumID)
-                    }
-                }
-            }
+            .mediaImportFlow(
+                controller: importFlow,
+                viewModel: viewModel,
+                deleteOriginalAfterImport: deleteImportedSystemAssetsAfterImport,
+                targetAlbumID: { importAlbumID },
+                canPresentImportResult: { selectedAlbumID == nil && !showingEmbeddedSettings }
+            )
             .alert(String(localized: "新建相册"), isPresented: $showingNewAlbumPrompt) {
                 TextField(String(localized: "相册名称"), text: $newAlbumName)
                 Button(String(localized: "取消"), role: .cancel) {
@@ -234,66 +209,6 @@ struct MediaLibraryView: View {
                 }
             } message: {
                 Text(viewModel.lastErrorMessage ?? String(localized: "出现了一点问题。"))
-            }
-            .onChange(of: viewModel.importResultSummary?.id) { _, _ in
-                presentImportResultIfNeeded()
-            }
-            .sheet(item: $presentedImportResultSummary) { summary in
-                NavigationStack {
-                    List {
-                        Section {
-                            Text(
-                                String.localizedStringWithFormat(
-                                    String(localized: "已导入 %1$lld 张照片和 %2$lld 个视频。"),
-                                    Int64(summary.photoCount),
-                                    Int64(summary.videoCount)
-                                )
-                            )
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                        }
-
-                        Section {
-                            Button(String(localized: "知道了")) {
-                                showingManagedPhotoImporter = false
-                                presentedImportResultSummary = nil
-                                scheduleDeletePromptAfterImport(importedCount: summary.photoCount + summary.videoCount)
-                            }
-                        }
-                    }
-                    .navigationTitle(String(localized: "导入完成"))
-                    .navigationBarTitleDisplayMode(.inline)
-                }
-            }
-            .sheet(item: $importedSystemAssetsDeletionPrompt) { prompt in
-                NavigationStack {
-                    List {
-                        Section {
-                            Text(
-                                String.localizedStringWithFormat(
-                                    String(localized: "已成功导入 %lld 个项目。要不要把这些原始项目从系统图库里删掉？"),
-                                    Int64(prompt.importedCount)
-                                )
-                            )
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                        }
-
-                        Section {
-                            Button(String(localized: "删除原件"), role: .destructive) {
-                                let assetIdentifiers = prompt.assetIdentifiers
-                                importedSystemAssetsDeletionPrompt = nil
-                                deleteImportedSystemAssets(assetIdentifiers)
-                            }
-
-                            Button(String(localized: "保留原件"), role: .cancel) {
-                                importedSystemAssetsDeletionPrompt = nil
-                            }
-                        }
-                    }
-                    .navigationTitle(String(localized: "从系统图库删除？"))
-                    .navigationBarTitleDisplayMode(.inline)
-                }
             }
             .sheet(isPresented: $showingSymbolPicker, onDismiss: {
                 editingAlbumID = nil
@@ -473,8 +388,8 @@ struct MediaLibraryView: View {
                     }
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
-                    .onDrop(of: DroppedMediaImportSupport.supportedTypeIdentifiers, isTargeted: $isLibraryDropTargeted) { providers in
-                        handleDroppedMedia(providers, targetAlbumID: importAlbumID)
+                    .onDrop(of: viewModel.vaultDropTypeIdentifiers, isTargeted: $importFlow.isDropTargeted) { providers in
+                        importFlow.handleDroppedMedia(providers, targetAlbumID: importAlbumID, viewModel: viewModel)
                     }
             }
             // Keep the overlay always present and drive it with opacity. Inserting/
@@ -483,8 +398,8 @@ struct MediaLibraryView: View {
             // overlay wouldn't disappear when the drag ended off-window).
             .overlay {
                 DropImportOverlayView()
-                    .opacity(isLibraryDropTargeted ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.15), value: isLibraryDropTargeted)
+                    .opacity(importFlow.isDropTargeted ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.15), value: importFlow.isDropTargeted)
             }
             .background(Color.clear)
         } else {
@@ -723,13 +638,13 @@ struct MediaLibraryView: View {
             libraryAlbumList
                 .listStyle(.insetGrouped)
                 .background(platformLibraryBackground.ignoresSafeArea())
-                .onDrop(of: DroppedMediaImportSupport.supportedTypeIdentifiers, isTargeted: $isLibraryDropTargeted) { providers in
-                    handleDroppedMedia(providers, targetAlbumID: importAlbumID)
+                .onDrop(of: viewModel.vaultDropTypeIdentifiers, isTargeted: $importFlow.isDropTargeted) { providers in
+                    importFlow.handleDroppedMedia(providers, targetAlbumID: importAlbumID, viewModel: viewModel)
                 }
                 .overlay {
                     DropImportOverlayView()
-                        .opacity(isLibraryDropTargeted ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.15), value: isLibraryDropTargeted)
+                        .opacity(importFlow.isDropTargeted ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.15), value: importFlow.isDropTargeted)
                 }
         } else {
             libraryUnavailablePlaceholder
@@ -820,12 +735,15 @@ struct MediaLibraryView: View {
         }
         Section(String(localized: "导入")) {
             Button {
-                beginSystemPhotoImport()
+                importFlow.beginSystemPhotoImport(
+                    deleteOriginalAfterImport: deleteImportedSystemAssetsAfterImport,
+                    viewModel: viewModel
+                )
             } label: {
                 Label(String(localized: "从相册导入"), systemImage: "photo.on.rectangle")
             }
             Button {
-                showingFileImporter = true
+                importFlow.showingFileImporter = true
             } label: {
                 Label(String(localized: "从文件导入"), systemImage: "folder")
             }
@@ -979,8 +897,8 @@ struct MediaLibraryView: View {
                 }
             }
         }
-        .onDrop(of: DroppedMediaImportSupport.supportedTypeIdentifiers, isTargeted: nil) { providers in
-            handleDroppedMedia(providers, targetAlbumID: album.id)
+        .onDrop(of: viewModel.vaultDropTypeIdentifiers, isTargeted: dropTargetBinding(for: album.id)) { providers in
+            handleAlbumDrop(providers, targetAlbumID: album.id)
         }
     }
 
@@ -1102,8 +1020,8 @@ struct MediaLibraryView: View {
                 }
             }
         }
-        .onDrop(of: DroppedMediaImportSupport.supportedTypeIdentifiers, isTargeted: nil) { providers in
-            handleDroppedMedia(providers, targetAlbumID: album.id)
+        .onDrop(of: viewModel.vaultDropTypeIdentifiers, isTargeted: dropTargetBinding(for: album.id)) { providers in
+            handleAlbumDrop(providers, targetAlbumID: album.id)
         }
     }
 
@@ -1155,6 +1073,53 @@ struct MediaLibraryView: View {
         }
         .frame(maxWidth: .infinity, minHeight: sidebarRowMinHeight, alignment: .leading)
         .contentShape(Rectangle())
+        .background {
+            if dropTargetedAlbumID == album.id {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.16))
+            }
+        }
+        .onDrop(of: viewModel.vaultDropTypeIdentifiers, isTargeted: dropTargetBinding(for: album.id)) { providers in
+            handleAlbumDrop(providers, targetAlbumID: album.id)
+        }
+    }
+
+    private func dropTargetBinding(for albumID: UUID) -> Binding<Bool> {
+        Binding(
+            get: { dropTargetedAlbumID == albumID },
+            set: { isTargeted in
+                if isTargeted {
+                    dropTargetedAlbumID = albumID
+                } else if dropTargetedAlbumID == albumID {
+                    dropTargetedAlbumID = nil
+                }
+            }
+        )
+    }
+
+    private func handleAlbumDrop(_ providers: [NSItemProvider], targetAlbumID: UUID) -> Bool {
+        if dropTargetedAlbumID == targetAlbumID {
+            dropTargetedAlbumID = nil
+        }
+        if DroppedMediaImportSupport.hasInternalVaultItems(in: providers) {
+            guard viewModel.canShowRealData else { return false }
+            let requests = DroppedMediaImportSupport.beginLoadingVaultItemPayloads(from: providers)
+            guard !requests.isEmpty else { return false }
+            Task {
+                var itemIDsBySource: [UUID?: Set<UUID>] = [:]
+                for request in requests {
+                    for await payload in request where payload.space == viewModel.space {
+                        itemIDsBySource[payload.sourceAlbumID, default: []].insert(payload.itemID)
+                    }
+                }
+                for (sourceAlbumID, itemIDs) in itemIDsBySource {
+                    viewModel.handleInternalMediaDrop(itemIDs: itemIDs, sourceAlbumID: sourceAlbumID, targetAlbumID: targetAlbumID)
+                }
+            }
+            return true
+        }
+        guard !viewModel.isDraggingVaultItems else { return false }
+        return importFlow.handleDroppedMedia(providers, targetAlbumID: targetAlbumID, viewModel: viewModel)
     }
 
     private func sidebarSystemImage(for album: AlbumCellModel) -> String {
@@ -1227,110 +1192,6 @@ struct MediaLibraryView: View {
             selectedAlbumID = albumID
         }
     }
-
-    private func beginSystemPhotoImport() {
-        guard deleteImportedSystemAssetsAfterImport else {
-            showingManagedPhotoImporter = true
-            return
-        }
-
-        Task {
-            let status = await SystemPhotoLibraryCleanupService.shared.ensureReadWriteAuthorization()
-            await MainActor.run {
-                if status == .authorized || status == .limited {
-                    showingManagedPhotoImporter = true
-                } else {
-                    viewModel.lastErrorMessage = String(localized: "如果你想在导入后删除系统图库原件，请先允许本应用访问\u{201C}照片\u{201D}。")
-                }
-            }
-        }
-    }
-
-    private func maybePromptToDeleteImportedSystemAssets(afterImportCount importedCount: Int) {
-        defer { pendingImportedSystemAssetIdentifiers = [] }
-        guard deleteImportedSystemAssetsAfterImport else {
-            return
-        }
-        let assetIdentifiers = Array(Set(pendingImportedSystemAssetIdentifiers.filter { !$0.isEmpty }))
-        guard !assetIdentifiers.isEmpty else {
-            return
-        }
-        importedSystemAssetsDeletionPrompt = ImportedSystemAssetsDeletionPrompt(
-            assetIdentifiers: assetIdentifiers,
-            importedCount: importedCount
-        )
-    }
-
-    private func scheduleDeletePromptAfterImport(importedCount: Int) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            maybePromptToDeleteImportedSystemAssets(afterImportCount: importedCount)
-        }
-    }
-
-    private func presentImportResultIfNeeded() {
-        guard selectedAlbumID == nil, !showingEmbeddedSettings else {
-            return
-        }
-        guard !viewModel.isImportingMedia,
-              viewModel.importResultSummary != nil,
-              presentedImportResultSummary == nil else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            guard selectedAlbumID == nil, !showingEmbeddedSettings else {
-                return
-            }
-            guard !viewModel.isImportingMedia,
-                  let latestSummary = viewModel.importResultSummary,
-                  presentedImportResultSummary == nil else { return }
-            presentedImportResultSummary = latestSummary
-            viewModel.dismissImportResult()
-        }
-    }
-
-    private func deleteImportedSystemAssets(_ assetIdentifiers: [String]) {
-        Task {
-            do {
-                _ = try await SystemPhotoLibraryCleanupService.shared.deleteAssets(withLocalIdentifiers: assetIdentifiers)
-            } catch {
-                await MainActor.run {
-                    viewModel.lastErrorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
-
-    private func handleDroppedMedia(_ providers: [NSItemProvider], targetAlbumID: UUID?) -> Bool {
-        isLibraryDropTargeted = false
-        guard let targetAlbumID, viewModel.canShowRealData else {
-            return false
-        }
-
-        guard viewModel.canImportAdditionalItems(providers.count) else {
-            return false
-        }
-
-        Task {
-            let urls = await DroppedMediaImportSupport.loadURLs(from: providers)
-            await MainActor.run {
-                guard !urls.isEmpty else { return }
-                pendingImportedSystemAssetIdentifiers = []
-                viewModel.importFiles(urls, directlyInto: targetAlbumID)
-            }
-        }
-
-        return true
-    }
-
-    #if targetEnvironment(macCatalyst)
-    private func scheduleDropOverlayReset() {
-        let token = UUID()
-        dropOverlayResetToken = token
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 900_000_000)
-            guard dropOverlayResetToken == token else { return }
-            isLibraryDropTargeted = false
-        }
-    }
-    #endif
 
     private var importAlbumID: UUID? {
         viewModel.mediaAlbums.first?.id ?? viewModel.trashAlbum?.id ?? viewModel.archiveAlbum?.id

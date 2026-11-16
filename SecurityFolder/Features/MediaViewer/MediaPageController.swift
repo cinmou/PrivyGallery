@@ -10,6 +10,8 @@ struct VideoPlaybackState {
     var duration: Double = 0
     var bufferedTime: Double = 0
     var playbackRate: Double = 1
+    var isMuted = false
+    var isLooping = false
 }
 
 final class MediaPageController: UIViewController {
@@ -60,6 +62,14 @@ final class MediaPageController: UIViewController {
     func setActive(_ active: Bool) {
         isActive = active
         videoController?.setActive(active)
+    }
+
+    func pausePlayback() {
+        videoController?.pause()
+    }
+
+    func applyPlaybackPreferences(rate: Float, isMuted: Bool, isLooping: Bool) {
+        videoController?.applyPreferences(rate: rate, isMuted: isMuted, isLooping: isLooping)
     }
 
     func handleViewerTap() {
@@ -116,8 +126,12 @@ final class MediaPageController: UIViewController {
                 guard let self else { return }
                 do {
                     let image = try await provider.image(for: item)
+                    guard !Task.isCancelled else { return }
                     await MainActor.run { child?.setImage(image) }
+                } catch is CancellationError {
+                    return
                 } catch {
+                    guard !Task.isCancelled else { return }
                     await MainActor.run { child?.showFailure() }
                 }
             }
@@ -133,11 +147,15 @@ final class MediaPageController: UIViewController {
                 guard let self else { return }
                 do {
                     let mediaPlayer = try await provider.videoPlayer(for: item)
+                    guard !Task.isCancelled else { return }
                     await MainActor.run {
                         child?.configure(player: mediaPlayer.player, retainedSource: mediaPlayer.retainedSource)
                         child?.setActive(self.isActive)
                     }
+                } catch is CancellationError {
+                    return
                 } catch {
+                    guard !Task.isCancelled else { return }
                     await MainActor.run { child?.showFailure() }
                 }
             }
@@ -151,15 +169,36 @@ final class MediaPageController: UIViewController {
             if let initialPreviewImage { child.setFallbackImage(initialPreviewImage) }
             loadTask = Task { [weak self, weak child] in
                 guard let self else { return }
+                if self.protectsContentFromCapture {
+                    // 安全预览模式下禁止将 Live Photo 明文写入磁盘临时目录，仅在内存中展示静态图。
+                    do {
+                        let image = try await self.provider.image(for: self.item)
+                        guard !Task.isCancelled else { return }
+                        await MainActor.run { child?.setFallbackImage(image) }
+                    } catch is CancellationError {
+                        return
+                    } catch {
+                        guard !Task.isCancelled else { return }
+                        await MainActor.run { child?.showFailure() }
+                    }
+                    return
+                }
                 do {
                     let livePhoto = try await self.loadLivePhoto(for: self.item)
+                    guard !Task.isCancelled else { return }
                     await MainActor.run { child?.setLivePhoto(livePhoto) }
+                } catch is CancellationError {
+                    return
                 } catch {
                     // Fall back to displaying the still image if Live Photo loading fails.
                     do {
                         let image = try await self.provider.image(for: self.item)
+                        guard !Task.isCancelled else { return }
                         await MainActor.run { child?.setFallbackImage(image) }
+                    } catch is CancellationError {
+                        return
                     } catch {
+                        guard !Task.isCancelled else { return }
                         await MainActor.run { child?.showFailure() }
                     }
                 }
@@ -424,7 +463,11 @@ final class ImagePageController: UIViewController, UIScrollViewDelegate {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         scrollView.frame = view.bounds
-        imageView.frame = scrollView.bounds
+        if !isZoomed {
+            imageView.frame = scrollView.bounds
+        } else {
+            centerImage()
+        }
         spinner.center = view.center
     }
 
@@ -530,10 +573,15 @@ final class VideoPageController: UIViewController {
 
     private let playerLayer = AVPlayerLayer()
     private let spinner = UIActivityIndicatorView(style: .large)
+    private let errorLabel = UILabel()
     private var player: AVPlayer?
     private var retainedSource: AnyObject?
     private var timeObserverToken: Any?
     private var endObserver: NSObjectProtocol?
+    private var interruptionObserver: NSObjectProtocol?
+    private var routeChangeObserver: NSObjectProtocol?
+    private var timeControlStatusObserver: NSKeyValueObservation?
+    private var itemStatusObserver: NSKeyValueObservation?
     private var wasPlayingBeforeFastForward = false
     private var rateBeforeFastForward: Float = 1
     private var isFastForwarding = false
@@ -542,6 +590,8 @@ final class VideoPageController: UIViewController {
     private var longPressSide: PlaybackEdge?
     private var rewindTimer: Timer?
     private var basePlaybackRate: Float = 1
+    private var isMuted = false
+    private var isLooping = false
     private var isActive = false
     private var isScrubbing = false
 
@@ -556,14 +606,28 @@ final class VideoPageController: UIViewController {
         view.layer.addSublayer(playerLayer)
         playerLayer.videoGravity = .resizeAspect
         spinner.color = .white
+        spinner.hidesWhenStopped = true
         spinner.startAnimating()
         view.addSubview(spinner)
 
+        errorLabel.text = String(localized: "无法播放此视频")
+        errorLabel.textColor = UIColor.white.withAlphaComponent(0.72)
+        errorLabel.font = .preferredFont(forTextStyle: .callout)
+        errorLabel.textAlignment = .center
+        errorLabel.numberOfLines = 0
+        errorLabel.isHidden = true
+        view.addSubview(errorLabel)
+
+        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(doubleTapped))
+        doubleTap.numberOfTapsRequired = 2
+        view.addGestureRecognizer(doubleTap)
+
         let tap = UITapGestureRecognizer(target: self, action: #selector(singleTapped))
-        view.addGestureRecognizer(tap)
+        tap.require(toFail: doubleTap)
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(longPressed(_:)))
         longPress.minimumPressDuration = 0.35
         tap.require(toFail: longPress)
+        view.addGestureRecognizer(tap)
         view.addGestureRecognizer(longPress)
     }
 
@@ -571,19 +635,52 @@ final class VideoPageController: UIViewController {
         super.viewDidLayoutSubviews()
         playerLayer.frame = view.bounds
         spinner.center = view.center
+        let errorSize = errorLabel.sizeThatFits(CGSize(width: max(0, view.bounds.width - 48), height: .greatestFiniteMagnitude))
+        errorLabel.frame = CGRect(
+            x: (view.bounds.width - errorSize.width) / 2,
+            y: (view.bounds.height - errorSize.height) / 2,
+            width: errorSize.width,
+            height: errorSize.height
+        )
     }
 
     func configure(player: AVPlayer, retainedSource: AnyObject?) {
+        let savedRate = basePlaybackRate
+        let savedMuted = isMuted
+        let savedLooping = isLooping
         cleanup()
+        basePlaybackRate = savedRate
+        isMuted = savedMuted
+        isLooping = savedLooping
+        errorLabel.isHidden = true
+        player.allowsExternalPlayback = false
+        player.isMuted = savedMuted
         self.player = player
         self.retainedSource = retainedSource
         playerLayer.player = player
-        spinner.stopAnimating()
+        state.playbackRate = Double(savedRate)
+        state.isMuted = savedMuted
+        state.isLooping = savedLooping
         addObservers()
         updateDuration()
         if isActive {
             play()
+        } else {
+            spinner.stopAnimating()
         }
+    }
+
+    func applyPreferences(rate: Float, isMuted: Bool, isLooping: Bool) {
+        basePlaybackRate = rate
+        self.isMuted = isMuted
+        self.isLooping = isLooping
+        player?.isMuted = isMuted
+        if state.isPlaying, !isFastForwarding {
+            player?.rate = rate
+        }
+        state.playbackRate = Double(rate)
+        state.isMuted = isMuted
+        state.isLooping = isLooping
     }
 
     func setActive(_ active: Bool) {
@@ -616,11 +713,12 @@ final class VideoPageController: UIViewController {
         state.currentTime = time
     }
 
-    func seek(to time: Double) {
+    func seek(to time: Double, exact: Bool = true) {
         guard let player else { return }
         isScrubbing = false
         let target = min(max(time, 0), max(state.duration, 0))
-        player.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+        let tolerance = exact ? CMTime.zero : CMTime(seconds: 0.25, preferredTimescale: 600)
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: tolerance, toleranceAfter: tolerance)
         state.currentTime = target
         if state.duration > 0, target >= state.duration - 0.05 {
             player.pause()
@@ -660,23 +758,59 @@ final class VideoPageController: UIViewController {
 
     func showFailure() {
         spinner.stopAnimating()
+        errorLabel.isHidden = false
     }
 
     private func play() {
         guard isActive else { return }
+        configureAudioSessionIfNeeded()
         state.isPlaying = true
         state.playbackRate = Double(basePlaybackRate)
         player?.playImmediately(atRate: basePlaybackRate)
     }
 
-    private func pause() {
+    func pause() {
         endEdgeGesture()
         player?.pause()
         state.isPlaying = false
     }
 
+    private func configureAudioSessionIfNeeded() {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .moviePlayback, options: [])
+        try? session.setActive(true)
+    }
+
     private func addObservers() {
         guard let player else { return }
+        timeControlStatusObserver = player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] player, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                switch player.timeControlStatus {
+                case .waitingToPlayAtSpecifiedRate:
+                    if self.isActive, self.errorLabel.isHidden {
+                        self.spinner.startAnimating()
+                    }
+                case .playing, .paused:
+                    self.spinner.stopAnimating()
+                @unknown default:
+                    self.spinner.stopAnimating()
+                }
+            }
+        }
+        if let currentItem = player.currentItem {
+            itemStatusObserver = currentItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if item.status == .failed {
+                        self.showFailure()
+                    } else if item.status == .readyToPlay {
+                        self.errorLabel.isHidden = true
+                        self.updateDuration()
+                    }
+                }
+            }
+        }
         timeObserverToken = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.25, preferredTimescale: 600), queue: .main) { [weak self] time in
             guard let self else { return }
             self.updateDuration()
@@ -692,14 +826,46 @@ final class VideoPageController: UIViewController {
         endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main) { [weak self] _ in
             guard let self else { return }
             self.endEdgeGesture()
+            if self.isLooping, self.isActive {
+                self.seek(to: 0)
+                self.state.didFinish = false
+                self.play()
+                return
+            }
             self.state.isPlaying = false
             self.state.didFinish = true
             self.updateDuration()
             self.state.currentTime = self.state.duration
         }
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let typeValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeValue),
+                  type == .began else { return }
+            self.pause()
+        }
+        routeChangeObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let reasonValue = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue),
+                  reason == .oldDeviceUnavailable else { return }
+            self.pause()
+        }
     }
 
     private func removeObservers() {
+        timeControlStatusObserver?.invalidate()
+        timeControlStatusObserver = nil
+        itemStatusObserver?.invalidate()
+        itemStatusObserver = nil
         if let timeObserverToken, let player {
             player.removeTimeObserver(timeObserverToken)
         }
@@ -708,6 +874,14 @@ final class VideoPageController: UIViewController {
             NotificationCenter.default.removeObserver(endObserver)
         }
         endObserver = nil
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+        }
+        interruptionObserver = nil
+        if let routeChangeObserver {
+            NotificationCenter.default.removeObserver(routeChangeObserver)
+        }
+        routeChangeObserver = nil
     }
 
     private func updateDuration() {
@@ -753,8 +927,9 @@ final class VideoPageController: UIViewController {
         player?.rate = 0
         onFastForwardChanged?(true, -2)
         rewindTimer?.invalidate()
-        rewindTimer = Timer.scheduledTimer(withTimeInterval: 0.18, repeats: true) { [weak self] _ in
-            self?.skip(by: -1.2)
+        rewindTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.seek(to: self.state.currentTime - 1.5, exact: false)
         }
     }
 
@@ -778,6 +953,10 @@ final class VideoPageController: UIViewController {
 
     @objc private func singleTapped() {
         onTap?()
+    }
+
+    @objc private func doubleTapped() {
+        togglePlayback()
     }
 
     @objc private func longPressed(_ gesture: UILongPressGestureRecognizer) {

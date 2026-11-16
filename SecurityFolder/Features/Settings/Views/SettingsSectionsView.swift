@@ -28,6 +28,8 @@ struct SettingsPreferencesSectionView: View {
                 .labelsHidden()
             }
 
+            Divider()
+
             HStack {
                 Text(String(localized: "回收站文件保留"))
                 Spacer()
@@ -38,6 +40,8 @@ struct SettingsPreferencesSectionView: View {
             }
                 .labelsHidden()
             }
+
+            Divider()
 
             HStack {
                 Text(String(localized: "无操作后锁定"))
@@ -104,16 +108,24 @@ struct SettingsPrivacySectionView: View {
                 Spacer()
                 Toggle(String(localized: "侦测到截屏后锁定"), isOn: $lockAfterScreenshotEnabled).labelsHidden()
             }
+
+            Divider()
+
             HStack {
                 Text(String(localized: "录屏或投屏时隐藏内容"))
                 Spacer()
                 Toggle(String(localized: "录屏或投屏时隐藏内容"), isOn: $hideContentDuringCapture).labelsHidden()
             }
+
+            Divider()
+
             HStack {
                 Text(String(localized: "导入后删除"))
                 Spacer()
                 Toggle(String(localized: "导入后删除"), isOn: $deleteImportedSystemAssetsAfterImport).labelsHidden()
             }
+
+            Divider()
 
             if canUseAdvancedProtection {
                 HStack {
@@ -135,6 +147,8 @@ struct SettingsPrivacySectionView: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            Divider()
 
             Button(action: onOpenPassword) {
                 HStack {
@@ -212,10 +226,14 @@ struct SettingsBackupSectionView: View {
             }
             .disabled(exportingVault)
 
+            Divider()
+
             Button(importingVault ? String(localized: "正在恢复备份...") : String(localized: "恢复到当前空间")) {
                 onImport()
             }
             .disabled(importingVault)
+
+            Divider()
 
             Button(action: onOpenBackupFiles) {
                 HStack {
@@ -281,12 +299,13 @@ struct MacSettingsSection<Content: View>: View {
             Text(title)
                 .font(.headline)
                 .padding(.horizontal, 4)
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
                 content
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .macSettingsCardBorder(cornerRadius: 10)
         }
     }
 }

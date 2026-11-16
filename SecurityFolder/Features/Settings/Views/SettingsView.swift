@@ -221,6 +221,8 @@ struct SettingsView: View {
                         .foregroundStyle(subscriptionManager.currentTier.accentColor)
                 }
 
+                Divider()
+
                 settingsNavigationRow(String(localized: "会员中心")) {
                     selectedSidebarDestination = .membership
                 }
@@ -273,9 +275,13 @@ struct SettingsView: View {
                     selectedSidebarDestination = .guide
                 }
 
+                Divider()
+
                 settingsNavigationRow(String(localized: "法律与隐私")) {
                     selectedSidebarDestination = .legal
                 }
+
+                Divider()
 
                 settingsNavigationRow(String(localized: "版本信息"), trailingText: AppMetadata.versionDisplay) {
                     selectedSidebarDestination = .about
@@ -555,7 +561,13 @@ struct SettingsView: View {
         settingsStatusMessage = nil
         updateBackupProgress(VaultTransferProgress(phase: .scanning, message: String(localized: "正在准备导出"), fractionCompleted: 0))
 
+        let backgroundTaskID = beginBackupBackgroundTask(named: "PrivyGallery.VaultExport")
         activeBackupTask = Task {
+            defer {
+                Task { @MainActor in
+                    endBackupBackgroundTask(backgroundTaskID)
+                }
+            }
             do {
                 let result = try await VaultExportService().exportCurrentSpace(
                     space: settingsViewModel.space,
@@ -605,7 +617,7 @@ struct SettingsView: View {
                 await MainActor.run {
                     pendingBackupResultAlert = .failure(
                         title: String(localized: "导出失败"),
-                        message: String(localized: "备份文件生成失败，请重试。")
+                        message: error.localizedDescription.isEmpty ? String(localized: "备份文件生成失败，请重试。") : error.localizedDescription
                     )
                     waitingForBackupProgressDismissal = true
                     exportingVault = false
@@ -656,44 +668,25 @@ struct SettingsView: View {
         settingsStatusMessage = nil
         updateBackupProgress(VaultTransferProgress(phase: .reading, message: String(localized: "正在打开备份文件"), fractionCompleted: 0))
 
+        let backgroundTaskID = beginBackupBackgroundTask(named: "PrivyGallery.VaultImport")
         activeBackupTask = Task {
+            defer {
+                Task { @MainActor in
+                    endBackupBackgroundTask(backgroundTaskID)
+                }
+            }
             do {
                 let importService = VaultImportService()
                 let currentTier = await MainActor.run { subscriptionManager.currentTier }
-                if currentTier != .fullMember {
-                    let currentMediaCount = await MainActor.run { currentTotalMediaItemCount() }
-                    let inspection = try await importService.inspectBackupsForImport(
-                        from: selectedImportURLs,
-                        password: importPassword,
-                        onProgress: { progress in
-                            Task { @MainActor in
-                                updateBackupProgress(progress)
-                            }
-                        }
-                    )
-                    let requestedMediaCount = inspection.mediaItemCount
-                    #if DEBUG
-                    VaultTransferLog.mark(
-                        "import.limit.check",
-                        "current=\(currentMediaCount) incoming=\(requestedMediaCount) limit=\(SharedImportConstants.freeMediaLimit)"
-                    )
-                    #endif
-                    if currentMediaCount + requestedMediaCount > SharedImportConstants.freeMediaLimit {
-                        await MainActor.run {
-                            settingsStatusMessage = String(localized: "当前备份会超过免费版 20 个媒体项目上限，请开通会员后再恢复。")
-                            shouldOpenMembershipAfterBackupDismissal = true
-                            UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                            waitingForBackupProgressDismissal = true
-                            importingVault = false
-                        }
-                        return
-                    }
-                }
+                let maxAllowedCount = currentTier == .fullMember ? nil : SharedImportConstants.freeMediaLimit
+                let currentMediaCount = currentTier == .fullMember ? 0 : await MainActor.run { currentTotalMediaItemCount() }
 
                 let result = try await importService.importBackups(
                     from: selectedImportURLs,
                     into: settingsViewModel.space,
                     password: importPassword,
+                    maxAllowedTotalMediaCount: maxAllowedCount,
+                    currentMediaCount: currentMediaCount,
                     onProgress: { progress in
                         Task { @MainActor in
                             updateBackupProgress(progress)
@@ -728,6 +721,10 @@ struct SettingsView: View {
                     switch error {
                     case .cancelled:
                         pendingBackupResultAlert = .importStopped
+                    case .exceedsFreeMediaLimit:
+                        settingsStatusMessage = error.localizedDescription
+                        shouldOpenMembershipAfterBackupDismissal = true
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
                     default:
                         pendingBackupResultAlert = .failure(title: String(localized: "恢复失败"), message: error.localizedDescription)
                     }
@@ -746,6 +743,25 @@ struct SettingsView: View {
                 consumePendingBackupPresentation()
             }
         }
+    }
+
+    private func beginBackupBackgroundTask(named name: String) -> UIBackgroundTaskIdentifier {
+        var taskID: UIBackgroundTaskIdentifier = .invalid
+        taskID = UIApplication.shared.beginBackgroundTask(withName: name) {
+            Task { @MainActor in
+                activeBackupTask?.cancel()
+                if taskID != .invalid {
+                    UIApplication.shared.endBackgroundTask(taskID)
+                    taskID = .invalid
+                }
+            }
+        }
+        return taskID
+    }
+
+    private func endBackupBackgroundTask(_ taskID: UIBackgroundTaskIdentifier) {
+        guard taskID != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(taskID)
     }
 
     private func resetImportInputs() {

@@ -13,6 +13,7 @@ enum VaultExportError: LocalizedError {
     case cancelled
     case invalidArchive
     case failedToCreateBackupFile
+    case insufficientDiskSpace(requiredBytes: Int64, availableBytes: Int64)
 
     var errorDescription: String? {
         switch self {
@@ -30,6 +31,14 @@ enum VaultExportError: LocalizedError {
             return String(localized: "无法生成备份文件，请重试。")
         case .failedToCreateBackupFile:
             return String(localized: "备份文件生成失败，请重试。")
+        case let .insufficientDiskSpace(requiredBytes, availableBytes):
+            let requiredText = ByteCountFormatter.string(fromByteCount: requiredBytes, countStyle: .file)
+            let availableText = ByteCountFormatter.string(fromByteCount: availableBytes, countStyle: .file)
+            return String.localizedStringWithFormat(
+                String(localized: "设备可用存储空间不足（需要约 %1$@，当前可用 %2$@），请清理空间后重试。"),
+                requiredText,
+                availableText
+            )
         }
     }
 }
@@ -139,6 +148,14 @@ nonisolated struct VaultExportService: Sendable {
         }
         guard !plan.parts.isEmpty else {
             throw VaultExportError.invalidArchive
+        }
+
+        let totalEstimatedBytes = plan.parts.reduce(Int64(0)) { $0 + $1.estimatedPlaintextBytes }
+        let maxPartBytes = plan.parts.map(\.estimatedPlaintextBytes).max() ?? 0
+        let requiredSpace = totalEstimatedBytes + maxPartBytes + 64 * 1_024 * 1_024
+        if let availableSpace = VaultBackupCryptoHelper.availableDiskCapacity(at: fileManager.temporaryDirectory),
+           availableSpace < requiredSpace {
+            throw VaultExportError.insufficientDiskSpace(requiredBytes: requiredSpace, availableBytes: availableSpace)
         }
 
         let exportDirectory = try makeExportDirectory()
@@ -503,6 +520,7 @@ nonisolated struct VaultExportService: Sendable {
         guard fileManager.createFile(atPath: archiveURL.path(), contents: nil) else {
             throw VaultExportError.failedToCreateBackupFile
         }
+        try? fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: archiveURL.path())
         let outputHandle = try FileHandle(forWritingTo: archiveURL)
         defer {
             try? outputHandle.close()
@@ -933,34 +951,13 @@ nonisolated struct VaultExportService: Sendable {
     }
 
     nonisolated private func deriveExportKey(password: String, salt: Data) throws -> SymmetricKey {
-        guard let passwordData = password.data(using: .utf8) else {
-            throw VaultExportError.invalidPasswordEncoding
-        }
-
-        var derivedKey = Data(count: 32)
-        let derivedKeyCount = derivedKey.count
-        let status = derivedKey.withUnsafeMutableBytes { derivedBytes in
-            salt.withUnsafeBytes { saltBytes in
-                passwordData.withUnsafeBytes { passwordBytes in
-                    CCKeyDerivationPBKDF(
-                        CCPBKDFAlgorithm(kCCPBKDF2),
-                        passwordBytes.bindMemory(to: Int8.self).baseAddress,
-                        passwordData.count,
-                        saltBytes.bindMemory(to: UInt8.self).baseAddress,
-                        salt.count,
-                        CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                        UInt32(pbkdfRounds),
-                        derivedBytes.bindMemory(to: UInt8.self).baseAddress,
-                        derivedKeyCount
-                    )
-                }
-            }
-        }
-
-        guard status == kCCSuccess else {
-            throw VaultExportError.failedToDeriveExportKey
-        }
-        return SymmetricKey(data: derivedKey)
+        try VaultBackupCryptoHelper.derivePBKDF2Key(
+            password: password,
+            salt: salt,
+            rounds: pbkdfRounds,
+            encodingError: VaultExportError.invalidPasswordEncoding,
+            derivationError: VaultExportError.failedToDeriveExportKey
+        )
     }
 
     nonisolated private func makeExportDirectory() throws -> URL {
@@ -993,7 +990,7 @@ nonisolated struct VaultExportService: Sendable {
     }
 
     nonisolated private func authenticatedData(for header: VaultBackupHeader, chunkIndex: Int) -> Data {
-        Data("SVEX-v2|\(header.partIndex)|\(header.totalParts)|\(chunkIndex)|\(header.archiveByteCount)".utf8)
+        VaultBackupCryptoHelper.authenticatedData(for: header, chunkIndex: chunkIndex)
     }
 
     nonisolated private func compressedArchivePayload(for chunk: Data) -> VaultCompressedArchivePayload {
@@ -1178,84 +1175,6 @@ nonisolated private struct VaultBackupItemPayload {
     }
 }
 
-nonisolated private struct VaultBackupHeader: Codable {
-    let exportedAt: Date
-    let appName: String
-    let formatVersion: Int
-    let partIndex: Int
-    let totalParts: Int
-    let archiveEncoding: String
-    let kdf: VaultBackupKDFInfo
-    let cipher: String
-    let chunkSize: Int
-    let archiveByteCount: Int64
-}
-
-nonisolated private struct VaultBackupKDFInfo: Codable {
-    let algorithm: String
-    let rounds: Int
-    let saltBase64: String
-}
-
-nonisolated private struct VaultBackupPartManifest: Codable {
-    let exportedAt: Date
-    let spaceRawValue: String
-    let partIndex: Int
-    let totalParts: Int
-    let albums: [VaultBackupAlbumRecord]
-    let items: [VaultBackupItemRecord]
-    let blobEntries: [VaultBackupBlobEntry]
-}
-
-nonisolated private struct VaultBackupAlbumRecord: Codable {
-    let id: String
-    let name: String
-    let kindRawValue: String
-    let coverItemIDRawValue: String?
-    let coverImageRelativePath: String?
-    let coverSymbolName: String?
-    let sortOptionRawValue: String
-    let customOrderedItemIDs: [String]
-    let showsCover: Bool
-    let libraryOrderIndex: Int
-    let colorRawValue: String?
-}
-
-nonisolated private struct VaultBackupItemRecord: Codable {
-    let id: String
-    let name: String
-    let createdAt: Date
-    let importedAt: Date
-    let lastExportedAt: Date?
-    let originalCapturedAt: Date?
-    let updatedAt: Date
-    let videoDuration: Double?
-    let mediaKindRawValue: String
-    let isInTrash: Bool
-    let isArchived: Bool
-    let isStrongProtected: Bool
-    let relativePath: String
-    let originalFilename: String
-    let contentTypeIdentifier: String
-    let locationLatitude: Double?
-    let locationLongitude: Double?
-    let albumIDs: [String]
-    let trashedAt: Date?
-    let livePhotoCompanionRelativePath: String?
-}
-
-nonisolated private struct VaultBackupBlobEntry: Codable {
-    let relativePath: String
-    let sourceDomain: VaultBackupSourceDomain
-    let byteCount: Int64
-}
-
-nonisolated private enum VaultBackupSourceDomain: UInt8, Codable {
-    case media = 1
-    case livePhotoCompanion = 2
-    case albumCover = 3
-}
-
 nonisolated private struct VaultBackupChunkRecord {
     let chunkIndex: Int
     let plaintextLength: Int
@@ -1267,11 +1186,6 @@ nonisolated private struct VaultBackupChunkRecord {
 nonisolated private struct VaultCompressedArchivePayload {
     let codec: VaultArchiveChunkCodec
     let payload: Data
-}
-
-nonisolated private enum VaultArchiveChunkCodec: UInt8 {
-    case raw = 0
-    case lzfse = 1
 }
 
 nonisolated private extension JSONEncoder {

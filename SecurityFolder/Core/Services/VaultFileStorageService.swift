@@ -195,14 +195,16 @@ final class VaultFileStorageService {
         for relativePath: String,
         originalFilename: String,
         space: VaultSpaceKind,
-        cacheResult: Bool = true
+        cacheResult: Bool = true,
+        exportGeneration: Int? = nil
     ) throws -> URL {
         return try cryptoService.decryptedTemporaryURL(
             forEncryptedFileAt: fileURL(for: relativePath),
             relativePath: relativePath,
             originalFilename: originalFilename,
             space: space,
-            cacheResult: cacheResult
+            cacheResult: cacheResult,
+            exportGeneration: exportGeneration
         )
     }
 
@@ -221,6 +223,13 @@ final class VaultFileStorageService {
         )
     }
 
+    nonisolated func makeEncryptedStreamReader(for relativePath: String, space: VaultSpaceKind) throws -> VaultEncryptedStreamReader {
+        try cryptoService.makeEncryptedStreamReader(
+            forEncryptedFileAt: fileURL(for: relativePath),
+            space: space
+        )
+    }
+
     @discardableResult
     func migrateFileToEncryptedStorageIfNeeded(relativePath: String, space: VaultSpaceKind) throws -> Bool {
         try cryptoService.migrateFileToEncryptedStorageIfNeeded(at: fileURL(for: relativePath), space: space)
@@ -229,6 +238,10 @@ final class VaultFileStorageService {
     private func move(relativePath: String, to directory: URL) throws -> String {
         let sourceURL = fileURL(for: relativePath)
         let destinationURL = directory.appending(path: sourceURL.lastPathComponent)
+
+        if sourceURL == destinationURL, fileManager.fileExists(atPath: sourceURL.path()) {
+            return relativePath
+        }
 
         if fileManager.fileExists(atPath: destinationURL.path()) {
             try fileManager.removeItem(at: destinationURL)

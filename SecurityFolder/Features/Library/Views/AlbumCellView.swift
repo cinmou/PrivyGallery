@@ -167,7 +167,11 @@ private struct AlbumCoverImageView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .task(id: relativePath) {
-            image = VaultFileStorageService.shared.albumCoverImage(for: relativePath)
+            let loadedImage = await Task.detached(priority: .userInitiated) {
+                VaultFileStorageService.shared.albumCoverImage(for: relativePath)
+            }.value
+            guard !Task.isCancelled else { return }
+            image = loadedImage
         }
     }
 
