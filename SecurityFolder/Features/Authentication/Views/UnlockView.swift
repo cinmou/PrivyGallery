@@ -587,7 +587,7 @@ struct UnlockView: View {
                         .font(.title3)
                         .fontWeight(.bold)
 
-                    Text(String.localizedStringWithFormat(String(localized: "第二空间是一个独立的空间。可以在\u{201C}设置 / 密码与空间\u{201D}中创建，可以根据需要切换 %@ 默认解锁的空间。"), biometricDisplayName))
+                    Text(String.localizedStringWithFormat(String(localized: "第二空间是一个独立的空间。可以在\u{201C}设置 / 隐私与安全 / 空间管理\u{201D}中创建，可以根据需要切换 %@ 默认解锁的空间。"), biometricDisplayName))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

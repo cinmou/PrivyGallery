@@ -91,7 +91,7 @@ struct VaultImportResult {
     }
 }
 
-struct VaultImportInspectionResult {
+nonisolated struct VaultImportInspectionResult {
     let mediaItemCount: Int
 
     static let empty = VaultImportInspectionResult(mediaItemCount: 0)
@@ -119,26 +119,26 @@ nonisolated struct VaultImportService: Sendable {
         password: String,
         onProgress: ((VaultTransferProgress) -> Void)? = nil
     ) async throws -> VaultImportInspectionResult {
-        let urls = backupURLs.sorted { $0.lastPathComponent < $1.lastPathComponent }
-        guard !urls.isEmpty else {
+        guard !backupURLs.isEmpty else {
             throw VaultImportError.invalidBackupFile
         }
 
         return try await Task.detached(priority: .userInitiated) { [self] in
+            let parts = try orderAndValidateBackupParts(backupURLs)
             #if DEBUG
-            VaultTransferLog.mark("import.inspect.start", "fileCount=\(urls.count)")
+            VaultTransferLog.mark("import.inspect.start", "fileCount=\(parts.count)")
             #endif
             var combined = VaultImportInspectionResult.empty
-            for (index, url) in urls.enumerated() {
+            for (index, part) in parts.enumerated() {
                 let result = try inspectBackupForImportSync(
-                    from: url,
+                    from: part.url,
                     password: password,
                     onProgress: { progress in
-                        let overall = progress.fractionCompleted.map { (Double(index) + $0) / Double(urls.count) }
+                        let overall = progress.fractionCompleted.map { (Double(index) + $0) / Double(parts.count) }
                         onProgress?(VaultTransferProgress(
                             phase: progress.phase,
                             currentPart: index + 1,
-                            totalParts: urls.count,
+                            totalParts: parts.count,
                             currentItem: progress.currentItem,
                             totalItems: progress.totalItems,
                             currentBytes: progress.currentBytes,
@@ -165,12 +165,13 @@ nonisolated struct VaultImportService: Sendable {
         currentMediaCount: Int = 0,
         onProgress: ((VaultTransferProgress) -> Void)? = nil
     ) async throws -> VaultImportResult {
-        let urls = backupURLs.sorted { $0.lastPathComponent < $1.lastPathComponent }
-        guard !urls.isEmpty else {
+        guard !backupURLs.isEmpty else {
             throw VaultImportError.invalidBackupFile
         }
 
         return try await Task.detached(priority: .userInitiated) { [self] in
+            let parts = try orderAndValidateBackupParts(backupURLs)
+            let urls = parts.map(\.url)
             try checkAvailableDiskSpaceForImport(backupURLs: urls)
 
             let stagingRootDirectory = try makeTemporaryImportDirectory()
@@ -191,10 +192,10 @@ nonisolated struct VaultImportService: Sendable {
 
             var preparedParts: [VaultPreparedImportPart] = []
             var accumulatedIncomingItems = 0
-            for (index, url) in urls.enumerated() {
+            for (index, part) in parts.enumerated() {
                 try Task.checkCancellation()
                 #if DEBUG
-                VaultTransferLog.mark("import.file.open", "index=\(index + 1) total=\(urls.count) ext=\(url.pathExtension)")
+                VaultTransferLog.mark("import.file.open", "index=\(index + 1) total=\(parts.count) ext=\(part.url.pathExtension)")
                 #endif
                 let partStagingDirectory = stagingRootDirectory.appendingPathComponent("part-\(index)", isDirectory: true)
                 try fileManager.createDirectory(at: partStagingDirectory, withIntermediateDirectories: true)
@@ -203,18 +204,20 @@ nonisolated struct VaultImportService: Sendable {
                 }
 
                 let prepared = try prepareImportPart(
-                    from: url,
+                    from: part.url,
                     into: targetSpace,
                     password: password,
                     stagingDirectory: partStagingDirectory,
+                    expectedPartIndex: part.header.partIndex,
+                    expectedTotalParts: part.header.totalParts,
                     maxAllowedTotalMediaCount: maxAllowedTotalMediaCount,
                     currentAccumulatedCount: currentMediaCount + accumulatedIncomingItems,
                     onProgress: { progress in
-                        let overall = progress.fractionCompleted.map { (Double(index) + $0) / Double(urls.count) * 0.90 }
+                        let overall = progress.fractionCompleted.map { (Double(index) + $0) / Double(parts.count) * 0.90 }
                         onProgress?(VaultTransferProgress(
                             phase: progress.phase,
                             currentPart: index + 1,
-                            totalParts: urls.count,
+                            totalParts: parts.count,
                             currentItem: progress.currentItem,
                             totalItems: progress.totalItems,
                             currentBytes: progress.currentBytes,
@@ -227,7 +230,7 @@ nonisolated struct VaultImportService: Sendable {
                 accumulatedIncomingItems += prepared.manifest.items.count
                 preparedParts.append(prepared)
                 #if DEBUG
-                VaultTransferLog.mark("import.file.finish", "index=\(index + 1) total=\(urls.count)")
+                VaultTransferLog.mark("import.file.finish", "index=\(index + 1) total=\(parts.count)")
                 #endif
             }
 
@@ -242,11 +245,11 @@ nonisolated struct VaultImportService: Sendable {
                 to: onProgress
             )
 
+            let committedParts = preparedParts
             let combined = try await MainActor.run {
-                try commitPreparedParts(preparedParts, targetSpace: targetSpace)
+                try commitPreparedParts(committedParts, targetSpace: targetSpace)
             }
 
-            BackupOperationRecoveryService.shared.markImportEnteringMetadataSave()
             importFinishedSuccessfully = true
 
             emitImportProgress(
@@ -365,6 +368,8 @@ nonisolated struct VaultImportService: Sendable {
         into targetSpace: VaultSpaceKind,
         password: String,
         stagingDirectory: URL,
+        expectedPartIndex: Int,
+        expectedTotalParts: Int,
         maxAllowedTotalMediaCount: Int?,
         currentAccumulatedCount: Int,
         onProgress: ((VaultTransferProgress) -> Void)? = nil
@@ -436,6 +441,10 @@ nonisolated struct VaultImportService: Sendable {
         )
         let archive = try readArchiveHeader(from: archiveURL)
         let manifest = archive.manifest
+        guard manifest.partIndex == expectedPartIndex,
+              manifest.totalParts == expectedTotalParts else {
+            throw VaultImportError.invalidManifest
+        }
         if let maxAllowedTotalMediaCount,
            currentAccumulatedCount + manifest.items.count > maxAllowedTotalMediaCount {
             throw VaultImportError.exceedsFreeMediaLimit
@@ -560,8 +569,71 @@ nonisolated struct VaultImportService: Sendable {
             combined = combined.combined(with: result)
         }
 
-        try metadataStore.saveSnapshot(space: targetSpace, albums: existingAlbums, items: existingItems)
+        BackupOperationRecoveryService.shared.markImportEnteringMetadataSave()
+        do {
+            try metadataStore.saveSnapshot(space: targetSpace, albums: existingAlbums, items: existingItems)
+        } catch {
+            BackupOperationRecoveryService.shared.revertImportToRestoringFiles()
+            throw error
+        }
         return combined
+    }
+
+    nonisolated private func orderAndValidateBackupParts(_ backupURLs: [URL]) throws -> [(url: URL, header: VaultBackupHeader)] {
+        guard !backupURLs.isEmpty else {
+            throw VaultImportError.invalidBackupFile
+        }
+        var entries: [(url: URL, header: VaultBackupHeader)] = []
+        entries.reserveCapacity(backupURLs.count)
+        var seenSaltSet = Set<String>()
+
+        for url in backupURLs {
+            let header = try readBackupHeader(from: url)
+            guard header.totalParts >= 1,
+                  header.partIndex >= 0,
+                  header.partIndex < header.totalParts,
+                  seenSaltSet.insert(header.kdf.saltBase64).inserted else {
+                throw VaultImportError.invalidBackupFile
+            }
+            entries.append((url, header))
+        }
+
+        return entries.sorted { lhs, rhs in
+            if lhs.header.partIndex != rhs.header.partIndex {
+                return lhs.header.partIndex < rhs.header.partIndex
+            }
+            return lhs.url.lastPathComponent.localizedStandardCompare(rhs.url.lastPathComponent) == .orderedAscending
+        }
+    }
+
+    nonisolated private func readBackupHeader(from backupURL: URL) throws -> VaultBackupHeader {
+        let didAccess = backupURL.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess {
+                backupURL.stopAccessingSecurityScopedResource()
+            }
+        }
+        let inputHandle = try FileHandle(forReadingFrom: backupURL)
+        defer {
+            try? inputHandle.close()
+        }
+        guard try readData(count: Self.vaultMagic.count, from: inputHandle) == Self.vaultMagic else {
+            throw VaultImportError.invalidBackupFile
+        }
+        let version = try readUInt8(from: inputHandle)
+        guard version == Self.vaultVersion else {
+            throw VaultImportError.unsupportedVersion
+        }
+        let headerLength = Int(try readUInt32(from: inputHandle))
+        guard headerLength > 0, headerLength <= Self.maxHeaderBytes else {
+            throw VaultImportError.invalidBackupFile
+        }
+        let headerData = try readData(count: headerLength, from: inputHandle)
+        let header = try JSONDecoder.vaultImportDecoder.decode(VaultBackupHeader.self, from: headerData)
+        guard header.formatVersion == 2 || header.formatVersion == 3 else {
+            throw VaultImportError.unsupportedVersion
+        }
+        return header
     }
 
     nonisolated private func checkAvailableDiskSpaceForImport(backupURLs: [URL]) throws {
@@ -1032,6 +1104,7 @@ nonisolated struct VaultImportService: Sendable {
         }
     }
 
+    @MainActor
     private func nextLibraryOrderIndex(existingAlbums: [VaultAlbum], importedCount: Int) -> Int {
         let currentMax = existingAlbums.map(\.libraryOrderIndex).max() ?? -1
         return currentMax + importedCount + 1

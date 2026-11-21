@@ -17,6 +17,7 @@ final class MediaViewerController: UIViewController {
     var onShowDetails: ((VaultItem) -> Void)?
     var detailInfo: ((VaultItem) -> MediaItemDetailInfo?)?
     var exportURL: ((VaultItem) -> URL?)?
+    private var selectionHandler: (isSelected: (VaultItem) -> Bool, isEnabled: (VaultItem) -> Bool, toggle: (VaultItem) -> Void)?
 
     private let pageController = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal)
     private let topOverlay = MediaTopOverlayView()
@@ -353,6 +354,7 @@ final class MediaViewerController: UIViewController {
         page.setActive(true)
         topOverlay.update(title: page.item.name, subtitle: items.count > 1 ? "\(currentIndex + 1) / \(items.count)" : nil)
         topOverlay.updateMuteButton(visible: page.item.mediaKind == .video, isMuted: isMuted)
+        syncSelectionButton(for: page.item)
         renderCurrentPlaybackState(scheduleAutoHide: false)
         // Instantly reflect whether the new item is a Live Photo (no animation so
         // the badge appears in sync with the page change, not after a fade delay).
@@ -570,8 +572,38 @@ final class MediaViewerController: UIViewController {
         onDismiss?()
     }
 
+    func configureSelection(
+        isSelected: @escaping (VaultItem) -> Bool,
+        isEnabled: @escaping (VaultItem) -> Bool,
+        toggle: @escaping (VaultItem) -> Void
+    ) {
+        selectionHandler = (isSelected, isEnabled, toggle)
+        if let item = currentPage?.item {
+            syncSelectionButton(for: item)
+        }
+    }
+
+    private func syncSelectionButton(for item: VaultItem) {
+        guard let selectionHandler else { return }
+        updateSelectionButton(isSelected: selectionHandler.isSelected(item), isEnabled: selectionHandler.isEnabled(item))
+    }
+
+    private func updateSelectionButton(isSelected: Bool, isEnabled: Bool) {
+        let button = topOverlay.moreButton
+        button.setImage(UIImage(systemName: isSelected ? "checkmark.circle.fill" : "circle"), for: .normal)
+        button.accessibilityLabel = isSelected ? String(localized: "取消选择") : String(localized: "选择")
+        button.accessibilityTraits = isSelected ? [.button, .selected] : .button
+        button.isEnabled = isSelected || isEnabled
+    }
+
     @objc private func moreTapped() {
         guard let item = currentPage?.item else { return }
+        if let selectionHandler {
+            selectionHandler.toggle(item)
+            syncSelectionButton(for: item)
+            showControls(lock: false)
+            return
+        }
         isMenuVisible = true
         showControls(lock: true)
         let sheet = UIAlertController(title: item.name, message: nil, preferredStyle: .actionSheet)

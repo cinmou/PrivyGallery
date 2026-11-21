@@ -24,7 +24,7 @@ struct SettingsPasscodePromptView: View {
                         .padding(.top, 2)
                         .accessibilityHidden(true)
 
-                    Text(String(localized: "输入当前密码"))
+                    Text(String(localized: "输入密码"))
                         .font(.title3)
                         .fontWeight(.bold)
 

@@ -325,7 +325,7 @@ struct ChangePasswordView: View {
                     .padding(.top, 2) // 让图标距离卡片顶部边缘有一定的距离
                     .accessibilityHidden(true) // 告诉 VoiceOver 忽略这个图示，避免向盲人重复播报无意义的装饰信息
 
-                            Text(String(localized: "输入当前密码"))
+                            Text(String(localized: "输入密码"))
                     .font(.title3) // title3 提供一个稍微大一点的默认大小
                     .fontWeight(.bold) // 加粗显示
 
@@ -411,10 +411,7 @@ struct ChangePasswordView: View {
             }
 
             passcodeEntrySection(
-                title: String.localizedStringWithFormat(
-                    String(localized: "输入%@当前密码"),
-                    counterpartSpaceName
-                ),
+                title: String(localized: "输入密码"),
                 helper: (counterpartKind ?? selectedKind).helperText(for: counterpartSpaceName),
                 kind: counterpartKind ?? selectedKind,
                 text: $secondaryCurrentPasscode,

@@ -1,16 +1,11 @@
 import Foundation
 
-/// 设置首页里受保护入口的路由目标。
-/// 目前只剩密码子页，但单独保留类型后，后续继续拆分设置模块会更稳。
-enum ProtectedSettingsDestination {
-    case password
-}
-
 enum SettingsSidebarDestination: String, Identifiable {
     case membership
     case preferences
-    case password
+    case privacy
     case backupFiles
+    case duplicates
     case guide
     case legal
     case about
@@ -48,7 +43,7 @@ enum SettingsAuthPrompt: Identifiable {
     var message: String {
         switch self {
         case .privacy:
-            return String(localized: "验证密码，以进入密码与空间选项。")
+            return String(localized: "验证密码，以进入隐私与安全设置。")
         case .export:
             return String(localized: "请验证当前空间的密码，妥善保存导出的文件。")
         case .import:

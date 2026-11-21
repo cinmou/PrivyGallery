@@ -7,6 +7,8 @@ struct MediaViewerView<MenuContent: View>: View {
     let policy: MediaViewerSecurePolicy
     let photoTransitionSource: PhotoPreviewTransitionSource?
     let actions: MediaViewerActions<MenuContent>
+    let selectionIDs: Binding<Set<UUID>>?
+    let canSelectItem: ((VaultItem) -> Bool)?
     let onDismiss: () -> Void
 
     init(
@@ -15,6 +17,8 @@ struct MediaViewerView<MenuContent: View>: View {
         policy: MediaViewerSecurePolicy,
         photoTransitionSource: PhotoPreviewTransitionSource? = nil,
         actions: MediaViewerActions<MenuContent>,
+        selectionIDs: Binding<Set<UUID>>? = nil,
+        canSelectItem: ((VaultItem) -> Bool)? = nil,
         onDismiss: @escaping () -> Void
     ) {
         self.items = items
@@ -22,6 +26,8 @@ struct MediaViewerView<MenuContent: View>: View {
         self.policy = policy
         self.photoTransitionSource = photoTransitionSource
         self.actions = actions
+        self.selectionIDs = selectionIDs
+        self.canSelectItem = canSelectItem
         self.onDismiss = onDismiss
     }
 
@@ -46,7 +52,9 @@ struct MediaViewerView<MenuContent: View>: View {
                     onDismiss: onDismiss,
                     onShowDetails: actions.showDetails,
                     detailInfo: actions.detailInfo,
-                    exportURL: actions.exportURL
+                    exportURL: actions.exportURL,
+                    selectionIDs: selectionIDs,
+                    canSelectItem: canSelectItem
                 )
             }
         }
@@ -67,6 +75,8 @@ private struct UIKitMediaViewerRepresentable: UIViewControllerRepresentable {
     let onShowDetails: (VaultItem) -> Void
     let detailInfo: (VaultItem) -> MediaItemDetailInfo?
     let exportURL: (VaultItem) -> URL?
+    let selectionIDs: Binding<Set<UUID>>?
+    let canSelectItem: ((VaultItem) -> Bool)?
 
     func makeUIViewController(context: Context) -> MediaViewerController {
         let controller = MediaViewerController(items: items, initialItemID: initialItemID, provider: provider)
@@ -76,6 +86,7 @@ private struct UIKitMediaViewerRepresentable: UIViewControllerRepresentable {
         controller.onShowDetails = onShowDetails
         controller.detailInfo = detailInfo
         controller.exportURL = exportURL
+        updateSelection(on: controller)
         return controller
     }
 
@@ -84,6 +95,22 @@ private struct UIKitMediaViewerRepresentable: UIViewControllerRepresentable {
         uiViewController.onShowDetails = onShowDetails
         uiViewController.detailInfo = detailInfo
         uiViewController.exportURL = exportURL
+        updateSelection(on: uiViewController)
+    }
+
+    private func updateSelection(on controller: MediaViewerController) {
+        guard let selectionIDs else { return }
+        controller.configureSelection(
+            isSelected: { selectionIDs.wrappedValue.contains($0.id) },
+            isEnabled: { canSelectItem?($0) ?? true },
+            toggle: { item in
+                if selectionIDs.wrappedValue.contains(item.id) {
+                    selectionIDs.wrappedValue.remove(item.id)
+                } else if canSelectItem?(item) ?? true {
+                    selectionIDs.wrappedValue.insert(item.id)
+                }
+            }
+        )
     }
 }
 

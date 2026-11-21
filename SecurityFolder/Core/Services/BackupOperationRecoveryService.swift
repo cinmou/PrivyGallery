@@ -7,36 +7,48 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
 
     private let fileManager = FileManager.default
     private let queue = DispatchQueue(label: "com.securityfolder.backup-recovery")
+    private var cachedRecord: BackupOperationRecord?
 
     private init() {}
 
     func beginExport(partialArchiveURL: URL) {
-        let record = BackupOperationRecord(
-            kind: .export,
-            phase: .writingArchive,
-            cleanupPaths: [partialArchiveURL.path()],
-            startedAt: .now
-        )
-        persist(record)
+        queue.sync {
+            let record = BackupOperationRecord(
+                kind: .export,
+                phase: .writingArchive,
+                cleanupPaths: [partialArchiveURL.path()],
+                startedAt: .now
+            )
+            removeCleanupLog()
+            persist(record)
+        }
     }
 
     func beginImport(stagingDirectoryURL: URL) {
-        let record = BackupOperationRecord(
-            kind: .importOperation,
-            phase: .restoringFiles,
-            cleanupPaths: [stagingDirectoryURL.path()],
-            startedAt: .now
-        )
-        persist(record)
+        queue.sync {
+            let record = BackupOperationRecord(
+                kind: .importOperation,
+                phase: .restoringFiles,
+                cleanupPaths: [stagingDirectoryURL.path()],
+                startedAt: .now
+            )
+            removeCleanupLog()
+            persist(record)
+        }
+    }
+
+    func registerExportedFilesForCleanup(_ fileURLs: [URL]) {
+        guard !fileURLs.isEmpty else { return }
+        queue.sync {
+            guard let record = loadRecord(), record.kind == .export else { return }
+            appendCleanupPaths(fileURLs.map { $0.path() })
+        }
     }
 
     func registerImportedFileForCleanup(_ fileURL: URL) {
         queue.sync {
-            guard var record = loadRecord(), record.kind == .importOperation else { return }
-            if !record.cleanupPaths.contains(fileURL.path()) {
-                record.cleanupPaths.append(fileURL.path())
-                persist(record)
-            }
+            guard let record = loadRecord(), record.kind == .importOperation else { return }
+            appendCleanupPaths([fileURL.path()])
         }
     }
 
@@ -48,18 +60,31 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
         }
     }
 
+    func revertImportToRestoringFiles() {
+        queue.sync {
+            guard var record = loadRecord(), record.kind == .importOperation else { return }
+            record.phase = .restoringFiles
+            persist(record)
+        }
+    }
+
     func complete() {
         queue.sync {
             removeRecord()
+            removeCleanupLog()
             UserDefaults.standard.removeObject(forKey: AppSettingsKey.lastBackupRecoveryNotice)
         }
     }
 
     func abortAndCleanup() {
         queue.sync {
-            guard let record = loadRecord() else { return }
-            cleanup(paths: record.cleanupPaths)
+            guard let record = loadRecord() else {
+                removeCleanupLog()
+                return
+            }
+            cleanup(paths: allCleanupPaths(for: record))
             removeRecord()
+            removeCleanupLog()
         }
     }
 
@@ -68,30 +93,38 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
         queue.sync {
             cleanupStaleTemporaryDirectories()
 
-            guard let record = loadRecord() else { return nil }
+            guard let record = loadRecord() else {
+                removeCleanupLog()
+                return nil
+            }
+            let trackedPaths = allCleanupPaths(for: record)
 
             // 如果恢复记录指向的半成品已经不存在，说明这次操作大概率已经成功收尾，
             // 或者残留已经被系统/上次清理移除，这里静默丢弃旧记录即可。
-            if shouldSilentlyDiscard(record) {
+            if shouldSilentlyDiscard(record, trackedPaths: trackedPaths) {
                 removeRecord()
+                removeCleanupLog()
                 return nil
             }
 
             switch (record.kind, record.phase) {
             case (.export, _), (.importOperation, .restoringFiles):
-                cleanup(paths: record.cleanupPaths)
+                cleanup(paths: trackedPaths)
                 removeRecord()
+                removeCleanupLog()
                 return nil
 
             case (.importOperation, .savingMetadata):
-                // 当前实现里只有在 `restoreMedia` 已经成功写回元数据后才会进入这个阶段，
-                // 因此这里更像是“成功后未及时清理恢复记录”，不需要再打扰用户。
+                // 当前实现里只有在准备或完成写回元数据后才会进入这个阶段，
+                // 若异常中断后已进入该阶段，保留已落盘媒体文件并清理恢复记录。
                 removeRecord()
+                removeCleanupLog()
                 return nil
 
             case (.importOperation, .writingArchive):
-                cleanup(paths: record.cleanupPaths)
+                cleanup(paths: trackedPaths)
                 removeRecord()
+                removeCleanupLog()
                 return nil
             }
         }
@@ -119,16 +152,16 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
         }
     }
 
-    private func shouldSilentlyDiscard(_ record: BackupOperationRecord) -> Bool {
+    private func shouldSilentlyDiscard(_ record: BackupOperationRecord, trackedPaths: [String]) -> Bool {
         switch (record.kind, record.phase) {
         case (.importOperation, .savingMetadata):
             return true
         case (.export, _), (.importOperation, .restoringFiles), (.importOperation, .writingArchive):
-            return record.cleanupPaths.allSatisfy { !fileManager.fileExists(atPath: $0) }
+            return trackedPaths.allSatisfy { !fileManager.fileExists(atPath: $0) }
         }
     }
 
-    private var recordURL: URL? {
+    private var recoveryDirectoryURL: URL? {
         guard let applicationSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
         }
@@ -137,10 +170,19 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
         if !fileManager.fileExists(atPath: directoryURL.path()) {
             try? fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
         }
-        return directoryURL.appendingPathComponent("active-operation.json")
+        return directoryURL
+    }
+
+    private var recordURL: URL? {
+        recoveryDirectoryURL?.appendingPathComponent("active-operation.json")
+    }
+
+    private var cleanupLogURL: URL? {
+        recoveryDirectoryURL?.appendingPathComponent("cleanup-paths.log")
     }
 
     private func persist(_ record: BackupOperationRecord) {
+        cachedRecord = record
         guard let recordURL else { return }
         if let data = try? JSONEncoder().encode(record) {
             try? data.write(to: recordURL, options: .atomic)
@@ -148,13 +190,50 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
     }
 
     private func loadRecord() -> BackupOperationRecord? {
-        guard let recordURL, let data = try? Data(contentsOf: recordURL) else { return nil }
-        return try? JSONDecoder().decode(BackupOperationRecord.self, from: data)
+        if let cachedRecord {
+            return cachedRecord
+        }
+        guard let recordURL, let data = try? Data(contentsOf: recordURL),
+              let record = try? JSONDecoder().decode(BackupOperationRecord.self, from: data) else {
+            return nil
+        }
+        cachedRecord = record
+        return record
     }
 
     private func removeRecord() {
+        cachedRecord = nil
         guard let recordURL, fileManager.fileExists(atPath: recordURL.path()) else { return }
         try? fileManager.removeItem(at: recordURL)
+    }
+
+    private func appendCleanupPaths(_ paths: [String]) {
+        guard let cleanupLogURL else { return }
+        let payload = paths.joined(separator: "\n") + "\n"
+        guard let data = payload.data(using: .utf8) else { return }
+        if !fileManager.fileExists(atPath: cleanupLogURL.path()) {
+            try? data.write(to: cleanupLogURL, options: .atomic)
+            return
+        }
+        guard let handle = try? FileHandle(forWritingTo: cleanupLogURL) else { return }
+        defer { try? handle.close() }
+        _ = try? handle.seekToEnd()
+        try? handle.write(contentsOf: data)
+    }
+
+    private func allCleanupPaths(for record: BackupOperationRecord) -> [String] {
+        var paths = record.cleanupPaths
+        if let cleanupLogURL,
+           let content = try? String(contentsOf: cleanupLogURL, encoding: .utf8) {
+            let logged = content.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.isEmpty }
+            paths.append(contentsOf: logged)
+        }
+        return paths
+    }
+
+    private func removeCleanupLog() {
+        guard let cleanupLogURL, fileManager.fileExists(atPath: cleanupLogURL.path()) else { return }
+        try? fileManager.removeItem(at: cleanupLogURL)
     }
 }
 

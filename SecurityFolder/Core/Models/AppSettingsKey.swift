@@ -28,6 +28,7 @@ enum AppSettingsKey {
     static let lastBackupRecoveryNotice = "lastBackupRecoveryNotice"
     static let spaceALibrarySortOption = "spaceALibrarySortOption"
     static let spaceBLibrarySortOption = "spaceBLibrarySortOption"
+    static let duplicateScanIncludesSimilarPhotos = "duplicateScanIncludesSimilarPhotos"
     static let lockButtonHintShown = "lockButtonHintShown"
 
     // MARK: - Biometric routing

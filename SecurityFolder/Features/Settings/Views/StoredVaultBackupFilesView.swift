@@ -39,14 +39,51 @@ struct StoredVaultBackupFilesView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(files) { file in
-                    backupFileRow(file)
+                MacSettingsPageContainer {
+                    MacSettingsSection {
+                        ForEach(Array(files.enumerated()), id: \.element.id) { index, file in
+                            if index > 0 {
+                                Divider()
+                            }
+                            backupFileRow(file)
+                                .contextMenu {
+                                    Button(exportActionTitle) {
+                                        exportFiles([file], action: "singleExport")
+                                    }
+                                    Button(String(localized: "删除"), role: .destructive) {
+                                        requestDelete([file])
+                                    }
+                                }
+                        }
+                    }
                 }
-                .scrollContentBackground(.hidden)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(SettingsAppearance.pageBackground.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            if isSelecting {
+                VStack(spacing: 0) {
+                    Divider()
+                    HStack {
+                        Button(exportActionTitle) {
+                            exportSelectedFiles()
+                        }
+                        .disabled(selectedFiles.isEmpty)
+
+                        Spacer()
+
+                        Button(String(localized: "删除"), role: .destructive) {
+                            requestDelete(selectedFiles)
+                        }
+                        .disabled(selectedFiles.isEmpty)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.bar)
+                }
+            }
+        }
         #else
         List {
             if files.isEmpty {
@@ -66,6 +103,9 @@ struct StoredVaultBackupFilesView: View {
         }
         .navigationTitle(String(localized: "当前备份文件"))
         .navigationBarTitleDisplayMode(.inline)
+        #if !targetEnvironment(macCatalyst)
+        .toolbar(isSelecting ? .hidden : .automatic, for: .tabBar)
+        #endif
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if !files.isEmpty {
@@ -80,6 +120,7 @@ struct StoredVaultBackupFilesView: View {
                 }
             }
 
+            #if !targetEnvironment(macCatalyst)
             if isSelecting {
                 ToolbarItemGroup(placement: .bottomBar) {
                     Button(exportActionTitle) {
@@ -95,6 +136,7 @@ struct StoredVaultBackupFilesView: View {
                     .disabled(selectedFiles.isEmpty)
                 }
             }
+            #endif
         }
         #if targetEnvironment(macCatalyst)
         .fileExporter(
@@ -358,7 +400,7 @@ struct StoredVaultBackupFilesView: View {
 #if targetEnvironment(macCatalyst)
 private struct BackupFileExport: FileDocument {
     static var readableContentTypes: [UTType] { [.data] }
-    let file: FileWrapper
+    nonisolated(unsafe) let file: FileWrapper
 
     init(url: URL) throws {
         file = try FileWrapper(url: url, options: [])

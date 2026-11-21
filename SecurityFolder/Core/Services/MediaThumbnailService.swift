@@ -443,7 +443,7 @@ final class MediaThumbnailService {
             return nil
         }
 
-        if let image = UIImage(contentsOfFile: fileURL.path()) {
+        if let image = UIImage(contentsOfFile: fileURL.path(percentEncoded: false)) {
             return image
         }
 
@@ -502,8 +502,8 @@ final class MediaThumbnailService {
 
     nonisolated private func diskCachedThumbnail(for request: ThumbnailGenerationRequest, cacheKey: NSString) -> UIImage? {
         let url = thumbnailURL(for: request)
-        guard fileManager.fileExists(atPath: url.path()),
-              let image = UIImage(contentsOfFile: url.path()) else {
+        guard fileManager.fileExists(atPath: url.path(percentEncoded: false)),
+              let image = UIImage(contentsOfFile: url.path(percentEncoded: false)) else {
             return nil
         }
         setCachedImage(image, for: cacheKey)
@@ -529,7 +529,7 @@ final class MediaThumbnailService {
     }
 
     nonisolated private func ensureThumbnailDirectoryExists() throws {
-        if !fileManager.fileExists(atPath: thumbnailDirectory.path()) {
+        if !fileManager.fileExists(atPath: thumbnailDirectory.path(percentEncoded: false)) {
             try fileManager.createDirectory(at: thumbnailDirectory, withIntermediateDirectories: true)
         }
     }

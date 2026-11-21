@@ -33,7 +33,7 @@ struct SecurityFolderApp: App {
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button(String.localizedStringWithFormat(String(localized: "关于 %@"), AppMetadata.appName)) {
-                    showVersionInfo?()
+                    showVersionInfo?.perform()
                 }
                 .disabled(showVersionInfo == nil)
             }
@@ -82,17 +82,27 @@ struct SecurityFolderApp: App {
 
 
 #if targetEnvironment(macCatalyst)
+private struct VersionInfoAction: Equatable {
+    let id: UUID
+    let perform: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
 private extension FocusedValues {
-    @Entry var showVersionInfo: (() -> Void)?
+    @Entry var showVersionInfo: VersionInfoAction?
 }
 
 private struct MacVersionInfoHost<Content: View>: View {
     @ViewBuilder let content: Content
     @State private var isShowingVersionInfo = false
+    @State private var actionID = UUID()
 
     var body: some View {
         content
-            .focusedSceneValue(\.showVersionInfo, { isShowingVersionInfo = true })
+            .focusedSceneValue(\.showVersionInfo, VersionInfoAction(id: actionID) { isShowingVersionInfo = true })
             .sheet(isPresented: $isShowingVersionInfo) {
                 VStack(spacing: 0) {
                     AboutAppView()

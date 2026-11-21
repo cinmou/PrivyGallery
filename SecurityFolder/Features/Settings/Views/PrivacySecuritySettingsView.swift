@@ -2,11 +2,65 @@ import SwiftUI
 import LocalAuthentication
 
 struct PrivacySecuritySettingsView: View {
-    @ObservedObject var settingsViewModel: SettingsViewModel
     @ObservedObject var session: AppSessionViewModel
+    let controls: SettingsPrivacySectionView
 
     var body: some View {
-        PasswordSettingsView(settingsViewModel: settingsViewModel, session: session)
+        Group {
+        #if targetEnvironment(macCatalyst)
+        MacSettingsPageContainer {
+            controls
+
+            MacSettingsSection {
+                NavigationLink {
+                    PasswordSettingsView(session: session)
+                } label: {
+                    HStack {
+                        Text(String(localized: "密码管理"))
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+
+                NavigationLink {
+                    SpaceSettingsView(session: session)
+                } label: {
+                    HStack {
+                        Text(String(localized: "空间管理"))
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        #else
+        List {
+            controls
+
+            Section {
+                NavigationLink(String(localized: "密码管理")) {
+                    PasswordSettingsView(session: session)
+                }
+                NavigationLink(String(localized: "空间管理")) {
+                    SpaceSettingsView(session: session)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        #endif
+        }
+        .navigationTitle(String(localized: "隐私与安全"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -68,25 +122,69 @@ private struct SpaceNameEditorView: View {
     }
 }
 
-struct PasswordSettingsView: View {
-    @ObservedObject var settingsViewModel: SettingsViewModel
+private struct PasswordSettingsView: View {
     @ObservedObject var session: AppSessionViewModel
     @AppStorage(AppSettingsKey.autoSubmitNumericPasscode)
     private var autoSubmitNumericPasscode = AppSettingsKey.defaultAutoSubmitNumericPasscode
-    @State private var biometricSettings = BiometricUnlockSettings.load()
     @State private var savingSensitiveSettings = false
-    @State private var primarySpaceName = ""
-    @State private var secondarySpaceName = ""
     @State private var completionAlert: SettingsCompletionAlert?
     @State private var showingChangePassword = false
     @State private var showingCoercionSetup = false
     @State private var showingRemoveCoercionAlert = false
-    @State private var showingDirectSecondSpaceSetup = false
-    @State private var showingSpaceNameEditor = false
 
     var body: some View {
-        // “设置 -> 隐私与安全 -> 密码”子页。
-        // 这里承接修改密码、自动提交数字密码、胁迫密码三类与密码直接相关的设置。
+        Group {
+        #if targetEnvironment(macCatalyst)
+        MacSettingsPageContainer {
+            MacSettingsSection(String(localized: "密码管理")) {
+                MacSettingsActionRow(
+                    String(localized: "修改密码"),
+                    buttonTitle: String(localized: "编辑")
+                ) {
+                    showingChangePassword = true
+                }
+
+                Divider()
+
+                MacSettingsToggleRow(String(localized: "数字密码输入完成后自动解锁"), isOn: $autoSubmitNumericPasscode)
+            }
+
+            MacSettingsSection(
+                currentBiometricDisplayName(),
+                footer: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间。%@ 仅用于本机身份验证，我们不会访问或保存你的生物识别数据。"), currentBiometricDisplayName(), currentBiometricDisplayName())
+            ) {
+                MacSettingsToggleRow(
+                    String.localizedStringWithFormat(String(localized: "允许 %@ 解锁"), currentBiometricDisplayName()),
+                    isOn: biometricEnabledBinding,
+                    isDisabled: savingSensitiveSettings || !session.canUseBiometrics
+                )
+            }
+
+            MacSettingsSection(
+                String(localized: "胁迫密码"),
+                footer: String(localized: "胁迫密码是全局唯一的。当你被迫解锁应用时，输入这个预设密码，系统会立即触发并抹除所有数据，请谨慎使用。")
+            ) {
+                MacSettingsActionRow(
+                    String(localized: "胁迫密码"),
+                    buttonTitle: session.hasCoercionPasscode(for: .spaceA) ? String(localized: "修改胁迫密码") : String(localized: "设置胁迫密码")
+                ) {
+                    showingCoercionSetup = true
+                }
+
+                if session.hasCoercionPasscode(for: .spaceA) {
+                    Divider()
+
+                    MacSettingsActionRow(
+                        String(localized: "关闭胁迫密码"),
+                        buttonTitle: String(localized: "关闭"),
+                        role: .destructive
+                    ) {
+                        showingRemoveCoercionAlert = true
+                    }
+                }
+            }
+        }
+        #else
         List {
             Section {
                 Button(String(localized: "修改密码")) {
@@ -98,6 +196,220 @@ struct PasswordSettingsView: View {
                 Text(String(localized: "密码管理"))
             }
 
+            Section {
+                Toggle(String.localizedStringWithFormat(String(localized: "允许 %@ 解锁"), currentBiometricDisplayName()), isOn: biometricEnabledBinding)
+                    .disabled(savingSensitiveSettings || !session.canUseBiometrics)
+            } header: {
+                Text(currentBiometricDisplayName())
+            } footer: {
+                Text(String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间。%@ 仅用于本机身份验证，我们不会访问或保存你的生物识别数据。"), currentBiometricDisplayName(), currentBiometricDisplayName()))
+            }
+
+            Section {
+                Button(session.hasCoercionPasscode(for: .spaceA) ? String(localized: "修改胁迫密码") : String(localized: "设置胁迫密码")) {
+                    showingCoercionSetup = true
+                }
+
+                if session.hasCoercionPasscode(for: .spaceA) {
+                    Button(String(localized: "关闭胁迫密码"), role: .destructive) {
+                        showingRemoveCoercionAlert = true
+                    }
+                }
+            } header: {
+                Text(String(localized: "胁迫密码"))
+            } footer: {
+                Text(String(localized: "胁迫密码是全局唯一的。当你被迫解锁应用时，输入这个预设密码，系统会立即触发并抹除所有数据，请谨慎使用。"))
+            }
+        }
+        .listStyle(.insetGrouped)
+        #endif
+        }
+        .toggleStyle(.switch)
+        .navigationTitle(String(localized: "密码管理"))
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingChangePassword) {
+            ChangePasswordView(session: session)
+        }
+        .sheet(isPresented: $showingCoercionSetup) {
+            CoercionPasscodeSetupView(session: session) {
+                showingCoercionSetup = false
+                completionAlert = SettingsCompletionAlert(message: String(localized: "胁迫密码创建完成"))
+            }
+        }
+        .alert(String(localized: "关闭胁迫密码？"), isPresented: $showingRemoveCoercionAlert) {
+            Button(String(localized: "取消"), role: .cancel) {}
+            Button(String(localized: "关闭"), role: .destructive) {
+                session.removeCoercionPasscode(for: .spaceA)
+                completionAlert = SettingsCompletionAlert(message: String(localized: "胁迫密码已关闭"))
+            }
+        } message: {
+            Text(String(localized: "关闭后，输入胁迫密码将不再触发自动清空。"))
+        }
+        .alert(item: $completionAlert) { alert in
+            Alert(title: Text(alert.message), dismissButton: .default(Text(String(localized: "知道了"))))
+        }
+    }
+
+    private var biometricEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { session.isBiometricUnlockEnabled },
+            set: { newValue in
+                if newValue {
+                    requestEnableBiometricUnlock()
+                } else {
+                    session.setBiometricUnlockEnabled(false)
+                    completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 解锁未开启"), currentBiometricDisplayName()))
+                }
+            }
+        )
+    }
+
+    private func requestEnableBiometricUnlock() {
+        savingSensitiveSettings = true
+        session.authenticateOwner(policy: .deviceOwnerAuthenticationWithBiometrics, reason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), currentBiometricDisplayName())) { success in
+            savingSensitiveSettings = false
+            session.setBiometricUnlockEnabled(success)
+            if success {
+                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 解锁已开启"), currentBiometricDisplayName()))
+            } else {
+                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 验证失败，请继续使用密码解锁"), currentBiometricDisplayName()))
+            }
+        }
+    }
+
+}
+
+private struct SpaceSettingsView: View {
+    @ObservedObject var session: AppSessionViewModel
+    @State private var biometricSettings = BiometricUnlockSettings.load()
+    @State private var savingSensitiveSettings = false
+    @State private var primarySpaceName = ""
+    @State private var secondarySpaceName = ""
+    @State private var completionAlert: SettingsCompletionAlert?
+    @State private var showingDirectSecondSpaceSetup = false
+    @State private var showingSpaceNameEditor = false
+
+    var body: some View {
+        Group {
+        #if targetEnvironment(macCatalyst)
+        MacSettingsPageContainer {
+            if session.isPasscodeConfigured(for: .spaceB) {
+                MacSettingsSection(
+                    String(localized: "空间管理"),
+                    footer: String.localizedStringWithFormat(String(localized: "当前空间：%@"), session.displayName(for: currentSpace))
+                ) {
+                    HStack {
+                        Text(String(localized: "主要空间"))
+                        Spacer()
+                        Text(session.displayName(for: .spaceA))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Divider()
+
+                    HStack {
+                        Text(String(localized: "第二空间"))
+                        Spacer()
+                        Text(session.displayName(for: .spaceB))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Divider()
+
+                    MacSettingsActionRow(
+                        String(localized: "编辑空间名称"),
+                        buttonTitle: String(localized: "编辑")
+                    ) {
+                        reloadSpaceSettingsState()
+                        showingSpaceNameEditor = true
+                    }
+                }
+            } else {
+                MacSettingsSection(
+                    String(localized: "第二空间"),
+                    footer: String(localized: "第二空间会拥有独立密码、独立密钥和独立媒体数据。")
+                ) {
+                    MacSettingsActionRow(
+                        String(localized: "设置第二空间"),
+                        buttonTitle: String(localized: "设置")
+                    ) {
+                        showingDirectSecondSpaceSetup = true
+                    }
+                }
+            }
+
+            if session.isBiometricUnlockEnabled {
+                MacSettingsSection(currentBiometricDisplayName()) {
+                    HStack {
+                        Text(String.localizedStringWithFormat(String(localized: "%@ 模式"), currentBiometricDisplayName()))
+                        Spacer()
+                        Picker(String.localizedStringWithFormat(String(localized: "%@ 模式"), currentBiometricDisplayName()), selection: $biometricSettings.mode) {
+                            ForEach(BiometricUnlockMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+
+                    Divider()
+
+                    if biometricSettings.mode == .manual {
+                        HStack {
+                            Text(String(localized: "默认解锁空间"))
+                            Spacer()
+                            Picker(String(localized: "默认解锁空间"), selection: $biometricSettings.manualSpace) {
+                                ForEach(availableSpaces) { space in
+                                    Text(session.displayName(for: space)).tag(space)
+                                }
+                            }
+                            .labelsHidden()
+                        }
+                    } else {
+                        HStack {
+                            Text(String(localized: "时段内解锁空间"))
+                            Spacer()
+                            Picker(String(localized: "时段内解锁空间"), selection: $biometricSettings.scheduledPrimarySpace) {
+                                ForEach(availableSpaces) { space in
+                                    Text(session.displayName(for: space)).tag(space)
+                                }
+                            }
+                            .labelsHidden()
+                        }
+
+                        Divider()
+
+                        HStack {
+                            Text(String(localized: "开始时间"))
+                            Spacer()
+                            DatePicker(String(localized: "开始时间"), selection: scheduleStartBinding, displayedComponents: .hourAndMinute)
+                                .labelsHidden()
+                        }
+
+                        Divider()
+
+                        HStack {
+                            Text(String(localized: "结束时间"))
+                            Spacer()
+                            DatePicker(String(localized: "结束时间"), selection: scheduleEndBinding, displayedComponents: .hourAndMinute)
+                                .labelsHidden()
+                        }
+                    }
+
+                    Divider()
+
+                    MacSettingsActionRow(
+                        String.localizedStringWithFormat(String(localized: "验证身份并保存 %@ 设置"), currentBiometricDisplayName()),
+                        buttonTitle: savingSensitiveSettings ? String(localized: "正在验证...") : String(localized: "保存"),
+                        isDisabled: savingSensitiveSettings,
+                        action: saveBiometricSettings
+                    )
+                }
+                .controlSize(.small)
+                .pickerStyle(.menu)
+            }
+        }
+        #else
+        List {
             if session.isPasscodeConfigured(for: .spaceB) {
                 Section {
                     LabeledContent(String(localized: "主要空间")) {
@@ -131,11 +443,8 @@ struct PasswordSettingsView: View {
                 }
             }
 
-            Section {
-                Toggle(String.localizedStringWithFormat(String(localized: "允许 %@ 解锁"), currentBiometricDisplayName()), isOn: biometricEnabledBinding)
-                    .disabled(savingSensitiveSettings || !session.canUseBiometrics)
-
-                if session.isBiometricUnlockEnabled {
+            if session.isBiometricUnlockEnabled {
+                Section {
                     Picker(String.localizedStringWithFormat(String(localized: "%@ 模式"), currentBiometricDisplayName()), selection: $biometricSettings.mode) {
                         ForEach(BiometricUnlockMode.allCases) { mode in
                             Text(mode.title).tag(mode)
@@ -163,36 +472,16 @@ struct PasswordSettingsView: View {
                         saveBiometricSettings()
                     }
                     .disabled(savingSensitiveSettings)
+                } header: {
+                    Text(currentBiometricDisplayName())
                 }
-            } header: {
-                Text(currentBiometricDisplayName())
-            } footer: {
-                Text(String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间。%@ 仅用于本机身份验证，我们不会访问或保存你的生物识别数据。"), currentBiometricDisplayName(), currentBiometricDisplayName()))
-            }
-
-            Section {
-                Button(session.hasCoercionPasscode(for: .spaceA) ? String(localized: "修改胁迫密码") : String(localized: "设置胁迫密码")) {
-                    showingCoercionSetup = true
-                }
-
-                if session.hasCoercionPasscode(for: .spaceA) {
-                    Button(String(localized: "关闭胁迫密码"), role: .destructive) {
-                        showingRemoveCoercionAlert = true
-                    }
-                }
-            } header: {
-                Text(String(localized: "胁迫密码"))
-            } footer: {
-                Text(String(localized: "胁迫密码是全局唯一的。当你被迫解锁应用时，输入这个预设密码，系统会立即触发并抹除所有数据，请谨慎使用。"))
             }
         }
-        #if targetEnvironment(macCatalyst)
-        .scrollContentBackground(.hidden)
-        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
-        #endif
         .listStyle(.insetGrouped)
+        #endif
+        }
         .toggleStyle(.switch)
-        .navigationTitle(String(localized: "密码与空间"))
+        .navigationTitle(String(localized: "空间管理"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             reloadSpaceSettingsState()
@@ -219,24 +508,6 @@ struct PasswordSettingsView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingChangePassword) {
-            ChangePasswordView(session: session)
-        }
-        .sheet(isPresented: $showingCoercionSetup) {
-            CoercionPasscodeSetupView(session: session) {
-                showingCoercionSetup = false
-                completionAlert = SettingsCompletionAlert(message: String(localized: "胁迫密码创建完成"))
-            }
-        }
-        .alert(String(localized: "关闭胁迫密码？"), isPresented: $showingRemoveCoercionAlert) {
-            Button(String(localized: "取消"), role: .cancel) {}
-            Button(String(localized: "关闭"), role: .destructive) {
-                session.removeCoercionPasscode(for: .spaceA)
-                completionAlert = SettingsCompletionAlert(message: String(localized: "胁迫密码已关闭"))
-            }
-        } message: {
-            Text(String(localized: "关闭后，输入胁迫密码将不再触发自动清空。"))
-        }
         .alert(item: $completionAlert) { alert in
             Alert(title: Text(alert.message), dismissButton: .default(Text(String(localized: "知道了"))))
         }
@@ -248,21 +519,6 @@ struct PasswordSettingsView: View {
 
     private var currentSpace: VaultSpaceKind {
         session.activeSpace ?? .spaceA
-    }
-
-    private var biometricEnabledBinding: Binding<Bool> {
-        Binding(
-            get: { session.isBiometricUnlockEnabled },
-            set: { newValue in
-                if newValue {
-                    requestEnableBiometricUnlock()
-                } else {
-                    session.setBiometricUnlockEnabled(false)
-                    reloadSpaceSettingsState()
-                    completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 解锁未开启"), currentBiometricDisplayName()))
-                }
-            }
-        )
     }
 
     private var scheduleStartBinding: Binding<Date> {
@@ -310,20 +566,6 @@ struct PasswordSettingsView: View {
             } else {
                 biometricSettings = adjustedBiometricSettings(BiometricUnlockSettings.load())
                 completionAlert = SettingsCompletionAlert(message: String(localized: "身份验证未通过，设置没有变更。"))
-            }
-        }
-    }
-
-    private func requestEnableBiometricUnlock() {
-        savingSensitiveSettings = true
-        session.authenticateOwner(policy: .deviceOwnerAuthenticationWithBiometrics, reason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), currentBiometricDisplayName())) { success in
-            savingSensitiveSettings = false
-            session.setBiometricUnlockEnabled(success)
-            reloadSpaceSettingsState()
-            if success {
-                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 解锁已开启"), currentBiometricDisplayName()))
-            } else {
-                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 验证失败，请继续使用密码解锁"), currentBiometricDisplayName()))
             }
         }
     }
@@ -960,18 +1202,12 @@ private struct CoercionPasscodeSetupView: View {
 
 #Preview("密码设置") {
     NavigationStack {
-        PasswordSettingsView(
-            settingsViewModel: PreviewSupport.settingsViewModel(),
-            session: PreviewSupport.session()
-        )
+        PasswordSettingsView(session: PreviewSupport.session())
     }
 }
 
 #Preview("空间设置") {
     NavigationStack {
-        PrivacySecuritySettingsView(
-            settingsViewModel: PreviewSupport.settingsViewModel(),
-            session: PreviewSupport.session()
-        )
+        SpaceSettingsView(session: PreviewSupport.session())
     }
 }

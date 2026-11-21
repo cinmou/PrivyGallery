@@ -535,7 +535,7 @@ final class MediaLibraryViewModel: ObservableObject {
             for: item.relativePath,
             originalFilename: item.originalFilename,
             space: item.space
-        ), FileManager.default.fileExists(atPath: exportURL.path()) else {
+        ), FileManager.default.fileExists(atPath: exportURL.path(percentEncoded: false)) else {
             return nil
         }
         item.lastExportedAt = .now
@@ -576,7 +576,7 @@ final class MediaLibraryViewModel: ObservableObject {
                 )
             }.value
 
-            if let exportURL, FileManager.default.fileExists(atPath: exportURL.path()) {
+            if let exportURL, FileManager.default.fileExists(atPath: exportURL.path(percentEncoded: false)) {
                 exportedURLs.append(exportURL)
                 exportedItemIDs.insert(snapshot.id)
             } else {
@@ -698,11 +698,7 @@ final class MediaLibraryViewModel: ObservableObject {
 
         switch sourceAlbum.kind {
         case .allPhotos, .allVideos, .archive:
-            batchDeleteLog("batchDelete.fileCleanup.start", "count=\(targetItems.count)")
-            for item in targetItems {
-                moveItemToTrash(item)
-            }
-            batchDeleteLog("batchDelete.fileCleanup.finish", "count=\(targetItems.count)")
+            moveItemsToTrash(targetItems)
         case .custom:
             for item in targetItems {
                 item.albums.removeAll { $0.id == sourceAlbum.id }
@@ -726,6 +722,23 @@ final class MediaLibraryViewModel: ObservableObject {
 
         batchDeleteLog("batchDelete.metadataMutation.done", "count=\(targetItems.count)")
         saveAndRefreshWithBatchDeleteLogs()
+    }
+
+    func moveDuplicateItemsToTrash(_ itemIDs: Set<UUID>) {
+        let targetItems = items.filter {
+            itemIDs.contains($0.id) && !$0.isInTrash && !$0.isArchived && !$0.isStrongProtected
+        }
+        guard !targetItems.isEmpty else { return }
+        moveItemsToTrash(targetItems)
+        saveAndRefreshWithBatchDeleteLogs()
+    }
+
+    private func moveItemsToTrash(_ targetItems: [VaultItem]) {
+        batchDeleteLog("batchDelete.fileCleanup.start", "count=\(targetItems.count)")
+        for item in targetItems {
+            moveItemToTrash(item)
+        }
+        batchDeleteLog("batchDelete.fileCleanup.finish", "count=\(targetItems.count)")
     }
 
     func restoreFromTrash(itemID: UUID) {

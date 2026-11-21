@@ -223,10 +223,10 @@ final class VaultCryptoService {
         try writeEncryptedData(data, to: destinationURL, using: key)
     }
 
-    func decryptedData(forEncryptedFileAt encryptedURL: URL, space: VaultSpaceKind) throws -> Data {
+    nonisolated func decryptedData(forEncryptedFileAt encryptedURL: URL, space: VaultSpaceKind) throws -> Data {
         let key = try activeKey(for: space)
 
-        guard fileManager.fileExists(atPath: encryptedURL.path()) else {
+        guard fileManager.fileExists(atPath: encryptedURL.path(percentEncoded: false)) else {
             throw VaultCryptoError.invalidEncryptedFile
         }
 
@@ -279,7 +279,7 @@ final class VaultCryptoService {
         if let exportGeneration, temporaryExportGeneration(for: space) != exportGeneration {
             throw VaultCryptoError.keyUnavailable
         }
-        guard fileManager.fileExists(atPath: encryptedURL.path()) else {
+        guard fileManager.fileExists(atPath: encryptedURL.path(percentEncoded: false)) else {
             return encryptedURL
         }
 
@@ -289,7 +289,7 @@ final class VaultCryptoService {
 
         if cacheResult {
             if let cachedURL = stateQueue.sync(execute: { temporaryFilesByPath[relativePath] }),
-               fileManager.fileExists(atPath: cachedURL.path()) {
+               fileManager.fileExists(atPath: cachedURL.path(percentEncoded: false)) {
                 return cachedURL
             }
         }
@@ -328,9 +328,9 @@ final class VaultCryptoService {
 
     nonisolated private func removeManagedTemporaryFile(at url: URL) {
         let parent = url.deletingLastPathComponent()
-        if parent.path() == temporaryDirectory.path() {
+        if parent.path(percentEncoded: false) == temporaryDirectory.path(percentEncoded: false) {
             try? fileManager.removeItem(at: url)
-        } else if parent.deletingLastPathComponent().path() == temporaryDirectory.path() {
+        } else if parent.deletingLastPathComponent().path(percentEncoded: false) == temporaryDirectory.path(percentEncoded: false) {
             try? fileManager.removeItem(at: parent)
         }
     }
@@ -347,7 +347,7 @@ final class VaultCryptoService {
     }
 
     func migrateFileToEncryptedStorageIfNeeded(at fileURL: URL, space: VaultSpaceKind) throws -> Bool {
-        guard fileManager.fileExists(atPath: fileURL.path()) else {
+        guard fileManager.fileExists(atPath: fileURL.path(percentEncoded: false)) else {
             return false
         }
 
@@ -370,7 +370,7 @@ final class VaultCryptoService {
     /// 读取当前空间媒体文件的明文字节数。
     /// 备份导出需要基于明文大小构建清单，否则导入时无法正确还原文件流。
     func plaintextByteCount(forEncryptedFileAt encryptedURL: URL) throws -> Int64 {
-        guard fileManager.fileExists(atPath: encryptedURL.path()) else {
+        guard fileManager.fileExists(atPath: encryptedURL.path(percentEncoded: false)) else {
             throw VaultCryptoError.invalidEncryptedFile
         }
 
@@ -417,7 +417,7 @@ final class VaultCryptoService {
         onChunk: (Data) throws -> Void
     ) throws {
         let key = try activeKey(for: space)
-        guard fileManager.fileExists(atPath: encryptedURL.path()) else {
+        guard fileManager.fileExists(atPath: encryptedURL.path(percentEncoded: false)) else {
             throw VaultCryptoError.invalidEncryptedFile
         }
 
@@ -428,11 +428,13 @@ final class VaultCryptoService {
             }
 
             while true {
-                let chunk = try handle.read(upToCount: chunkSize) ?? Data()
-                if chunk.isEmpty {
-                    break
+                let didReadChunk = try autoreleasepool { () throws -> Bool in
+                    let chunk = try handle.read(upToCount: chunkSize) ?? Data()
+                    guard !chunk.isEmpty else { return false }
+                    try onChunk(chunk)
+                    return true
                 }
-                try onChunk(chunk)
+                if !didReadChunk { break }
             }
             return
         }
@@ -446,26 +448,35 @@ final class VaultCryptoService {
         _ = try readExact(from: inputHandle, byteCount: 1)
         _ = try readExact(from: inputHandle, byteCount: 4)
 
+        let chunksStart = try inputHandle.offset()
+        let fileEnd = try inputHandle.seekToEnd()
+        try inputHandle.seek(toOffset: chunksStart)
         while true {
-            let lengthData = try inputHandle.read(upToCount: 4) ?? Data()
-            if lengthData.isEmpty {
-                break
-            }
+            let didReadChunk = try autoreleasepool { () throws -> Bool in
+                let lengthData = try inputHandle.read(upToCount: 4) ?? Data()
+                guard !lengthData.isEmpty else { return false }
 
-            guard lengthData.count == 4 else {
-                throw VaultCryptoError.invalidEncryptedFile
-            }
+                guard lengthData.count == 4 else {
+                    throw VaultCryptoError.invalidEncryptedFile
+                }
 
-            let sealedLength = Int(UInt32(bigEndianData: lengthData))
-            let combinedData = try readExact(from: inputHandle, byteCount: sealedLength)
-            let sealedBox = try AES.GCM.SealedBox(combined: combinedData)
-            let plaintext = try AES.GCM.open(sealedBox, using: key)
-            try onChunk(plaintext)
+                let sealedLength = Int(UInt32(bigEndianData: lengthData))
+                let offset = try inputHandle.offset()
+                guard sealedLength >= 28, offset <= fileEnd, UInt64(sealedLength) <= fileEnd - offset else {
+                    throw VaultCryptoError.invalidEncryptedFile
+                }
+                let combinedData = try readExact(from: inputHandle, byteCount: sealedLength)
+                let sealedBox = try AES.GCM.SealedBox(combined: combinedData)
+                let plaintext = try AES.GCM.open(sealedBox, using: key)
+                try onChunk(plaintext)
+                return true
+            }
+            if !didReadChunk { break }
         }
     }
 
     /// 创建一个写入器，把导入备份里解出的明文流重新封装为当前设备可读的加密媒体文件。
-    func makeEncryptedFileWriter(to destinationURL: URL, space: VaultSpaceKind) throws -> VaultEncryptedFileWriter {
+    nonisolated func makeEncryptedFileWriter(to destinationURL: URL, space: VaultSpaceKind) throws -> VaultEncryptedFileWriter {
         let key = try activeKey(for: space)
         return try VaultEncryptedFileWriter(
             destinationURL: destinationURL,
@@ -482,7 +493,7 @@ final class VaultCryptoService {
         forEncryptedFileAt encryptedURL: URL,
         space: VaultSpaceKind
     ) throws -> VaultEncryptedStreamReader {
-        guard fileManager.fileExists(atPath: encryptedURL.path()) else {
+        guard fileManager.fileExists(atPath: encryptedURL.path(percentEncoded: false)) else {
             throw VaultCryptoError.invalidEncryptedFile
         }
         let isEncrypted = try isEncryptedVaultFile(at: encryptedURL)
@@ -508,11 +519,11 @@ final class VaultCryptoService {
         let totalUnits = sourceFileSize(at: sourceURL)
         var processedUnits: Int64 = 0
 
-        if fileManager.fileExists(atPath: tempURL.path()) {
+        if fileManager.fileExists(atPath: tempURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: tempURL)
         }
 
-        fileManager.createFile(atPath: tempURL.path(), contents: nil)
+        fileManager.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
         let inputHandle = try FileHandle(forReadingFrom: sourceURL)
         let outputHandle = try FileHandle(forWritingTo: tempURL)
         defer {
@@ -546,7 +557,7 @@ final class VaultCryptoService {
             throw error
         }
 
-        if fileManager.fileExists(atPath: destinationURL.path()) {
+        if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: destinationURL)
         }
 
@@ -559,11 +570,11 @@ final class VaultCryptoService {
             .deletingLastPathComponent()
             .appendingPathComponent(".\(UUID().uuidString).tmp")
 
-        if fileManager.fileExists(atPath: tempURL.path()) {
+        if fileManager.fileExists(atPath: tempURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: tempURL)
         }
 
-        fileManager.createFile(atPath: tempURL.path(), contents: nil)
+        fileManager.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
         let outputHandle = try FileHandle(forWritingTo: tempURL)
         defer {
             try? outputHandle.close()
@@ -592,7 +603,7 @@ final class VaultCryptoService {
             throw error
         }
 
-        if fileManager.fileExists(atPath: destinationURL.path()) {
+        if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: destinationURL)
         }
 
@@ -601,7 +612,7 @@ final class VaultCryptoService {
     }
 
     nonisolated private func decryptFile(from encryptedURL: URL, to destinationURL: URL, using key: SymmetricKey) throws {
-        if !fileManager.fileExists(atPath: destinationURL.deletingLastPathComponent().path()) {
+        if !fileManager.fileExists(atPath: destinationURL.deletingLastPathComponent().path(percentEncoded: false)) {
             try fileManager.createDirectory(
                 at: destinationURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true,
@@ -609,22 +620,22 @@ final class VaultCryptoService {
             )
         }
 
-        if !fileManager.fileExists(atPath: encryptedURL.path()) {
+        if !fileManager.fileExists(atPath: encryptedURL.path(percentEncoded: false)) {
             throw VaultCryptoError.invalidEncryptedFile
         }
 
         guard try isEncryptedVaultFile(at: encryptedURL) else {
-            if fileManager.fileExists(atPath: destinationURL.path()) {
+            if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
                 try fileManager.removeItem(at: destinationURL)
             }
             try fileManager.copyItem(at: encryptedURL, to: destinationURL)
             return
         }
 
-        if fileManager.fileExists(atPath: destinationURL.path()) {
+        if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: destinationURL)
         }
-        fileManager.createFile(atPath: destinationURL.path(), contents: nil)
+        fileManager.createFile(atPath: destinationURL.path(percentEncoded: false), contents: nil)
 
         let inputHandle = try FileHandle(forReadingFrom: encryptedURL)
         let outputHandle = try FileHandle(forWritingTo: destinationURL)
@@ -816,11 +827,11 @@ final class VaultCryptoService {
     }
 
     nonisolated private func protectFile(at url: URL) throws {
-        try fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: url.path())
+        try fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: url.path(percentEncoded: false))
     }
 
     private func sourceFileSize(at url: URL) -> Int64 {
-        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path()),
+        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path(percentEncoded: false)),
               let size = attributes[.size] as? NSNumber else {
             return 0
         }
@@ -828,7 +839,7 @@ final class VaultCryptoService {
     }
 
     nonisolated private func ensureTemporaryDirectoryExists() throws {
-        if !fileManager.fileExists(atPath: temporaryDirectory.path()) {
+        if !fileManager.fileExists(atPath: temporaryDirectory.path(percentEncoded: false)) {
             try fileManager.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true, attributes: nil)
         }
     }
@@ -866,7 +877,7 @@ final class VaultCryptoService {
     }
 }
 
-final class VaultEncryptedFileWriter {
+nonisolated final class VaultEncryptedFileWriter {
     private let destinationURL: URL
     private let tempURL: URL
     private let key: SymmetricKey
@@ -893,18 +904,18 @@ final class VaultEncryptedFileWriter {
         self.fileMagic = fileMagic
         self.fileVersion = fileVersion
 
-        if !fileManager.fileExists(atPath: destinationURL.deletingLastPathComponent().path()) {
+        if !fileManager.fileExists(atPath: destinationURL.deletingLastPathComponent().path(percentEncoded: false)) {
             try fileManager.createDirectory(
                 at: destinationURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
         }
 
-        if fileManager.fileExists(atPath: tempURL.path()) {
+        if fileManager.fileExists(atPath: tempURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: tempURL)
         }
 
-        fileManager.createFile(atPath: tempURL.path(), contents: nil)
+        fileManager.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
         outputHandle = try FileHandle(forWritingTo: tempURL)
         try outputHandle.write(contentsOf: fileMagic)
         try outputHandle.write(contentsOf: Data([fileVersion]))
@@ -932,12 +943,12 @@ final class VaultEncryptedFileWriter {
         isFinished = true
         try outputHandle.close()
 
-        if fileManager.fileExists(atPath: destinationURL.path()) {
+        if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: destinationURL)
         }
 
         try fileManager.moveItem(at: tempURL, to: destinationURL)
-        try fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: destinationURL.path())
+        try fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: destinationURL.path(percentEncoded: false))
     }
 
     func abort() {
@@ -1104,7 +1115,7 @@ private extension SymmetricKey {
 nonisolated private extension UInt32 {
     init(bigEndianData data: Data) {
         self = data.withUnsafeBytes { rawBuffer in
-            rawBuffer.load(as: UInt32.self).bigEndian
+            rawBuffer.loadUnaligned(as: UInt32.self).bigEndian
         }
     }
 }

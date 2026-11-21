@@ -903,29 +903,19 @@ struct MediaLibraryView: View {
     }
 
     #if targetEnvironment(macCatalyst)
-    // Mac 的辅助导航行保持紧凑，选中效果由系统 List 绘制。
-    private func macSidebarRow(icon: some View, title: String, count: String?, tag: SidebarSelection) -> some View {
-        HStack(spacing: MacSidebarMetrics.iconSpacing) {
-            icon
-                .frame(width: macIconSide)
-
+    // Mac 的辅助导航行保持紧凑，使用原生 Label + .badge 让系统 List 自动处理未选中强调色、蓝底反白与失焦灰底深色。
+    private func macSidebarRow(systemImage: String, title: String, count: String?, tag: SidebarSelection) -> some View {
+        Label {
             Text(title)
                 .font(.system(size: macTitleSize))
                 .lineLimit(1)
                 .truncationMode(.middle)
-
-            Spacer(minLength: MacSidebarMetrics.iconSpacing)
-
-            if let count {
-                Text(count)
-                    .font(.system(size: macCountSize))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .fixedSize()
-            }
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.system(size: macSymbolSize))
         }
-        .padding(.horizontal, MacSidebarMetrics.contentPadding)
+        .badge(count.map(Text.init))
+        .listItemTint(.accentColor)
         .frame(minHeight: macRowHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
@@ -943,9 +933,7 @@ struct MediaLibraryView: View {
 
     private func macSidebarSecondaryRow(_ album: AlbumCellModel) -> some View {
         macSidebarRow(
-            icon: Image(systemName: sidebarSystemImage(for: album))
-                .font(.system(size: macSymbolSize))
-                .foregroundStyle(.tint),
+            systemImage: sidebarSystemImage(for: album),
             title: album.title,
             count: album.subtitle,
             tag: .album(album.id)
@@ -954,9 +942,7 @@ struct MediaLibraryView: View {
 
     private var macSidebarSettingsRow: some View {
         macSidebarRow(
-            icon: Image(systemName: "gear")
-                .font(.system(size: macSymbolSize))
-                .foregroundStyle(.tint),
+            systemImage: "gear",
             title: String(localized: "设置"),
             count: nil,
             tag: .settings

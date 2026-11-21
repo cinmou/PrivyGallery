@@ -92,7 +92,8 @@ private struct LibraryTabContent: View {
             embeddedSettingsView: AnyView(
                 SettingsView(
                     settingsViewModel: SettingsViewModel(space: viewModel.space),
-                    session: session
+                    session: session,
+                    library: viewModel
                 )
             )
         )
@@ -107,7 +108,8 @@ private struct LibraryTabContent: View {
                 embeddedSettingsView: hasDeviceHinge ? AnyView(
                     SettingsView(
                         settingsViewModel: SettingsViewModel(space: viewModel.space),
-                        session: session
+                        session: session,
+                        library: viewModel
                     )
                 ) : nil
             )
@@ -129,7 +131,8 @@ private struct LibraryTabContent: View {
 
             SettingsView(
                 settingsViewModel: SettingsViewModel(space: viewModel.space),
-                session: session
+                session: session,
+                library: viewModel
             )
             .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
             .tag(AppTab.settings)
@@ -155,7 +158,8 @@ private struct LibraryTabContent: View {
         case .settings:
             SettingsView(
                 settingsViewModel: SettingsViewModel(space: viewModel.space),
-                session: session
+                session: session,
+                library: viewModel
             )
         case .lock, .media:
             MediaLibraryView(viewModel: viewModel, adaptiveLayoutMode: adaptiveLayoutMode, hasDeviceHinge: hasDeviceHinge)

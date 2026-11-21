@@ -1,82 +1,6 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
-    "录屏或投屏时隐藏内容" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inhalte bei Aufnahme oder Bildschirmspiegelung ausblenden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Content During Recording or Mirroring"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Content During Recording or Mirroring"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ocultar contenido durante la grabación o duplicación de pantalla"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Masquer le contenu pendant l’enregistrement ou la recopie d’écran"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nascondi contenuti durante registrazione o duplicazione schermo"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "画面収録・ミラーリング中は内容を非表示"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "화면 녹화 또는 미러링 중 콘텐츠 숨기기"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Скрывать содержимое при записи или дублировании экрана"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "螢幕錄影或投放時隱藏內容"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "录屏或投屏时隐藏内容"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "螢幕錄影或投放時隱藏內容"
-          }
-        }
-      }
-    },
     "" : {
       "localizations" : {
         "de" : {
@@ -7711,6 +7635,82 @@
         }
       }
     },
+    "全选重复项" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplikate auswählen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Duplicates"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Duplicates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seleccionar duplicados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sélectionner les doublons"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seleziona duplicati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重複項目を選択"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "중복 항목 선택"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выбрать дубликаты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全选重复项"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全選重複項目"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全選重複項目"
+          }
+        }
+      }
+    },
     "全部" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8320,6 +8320,83 @@
         }
       }
     },
+    "关闭临时会员" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporäre Mitgliedschaft deaktivieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disable Temporary Membership"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disable Temporary Membership"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivar membresía temporal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver l’abonnement temporaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattiva l’abbonamento temporaneo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一時メンバーシップを無効にする"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "임시 멤버십 끄기"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключить временное членство"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭临时会员"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉臨時會員"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉臨時會員"
+          }
+        }
+      }
+    },
     "关闭后，输入胁迫密码将不再触发自动清空。" : {
       "localizations" : {
         "de" : {
@@ -8395,6 +8472,9 @@
           }
         }
       }
+    },
+    "关闭循环播放" : {
+
     },
     "关闭胁迫密码" : {
       "localizations" : {
@@ -10296,6 +10376,9 @@
         }
       }
     },
+    "删除 (%lld)" : {
+
+    },
     "删除？" : {
       "localizations" : {
         "de" : {
@@ -11133,6 +11216,88 @@
         }
       }
     },
+    "取消选择" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auswahl aufheben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deselect"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deselect"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deseleccionar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désélectionner"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deseleziona"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択を解除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택 해제"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Снять выбор"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消选择"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消選取"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消選取"
+          }
+        }
+      }
+    },
+    "取消静音" : {
+
+    },
+    "只有强加密项目才能拖入强加密相册。" : {
+
+    },
     "只能接收照片和视频。" : {
       "localizations" : {
         "de" : {
@@ -11205,6 +11370,82 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "只能接收相片和影片。"
+          }
+        }
+      }
+    },
+    "同时查找近似照片" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auch ähnliche Fotos suchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also Find Similar Photos"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also Find Similar Photos"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar también fotos similares"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher aussi les photos similaires"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca anche foto simili"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "類似した写真も検索"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "유사한 사진도 찾기"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Искать также похожие фото"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同时查找近似照片"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同時尋找相似照片"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同時尋找相似相片"
           }
         }
       }
@@ -11509,6 +11750,83 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "啟用"
+          }
+        }
+      }
+    },
+    "启用临时会员" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporäre Mitgliedschaft aktivieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Temporary Membership"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Temporary Membership"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activar membresía temporal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activer l’abonnement temporaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva l’abbonamento temporaneo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一時メンバーシップを有効にする"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "임시 멤버십 켜기"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включить временное членство"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用临时会员"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "啟用臨時會員"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "啟用臨時會員"
           }
         }
       }
@@ -12121,78 +12439,78 @@
         }
       }
     },
-    "在创建了两个空间之后，您可以通过“设置 -> 密码与空间 -> 双空间管理”相同界面下的双空间管理来选择使用生物识别信息来解锁的是哪一个空间，也可以按照具体的时段来选择解锁的空间" : {
+    "在创建了两个空间之后，您可以通过“设置 -> 隐私与安全 -> 空间管理”选择使用生物识别信息来解锁的是哪一个空间，也可以按照具体的时段来选择解锁的空间" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nachdem Sie zwei Bereiche erstellt haben, können Sie mithilfe der Dual-Space-Verwaltung unter derselben Schnittstelle „Einstellungen -> Passwort und Space -> Dual-Space-Verwaltung“ auswählen, welcher Bereich mithilfe biometrischer Informationen entsperrt werden soll, oder Sie können den zu entsperrenden Bereich nach bestimmten Zeiträumen auswählen."
+            "value" : "Nachdem Sie zwei Bereiche erstellt haben, können Sie mithilfe der Dual-Space-Verwaltung unter derselben Schnittstelle „Einstellungen -> Privatsphäre und Sicherheit -> Raummanagement“ auswählen, welcher Bereich mithilfe biometrischer Informationen entsperrt werden soll, oder Sie können den zu entsperrenden Bereich nach bestimmten Zeiträumen auswählen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "After creating two spaces, you can go to Settings -> Password & Spaces -> Dual Space Management to choose which space Face ID or Touch ID unlocks. You can also choose the unlock target based on time."
+            "value" : "After creating two spaces, you can go to Settings -> Privacy & Security -> Space Management to choose which space Face ID or Touch ID unlocks. You can also choose the unlock target based on time."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "After creating two spaces, you can go to Settings -> Password & Spaces -> Dual Space Management to choose which space Face ID or Touch ID unlocks. You can also choose the unlock target based on time."
+            "value" : "After creating two spaces, you can go to Settings -> Privacy & Security -> Space Management to choose which space Face ID or Touch ID unlocks. You can also choose the unlock target based on time."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Después de crear dos espacios, puede elegir qué espacio desbloquear usando información biométrica a través de la administración de espacio dual en la misma interfaz de \"Configuración -> Contraseña y espacio -> Administración de espacio dual\", o puede elegir el espacio a desbloquear según períodos de tiempo específicos."
+            "value" : "Después de crear dos espacios, puede elegir qué espacio desbloquear usando información biométrica a través de la administración de espacio dual en la misma interfaz de \"Configuración -> Privacidad y seguridad -> gestión del espacio\", o puede elegir el espacio a desbloquear según períodos de tiempo específicos."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Après avoir créé deux espaces, vous pouvez choisir quel espace déverrouiller à l'aide des informations biométriques via la gestion de double espace sous la même interface de \"Paramètres -> Mot de passe et espace -> Gestion de double espace\", ou vous pouvez choisir l'espace à déverrouiller en fonction de périodes spécifiques."
+            "value" : "Après avoir créé deux espaces, vous pouvez choisir quel espace déverrouiller à l'aide des informations biométriques via la gestion de double espace sous la même interface de \"Paramètres -> Confidentialité et sécurité -> gestion de l'espace\", ou vous pouvez choisir l'espace à déverrouiller en fonction de périodes spécifiques."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dopo aver creato due spazi, puoi scegliere quale spazio sbloccare utilizzando le informazioni biometriche attraverso la gestione del doppio spazio nella stessa interfaccia di \"Impostazioni -> Password e spazio -> Gestione doppio spazio\", oppure puoi scegliere lo spazio da sbloccare in base a periodi di tempo specifici."
+            "value" : "Dopo aver creato due spazi, puoi scegliere quale spazio sbloccare utilizzando le informazioni biometriche attraverso la gestione del doppio spazio nella stessa interfaccia di \"Impostazioni -> Privacy e sicurezza -> gestione dello spazio\", oppure puoi scegliere lo spazio da sbloccare in base a periodi di tempo specifici."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "2 つのスペースを作成した後、「設定 -> パスワードとスペース -> デュアル スペース管理」の同じインターフェイスで、デュアル スペース管理を通じて生体情報を使用してロックを解除するスペースを選択したり、特定の期間に応じてロックを解除するスペースを選択したりできます。"
+            "value" : "2 つのスペースを作成した後、「設定 -> プライバシーとセキュリティ -> スペース管理」の同じインターフェイスで、デュアル スペース管理を通じて生体情報を使用してロックを解除するスペースを選択したり、特定の期間に応じてロックを解除するスペースを選択したりできます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "두 개의 공간을 생성한 후, 동일한 인터페이스인 \"설정 -> 비밀번호 및 공간 -> 듀얼 공간 관리\"에서 듀얼 공간 관리를 통해 생체 정보를 이용해 잠금 해제할 공간을 선택하거나, 특정 시간대에 따라 잠금 해제할 공간을 선택할 수 있습니다."
+            "value" : "두 개의 공간을 생성한 후, 동일한 인터페이스인 \"설정 -> 개인 정보 보호 및 보안 -> 공간 관리\"에서 듀얼 공간 관리를 통해 생체 정보를 이용해 잠금 해제할 공간을 선택하거나, 특정 시간대에 따라 잠금 해제할 공간을 선택할 수 있습니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "После создания двух пространств вы можете выбрать, какое пространство разблокировать, используя биометрическую информацию, посредством управления двойным пространством в том же интерфейсе «Настройки -> Пароль и пространство -> Управление двойным пространством», или вы можете выбрать пространство для разблокировки в соответствии с определенными периодами времени."
+            "value" : "После создания двух пространств вы можете выбрать, какое пространство разблокировать, используя биометрическую информацию, посредством управления двойным пространством в том же интерфейсе «Настройки -> Конфиденциальность и безопасность -> управление пространством», или вы можете выбрать пространство для разблокировки в соответствии с определенными периодами времени."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在创建了两个空间之后，您可以通过“设置 -> 密码与空间 -> 双空间管理”相同界面下的双空间管理来选择使用生物识别信息来解锁的是哪一个空间，也可以按照具体的时段来选择解锁的空间"
+            "value" : "在创建了两个空间之后，您可以通过“设置 -> 隐私与安全 -> 空间管理”选择使用生物识别信息来解锁的是哪一个空间，也可以按照具体的时段来选择解锁的空间"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在創建了兩個空間之後，您可以透過「設定 -> 密碼與空間 -> 雙空間管理」相同介面下的雙空間管理來選擇使用生物辨識資訊來解鎖的是哪一個空間，也可以按照特定的時段來選擇解鎖的空間"
+            "value" : "在創建了兩個空間之後，您可以透過「設定 -> 隱私與安全 -> 空間管理」相同介面下的雙空間管理來選擇使用生物辨識資訊來解鎖的是哪一個空間，也可以按照特定的時段來選擇解鎖的空間"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在創建了兩個空間之後，您可以透過「設定 -> 密碼與空間 -> 雙空間管理」相同介面下嘅雙空間管理來選擇使用生物辨識資訊來解鎖嘅是哪一個空間，也可以按照特定嘅時段來選擇解鎖嘅空間"
+            "value" : "在創建了兩個空間之後，您可以透過「設定 -> 隱私與安全 -> 空間管理」相同介面下嘅雙空間管理來選擇使用生物辨識資訊來解鎖嘅是哪一個空間，也可以按照特定嘅時段來選擇解鎖嘅空間"
           }
         }
       }
@@ -14956,6 +15274,7 @@
       }
     },
     "密码与空间" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17487,6 +17806,82 @@
         }
       }
     },
+    "将 %lld 项移到回收站" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In den Papierkorb: %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to Recently Deleted: %lld"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to Recently Deleted: %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover a Eliminados: %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer vers Supprimés récemment : %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sposta in Eliminati di recente: %lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近削除した項目に移動：%lld 件"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "최근 삭제된 항목으로 이동: %lld개"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переместить в «Недавно удалённые»: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将 %lld 项移到回收站"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將 %lld 項移到垃圾桶"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將 %lld 項移到垃圾桶"
+          }
+        }
+      }
+    },
     "尝试其他名称，或调整筛选条件。" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -18629,6 +19024,9 @@
         }
       }
     },
+    "开启循环播放" : {
+
+    },
     "开始导出" : {
       "localizations" : {
         "de" : {
@@ -18930,6 +19328,82 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開始時間"
+          }
+        }
+      }
+    },
+    "开始查重" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche starten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Scan"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Scan"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar búsqueda"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lancer la recherche"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avvia ricerca"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "検索を開始"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "검색 시작"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Начать поиск"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始查重"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始搜尋"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始搜尋"
           }
         }
       }
@@ -19314,6 +19788,9 @@
         }
       }
     },
+    "强加密项目不支持移入回收站，请先移出强加密媒体库或直接永久删除。" : {
+
+    },
     "归档" : {
       "localizations" : {
         "de" : {
@@ -19390,78 +19867,78 @@
         }
       }
     },
-    "当你通过通过“设置 -> 密码与空间 -> 胁迫密码“阅读说明并设置了胁迫密码后，若你面临必须解锁的不可抗力，可以在锁定界面输入该“胁迫密码”。一旦输入，应用将执行最高级别的应急清空服务：瞬间删除所有加密媒体、元数据索引、缩略图缓存以及本地设置，请谨慎使用该功能。" : {
+    "当你通过“设置 -> 隐私与安全 -> 密码管理”阅读说明并设置了胁迫密码后，若你面临必须解锁的不可抗力，可以在锁定界面输入该“胁迫密码”。一旦输入，应用将执行最高级别的应急清空服务：瞬间删除所有加密媒体、元数据索引、缩略图缓存以及本地设置，请谨慎使用该功能。" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nachdem Sie die Anweisungen gelesen und über „Einstellungen -> Passwort und Leerzeichen -> Zwangspasswort“ ein Zwangspasswort festgelegt haben, können Sie im Falle höherer Gewalt, das entsperrt werden muss, das „Zwangspasswort“ auf der Sperrschnittstelle eingeben. Nach der Eingabe führt die App die höchste Stufe des Notfalllöschdienstes aus: Sie löscht sofort alle verschlüsselten Medien, Metadatenindizes, Miniaturbild-Caches und lokalen Einstellungen. Bitte verwenden Sie diese Funktion mit Vorsicht."
+            "value" : "Nachdem Sie die Anweisungen gelesen und über „Einstellungen -> Privatsphäre und Sicherheit -> Passwortverwaltung“ ein Zwangspasswort festgelegt haben, können Sie im Falle höherer Gewalt, das entsperrt werden muss, das „Zwangspasswort“ auf der Sperrschnittstelle eingeben. Nach der Eingabe führt die App die höchste Stufe des Notfalllöschdienstes aus: Sie löscht sofort alle verschlüsselten Medien, Metadatenindizes, Miniaturbild-Caches und lokalen Einstellungen. Bitte verwenden Sie diese Funktion mit Vorsicht."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "After you read the instructions in Settings -> Password & Spaces -> Duress Passcode and set a duress passcode, you can enter it on the lock screen if you are forced to unlock the app. As soon as it is entered, the app performs a full emergency wipe of encrypted media, metadata indexes, thumbnail caches, and local settings. Use this feature with extreme care."
+            "value" : "After you read the instructions in Settings -> Privacy & Security -> Password Management and set a duress passcode, you can enter it on the lock screen if you are forced to unlock the app. As soon as it is entered, the app performs a full emergency wipe of encrypted media, metadata indexes, thumbnail caches, and local settings. Use this feature with extreme care."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "After you read the instructions in Settings -> Password & Spaces -> Duress Passcode and set a duress passcode, you can enter it on the lock screen if you are forced to unlock the app. As soon as it is entered, the app performs a full emergency wipe of encrypted media, metadata indexes, thumbnail caches, and local settings. Use this feature with extreme care."
+            "value" : "After you read the instructions in Settings -> Privacy & Security -> Password Management and set a duress passcode, you can enter it on the lock screen if you are forced to unlock the app. As soon as it is entered, the app performs a full emergency wipe of encrypted media, metadata indexes, thumbnail caches, and local settings. Use this feature with extreme care."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Después de leer las instrucciones y establecer una contraseña de coerción a través de \"Configuración -> Contraseña y espacio -> Contraseña de coerción\", si se enfrenta a un caso de fuerza mayor que debe desbloquearse, puede ingresar la \"contraseña de coerción\" en la interfaz de bloqueo. Una vez ingresada, la aplicación realizará el nivel más alto de servicio de borrado de emergencia: eliminando instantáneamente todos los medios cifrados, índices de metadatos, cachés de miniaturas y configuraciones locales. Utilice esta función con precaución."
+            "value" : "Después de leer las instrucciones y establecer una contraseña de coerción a través de \"Configuración -> Privacidad y seguridad -> Gestión de contraseñas\", si se enfrenta a un caso de fuerza mayor que debe desbloquearse, puede ingresar la \"contraseña de coerción\" en la interfaz de bloqueo. Una vez ingresada, la aplicación realizará el nivel más alto de servicio de borrado de emergencia: eliminando instantáneamente todos los medios cifrados, índices de metadatos, cachés de miniaturas y configuraciones locales. Utilice esta función con precaución."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Après avoir lu les instructions et défini un mot de passe de coercition via « Paramètres -> Mot de passe et espace -> Mot de passe de coercition », si vous êtes confronté à un cas de force majeure qui doit être déverrouillé, vous pouvez saisir le « mot de passe de coercition » sur l'interface de verrouillage. Une fois saisie, l'application effectuera le plus haut niveau de service d'effacement d'urgence : supprimant instantanément tous les médias cryptés, les index de métadonnées, les caches de vignettes et les paramètres locaux. Veuillez utiliser cette fonctionnalité avec prudence."
+            "value" : "Après avoir lu les instructions et défini un mot de passe de coercition via « Paramètres -> Confidentialité et sécurité -> Gestion des mots de passe», si vous êtes confronté à un cas de force majeure qui doit être déverrouillé, vous pouvez saisir le « mot de passe de coercition » sur l'interface de verrouillage. Une fois saisie, l'application effectuera le plus haut niveau de service d'effacement d'urgence : supprimant instantanément tous les médias cryptés, les index de métadonnées, les caches de vignettes et les paramètres locaux. Veuillez utiliser cette fonctionnalité avec prudence."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dopo aver letto le istruzioni e impostato una password di coercizione tramite \"Impostazioni -> Password e Spazio -> Password di coercizione\", se si riscontrano cause di forza maggiore che devono essere sbloccate, è possibile inserire la \"password di coercizione\" nell'interfaccia di blocco. Una volta inserita, l'app eseguirà il massimo livello di servizio di cancellazione di emergenza: eliminando istantaneamente tutti i media crittografati, gli indici dei metadati, le cache delle miniature e le impostazioni locali. Si prega di utilizzare questa funzione con cautela."
+            "value" : "Dopo aver letto le istruzioni e impostato una password di coercizione tramite \"Impostazioni -> Privacy e sicurezza -> Gestione delle password\", se si riscontrano cause di forza maggiore che devono essere sbloccate, è possibile inserire la \"password di coercizione\" nell'interfaccia di blocco. Una volta inserita, l'app eseguirà il massimo livello di servizio di cancellazione di emergenza: eliminando istantaneamente tutti i media crittografati, gli indici dei metadati, le cache delle miniature e le impostazioni locali. Si prega di utilizzare questa funzione con cautela."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "説明を読み、「設定 -> パスワードとスペース -> 強制パスワード」で強制パスワードを設定した後、不可抗力でロックを解除する必要がある場合は、ロック インターフェイスで「強制パスワード」を入力できます。入力すると、アプリは最高レベルの緊急ワイプ サービスを実行し、すべての暗号化されたメディア、メタデータ インデックス、サムネイル キャッシュ、ローカル設定を即座に削除します。この機能は注意して使用してください。"
+            "value" : "説明を読み、「設定 -> プライバシーとセキュリティ -> パスワード管理」で強制パスワードを設定した後、不可抗力でロックを解除する必要がある場合は、ロック インターフェイスで「強制パスワード」を入力できます。入力すると、アプリは最高レベルの緊急ワイプ サービスを実行し、すべての暗号化されたメディア、メタデータ インデックス、サムネイル キャッシュ、ローカル設定を即座に削除します。この機能は注意して使用してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "안내사항을 읽어보신 후 \"설정 -> 비밀번호 및 공백 -> 강제비밀번호\"를 통해 강제비밀번호를 설정하신 후, 잠금을 해제해야 하는 불가항력적인 상황이 발생한 경우 잠금 인터페이스에서 \"강제비밀번호\"를 입력하시면 됩니다. 일단 들어가면 앱은 최고 수준의 긴급 삭제 서비스를 수행합니다. 즉, 모든 암호화된 미디어, 메타데이터 인덱스, 썸네일 캐시 및 로컬 설정을 즉시 삭제합니다. 이 기능을 주의해서 사용하시기 바랍니다."
+            "value" : "안내사항을 읽어보신 후 \"설정 -> 개인 정보 보호 및 보안 -> 비밀번호 관리\"를 통해 강제비밀번호를 설정하신 후, 잠금을 해제해야 하는 불가항력적인 상황이 발생한 경우 잠금 인터페이스에서 \"강제비밀번호\"를 입력하시면 됩니다. 일단 들어가면 앱은 최고 수준의 긴급 삭제 서비스를 수행합니다. 즉, 모든 암호화된 미디어, 메타데이터 인덱스, 썸네일 캐시 및 로컬 설정을 즉시 삭제합니다. 이 기능을 주의해서 사용하시기 바랍니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "После того, как вы прочтете инструкции и установите пароль принуждения через «Настройки -> Пароль и пробел -> Пароль принуждения», если вы столкнулись с форс-мажорными обстоятельствами, которые необходимо разблокировать, вы можете ввести «пароль принуждения» в интерфейсе блокировки. После входа приложение выполнит экстренную очистку высочайшего уровня: мгновенно удалит все зашифрованные носители, индексы метаданных, кэши миниатюр и локальные настройки. Пожалуйста, используйте эту функцию с осторожностью."
+            "value" : "После того, как вы прочтете инструкции и установите пароль принуждения через «Настройки -> Конфиденциальность и безопасность -> Управление паролями», если вы столкнулись с форс-мажорными обстоятельствами, которые необходимо разблокировать, вы можете ввести «пароль принуждения» в интерфейсе блокировки. После входа приложение выполнит экстренную очистку высочайшего уровня: мгновенно удалит все зашифрованные носители, индексы метаданных, кэши миниатюр и локальные настройки. Пожалуйста, используйте эту функцию с осторожностью."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "当你通过通过“设置 -> 密码与空间 -> 胁迫密码“阅读说明并设置了胁迫密码后，若你面临必须解锁的不可抗力，可以在锁定界面输入该“胁迫密码”。一旦输入，应用将执行最高级别的应急清空服务：瞬间删除所有加密媒体、元数据索引、缩略图缓存以及本地设置，请谨慎使用该功能。"
+            "value" : "当你通过“设置 -> 隐私与安全 -> 密码管理”阅读说明并设置了胁迫密码后，若你面临必须解锁的不可抗力，可以在锁定界面输入该“胁迫密码”。一旦输入，应用将执行最高级别的应急清空服务：瞬间删除所有加密媒体、元数据索引、缩略图缓存以及本地设置，请谨慎使用该功能。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "當你透過「設定 -> 密碼與空間 -> 脅迫密碼「閱讀說明並設定了脅迫密碼後，若你面臨必須解鎖的不可抗力，可以在鎖定介面輸入該「脅迫密碼」。一旦輸入，應用程式將執行最高等級的緊急清空服務：瞬間刪除所有加密媒體、元資料索引、縮圖快取以及本地設置，請謹慎使用該功能。"
+            "value" : "當你透過「設定 -> 隱私與安全 -> 密碼管理」。一旦輸入，應用程式將執行最高等級的緊急清空服務：瞬間刪除所有加密媒體、元資料索引、縮圖快取以及本地設置，請謹慎使用該功能。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "當你透過「設定 -> 密碼與空間 -> 脅迫密碼「閱讀說明並設定了脅迫密碼後，若你面臨必須解鎖嘅不可抗力，可以在鎖定介面輸入該「脅迫密碼」。一旦輸入，App將執行最高等級嘅緊急清空服務：瞬間刪除所有加密媒體、元數據索引、縮圖快取以及本地設置，請謹慎使用該功能。"
+            "value" : "當你透過「設定 -> 隱私與安全 -> 密碼管理」。一旦輸入，App將執行最高等級嘅緊急清空服務：瞬間刪除所有加密媒體、元數據索引、縮圖快取以及本地設置，請謹慎使用該功能。"
           }
         }
       }
@@ -20530,6 +21007,82 @@
         }
       }
     },
+    "录屏或投屏时隐藏内容" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inhalte bei Aufnahme oder Bildschirmspiegelung ausblenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Content During Recording or Mirroring"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Content During Recording or Mirroring"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocultar contenido durante la grabación o duplicación de pantalla"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer le contenu pendant l’enregistrement ou la recopie d’écran"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nascondi contenuti durante registrazione o duplicazione schermo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画面収録・ミラーリング中は内容を非表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "화면 녹화 또는 미러링 중 콘텐츠 숨기기"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скрывать содержимое при записи или дублировании экрана"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录屏或投屏时隐藏内容"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "螢幕錄影或投放時隱藏內容"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "螢幕錄影或投放時隱藏內容"
+          }
+        }
+      }
+    },
     "彻底删除" : {
       "localizations" : {
         "de" : {
@@ -21438,234 +21991,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "恢復成功"
-          }
-        }
-      }
-    },
-    "启用临时会员" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temporäre Mitgliedschaft aktivieren"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable Temporary Membership"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable Temporary Membership"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activar membresía temporal"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activer l’abonnement temporaire"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Attiva l’abbonamento temporaneo"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一時メンバーシップを有効にする"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "임시 멤버십 켜기"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Включить временное членство"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "启用临时会员"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "啟用臨時會員"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "啟用臨時會員"
-          }
-        }
-      }
-    },
-    "关闭临时会员" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temporäre Mitgliedschaft deaktivieren"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disable Temporary Membership"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disable Temporary Membership"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desactivar membresía temporal"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Désactiver l’abonnement temporaire"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disattiva l’abbonamento temporaneo"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一時メンバーシップを無効にする"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "임시 멤버십 끄기"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Отключить временное членство"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "关闭临时会员"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "關閉臨時會員"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "關閉臨時會員"
-          }
-        }
-      }
-    },
-    "文件太大，拖出请使用「导出」。" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zu groß zum Ziehen. Verwende „Exportieren“."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Too large to drag out. Use Export."
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Too large to drag out. Use Export."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Demasiado grande para arrastrar. Usa Exportar."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trop volumineux pour être glissé. Utilisez Exporter."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Troppo grande da trascinare. Usa Esporta."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ドラッグするには大きすぎます。「書き出す」を使ってください。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "드래그하기에 너무 큽니다. 내보내기를 사용하세요."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Слишком большой размер. Используйте «Экспорт»."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "文件太大，拖出请使用「导出」。"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "檔案太大，拖出請使用「匯出」。"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "檔案太大，拖出請使用「匯出」。"
           }
         }
       }
@@ -24336,6 +24661,82 @@
         }
       }
     },
+    "文件太大，拖出请使用「导出」。" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu groß zum Ziehen. Verwende „Exportieren“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too large to drag out. Use Export."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too large to drag out. Use Export."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demasiado grande para arrastrar. Usa Exportar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop volumineux pour être glissé. Utilisez Exporter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Troppo grande da trascinare. Usa Esporta."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ドラッグするには大きすぎます。「書き出す」を使ってください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "드래그하기에 너무 큽니다. 내보내기를 사용하세요."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слишком большой размер. Используйте «Экспорт»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件太大，拖出请使用「导出」。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "檔案太大，拖出請使用「匯出」。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "檔案太大，拖出請使用「匯出」。"
+          }
+        }
+      }
+    },
     "文件密文格式无效，无法读取。" : {
       "localizations" : {
         "de" : {
@@ -25019,6 +25420,9 @@
           }
         }
       }
+    },
+    "无法播放此视频" : {
+
     },
     "无法生成备份文件，请重试。" : {
       "localizations" : {
@@ -26617,6 +27021,82 @@
         }
       }
     },
+    "有 %lld 个文件无法读取，已跳过。" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht lesbare Dateien übersprungen: %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unreadable files skipped: %lld"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unreadable files skipped: %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos ilegibles omitidos: %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichiers illisibles ignorés : %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File illeggibili ignorati: %lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み取れなかったファイル %lld 件をスキップしました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "읽을 수 없는 파일 %lld개를 건너뛰었습니다."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пропущено нечитаемых файлов: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有 %lld 个文件无法读取，已跳过。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有 %lld 個檔案無法讀取，已略過。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有 %lld 個檔案無法讀取，已略過。"
+          }
+        }
+      }
+    },
     "有限储存数量" : {
       "localizations" : {
         "de" : {
@@ -26846,6 +27326,82 @@
         }
       }
     },
+    "未找到重复项" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Duplikate gefunden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Duplicates Found"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Duplicates Found"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se encontraron duplicados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun doublon trouvé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun duplicato trovato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重複項目は見つかりませんでした"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "중복 항목 없음"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дубликаты не найдены"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到重复项"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到重複項目"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到重複項目"
+          }
+        }
+      }
+    },
     "未知类型" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -26999,78 +27555,78 @@
         }
       }
     },
-    "本应用可以创建数据互相独立的两个空间，输入不同的密码进入。你可以通过“设置 -> 密码与空间 -> 空间管理”分别为两个空间配置不同的密码与名称。在启动时的锁定界面，直接输入对应的密码即可进入对应的空间，两者的数据与密钥完全隔离。" : {
+    "本应用可以创建数据互相独立的两个空间，输入不同的密码进入。你可以通过“设置 -> 隐私与安全 -> 空间管理”分别为两个空间配置不同的密码与名称。在启动时的锁定界面，直接输入对应的密码即可进入对应的空间，两者的数据与密钥完全隔离。" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diese Anwendung kann zwei Bereiche mit unabhängigen Daten erstellen und zur Eingabe unterschiedliche Passwörter eingeben. Sie können über „Einstellungen -> Passwort und Speicherplatz -> Speicherplatzverwaltung“ unterschiedliche Passwörter und Namen für die beiden Bereiche konfigurieren. In der Sperrschnittstelle beim Start können Sie direkt das entsprechende Passwort eingeben, um den entsprechenden Bereich zu betreten. Die Daten und Schlüssel der beiden sind vollständig isoliert."
+            "value" : "Diese Anwendung kann zwei Bereiche mit unabhängigen Daten erstellen und zur Eingabe unterschiedliche Passwörter eingeben. Sie können über „Einstellungen -> Privatsphäre und Sicherheit -> Raummanagement“ unterschiedliche Passwörter und Namen für die beiden Bereiche konfigurieren. In der Sperrschnittstelle beim Start können Sie direkt das entsprechende Passwort eingeben, um den entsprechenden Bereich zu betreten. Die Daten und Schlüssel der beiden sind vollständig isoliert."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You can create two fully separate spaces and enter each one with a different passcode. Go to Settings -> Password & Spaces -> Space Management to set different names and passcodes for each space. On the lock screen, enter the matching passcode to open that space. The data and keys for the two spaces stay completely isolated."
+            "value" : "You can create two fully separate spaces and enter each one with a different passcode. Go to Settings -> Privacy & Security -> Space Management to set different names and passcodes for each space. On the lock screen, enter the matching passcode to open that space. The data and keys for the two spaces stay completely isolated."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You can create two fully separate spaces and enter each one with a different passcode. Go to Settings -> Password & Spaces -> Space Management to set different names and passcodes for each space. On the lock screen, enter the matching passcode to open that space. The data and keys for the two spaces stay completely isolated."
+            "value" : "You can create two fully separate spaces and enter each one with a different passcode. Go to Settings -> Privacy & Security -> Space Management to set different names and passcodes for each space. On the lock screen, enter the matching passcode to open that space. The data and keys for the two spaces stay completely isolated."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Esta aplicación puede crear dos espacios con datos independientes e ingresar diferentes contraseñas para ingresar. Puede configurar diferentes contraseñas y nombres para los dos espacios a través de \"Configuración -> Contraseña y espacio -> Gestión de espacio\". En la interfaz de bloqueo al inicio, puede ingresar directamente la contraseña correspondiente para ingresar al espacio correspondiente. Los datos y claves de los dos están completamente aislados."
+            "value" : "Esta aplicación puede crear dos espacios con datos independientes e ingresar diferentes contraseñas para ingresar. Puede configurar diferentes contraseñas y nombres para los dos espacios a través de \"Configuración -> Privacidad y seguridad -> gestión del espacio\". En la interfaz de bloqueo al inicio, puede ingresar directamente la contraseña correspondiente para ingresar al espacio correspondiente. Los datos y claves de los dos están completamente aislados."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cette application peut créer deux espaces avec des données indépendantes et saisir différents mots de passe à saisir. Vous pouvez configurer différents mots de passe et noms pour les deux espaces via \"Paramètres -> Mot de passe et espace -> Gestion de l'espace\". Dans l'interface de verrouillage au démarrage, vous pouvez saisir directement le mot de passe correspondant pour saisir l'espace correspondant. Les données et les clés des deux sont complètement isolées."
+            "value" : "Cette application peut créer deux espaces avec des données indépendantes et saisir différents mots de passe à saisir. Vous pouvez configurer différents mots de passe et noms pour les deux espaces via \"Paramètres -> Confidentialité et sécurité -> gestion de l'espace\". Dans l'interface de verrouillage au démarrage, vous pouvez saisir directement le mot de passe correspondant pour saisir l'espace correspondant. Les données et les clés des deux sont complètement isolées."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Questa applicazione può creare due spazi con dati indipendenti e inserire password diverse per entrare. È possibile configurare password e nomi diversi per i due spazi tramite \"Impostazioni -> Password e spazio -> Gestione spazio\". Nell'interfaccia di blocco all'avvio, puoi inserire direttamente la password corrispondente per accedere allo spazio corrispondente. I dati e le chiavi dei due sono completamente isolati."
+            "value" : "Questa applicazione può creare due spazi con dati indipendenti e inserire password diverse per entrare. È possibile configurare password e nomi diversi per i due spazi tramite \"Impostazioni -> Privacy e sicurezza -> gestione dello spazio\". Nell'interfaccia di blocco all'avvio, puoi inserire direttamente la password corrispondente per accedere allo spazio corrispondente. I dati e le chiavi dei due sono completamente isolati."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このアプリケーションは、独立したデータを持つ 2 つのスペースを作成し、異なるパスワードを入力して入力することができます。 「設定 -> パスワードとスペース -> スペース管理」を通じて、2 つのスペースに異なるパスワードと名前を設定できます。起動時のロックインターフェイスでは、対応するパスワードを直接入力して、対応するスペースに入ることができます。 2 つのデータとキーは完全に分離されます。"
+            "value" : "このアプリケーションは、独立したデータを持つ 2 つのスペースを作成し、異なるパスワードを入力して入力することができます。 「設定 -> プライバシーとセキュリティ -> スペース管理」を通じて、2 つのスペースに異なるパスワードと名前を設定できます。起動時のロックインターフェイスでは、対応するパスワードを直接入力して、対応するスペースに入ることができます。 2 つのデータとキーは完全に分離されます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이 애플리케이션은 독립적인 데이터로 두 개의 공간을 생성하고 서로 다른 비밀번호를 입력하여 들어갈 수 있습니다. \"설정 -> 비밀번호 및 공간 -> 공간 관리\"를 통해 두 공간에 서로 다른 비밀번호와 이름을 설정할 수 있습니다. 시작 시 잠금 인터페이스에서 해당 비밀번호를 직접 입력하여 해당 공간에 들어갈 수 있습니다. 둘의 데이터와 키는 완전히 분리되어 있습니다."
+            "value" : "이 애플리케이션은 독립적인 데이터로 두 개의 공간을 생성하고 서로 다른 비밀번호를 입력하여 들어갈 수 있습니다. \"설정 -> 개인 정보 보호 및 보안 -> 공간 관리\"를 통해 두 공간에 서로 다른 비밀번호와 이름을 설정할 수 있습니다. 시작 시 잠금 인터페이스에서 해당 비밀번호를 직접 입력하여 해당 공간에 들어갈 수 있습니다. 둘의 데이터와 키는 완전히 분리되어 있습니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Это приложение может создавать два пространства с независимыми данными и вводить разные пароли для входа. Вы можете настроить разные пароли и имена для двух пространств через «Настройки -> Пароль и пространство -> Управление пространством». В интерфейсе блокировки при запуске вы можете напрямую ввести соответствующий пароль, чтобы войти в соответствующее пространство. Данные и ключи обоих полностью изолированы."
+            "value" : "Это приложение может создавать два пространства с независимыми данными и вводить разные пароли для входа. Вы можете настроить разные пароли и имена для двух пространств через «Настройки -> Конфиденциальность и безопасность -> управление пространством». В интерфейсе блокировки при запуске вы можете напрямую ввести соответствующий пароль, чтобы войти в соответствующее пространство. Данные и ключи обоих полностью изолированы."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本应用可以创建数据互相独立的两个空间，输入不同的密码进入。你可以通过“设置 -> 密码与空间 -> 空间管理”分别为两个空间配置不同的密码与名称。在启动时的锁定界面，直接输入对应的密码即可进入对应的空间，两者的数据与密钥完全隔离。"
+            "value" : "本应用可以创建数据互相独立的两个空间，输入不同的密码进入。你可以通过“设置 -> 隐私与安全 -> 空间管理”分别为两个空间配置不同的密码与名称。在启动时的锁定界面，直接输入对应的密码即可进入对应的空间，两者的数据与密钥完全隔离。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本應用程式可建立資料互相獨立的兩個空間，輸入不同的密碼進入。你可以透過「設定 -> 密碼與空間 -> 空間管理」分別為兩個空間配置不同的密碼與名稱。在啟動時的鎖定介面，直接輸入對應的密碼即可進入對應的空間，兩者的資料與金鑰完全隔離。"
+            "value" : "本應用程式可建立資料互相獨立的兩個空間，輸入不同的密碼進入。你可以透過「設定 -> 隱私與安全 -> 空間管理」分別為兩個空間配置不同的密碼與名稱。在啟動時的鎖定介面，直接輸入對應的密碼即可進入對應的空間，兩者的資料與金鑰完全隔離。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本App可建立數據互相獨立嘅兩個空間，輸入不同嘅密碼進入。你可以透過「設定 -> 密碼與空間 -> 空間管理」分別為兩個空間配置不同嘅密碼與名稱。在啟動時嘅鎖定介面，直接輸入對應嘅密碼即可進入對應嘅空間，兩者嘅數據與金鑰完全隔離。"
+            "value" : "本App可建立數據互相獨立嘅兩個空間，輸入不同嘅密碼進入。你可以透過「設定 -> 隱私與安全 -> 空間管理」分別為兩個空間配置不同嘅密碼與名稱。在啟動時嘅鎖定介面，直接輸入對應嘅密碼即可進入對應嘅空間，兩者嘅數據與金鑰完全隔離。"
           }
         }
       }
@@ -27299,6 +27855,158 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "權限說明"
+          }
+        }
+      }
+    },
+    "查找当前空间中内容完全相同的普通照片和视频。" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sucht im aktuellen Bereich nach identischen Fotos und Videos."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finds identical photos and videos in the current space’s regular library."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finds identical photos and videos in the current space’s regular library."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busca fotos y vídeos idénticos en la biblioteca normal del espacio actual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche les photos et vidéos identiques dans la bibliothèque standard de l’espace actuel."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca foto e video identici nella libreria normale dello spazio attuale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在のスペースの通常ライブラリで、内容が同じ写真やビデオを探します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 공간의 일반 보관함에서 내용이 같은 사진과 비디오를 찾습니다."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поиск одинаковых фото и видео в обычной медиатеке текущего пространства."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找当前空间中内容完全相同的普通照片和视频。"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尋找目前空間中內容完全相同的一般照片和影片。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尋找目前空間中內容完全相同的一般相片和影片。"
+          }
+        }
+      }
+    },
+    "查找重复项" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplikate suchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find Duplicates"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find Duplicates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar duplicados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher les doublons"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trova duplicati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重複項目を検索"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "중복 항목 찾기"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Найти дубликаты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找重复项"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尋找重複項目"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尋找重複項目"
           }
         }
       }
@@ -29352,6 +30060,82 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在整理當前空間索引"
+          }
+        }
+      }
+    },
+    "正在查找重复项…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplikate werden gesucht …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finding duplicates…"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finding duplicates…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando duplicados…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche de doublons…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricerca dei duplicati…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重複項目を検索中…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "중복 항목을 찾는 중…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поиск дубликатов…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在查找重复项…"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在尋找重複項目⋯"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在尋找重複項目⋯"
           }
         }
       }
@@ -32327,6 +33111,82 @@
         }
       }
     },
+    "疑似副本" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mögliche Duplikate"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Possible Duplicates"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Possible Duplicates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posibles duplicados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doublons possibles"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Possibili duplicati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重複の可能性あり"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "중복 가능성이 있는 항목"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возможные дубликаты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "疑似副本"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可能的副本"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可能的副本"
+          }
+        }
+      }
+    },
     "相册" : {
       "comment" : "Short album-management label in the bottom action bar",
       "localizations" : {
@@ -35141,78 +36001,78 @@
         }
       }
     },
-    "第二空间是一个独立的空间。可以在“设置 / 密码与空间”中创建，可以根据需要切换 %@ 默认解锁的空间。" : {
+    "第二空间是一个独立的空间。可以在“设置 / 隐私与安全 / 空间管理”中创建，可以根据需要切换 %@ 默认解锁的空间。" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der zweite Raum ist ein unabhängiger Raum. Es kann unter „Einstellungen/Passwort und Speicherplatz“ erstellt werden und Sie können den %@ standardmäßig entsperrten Speicherplatz nach Bedarf ändern."
+            "value" : "Der zweite Raum ist ein unabhängiger Raum. Es kann unter „Einstellungen / Privatsphäre und Sicherheit / Raummanagement“ erstellt werden und Sie können den %@ standardmäßig entsperrten Speicherplatz nach Bedarf ändern."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Second Space is an independent space. You can create it in Settings / Password & Spaces and choose which space %@ unlocks by default."
+            "value" : "Second Space is an independent space. You can create it in Settings / Privacy & Security / Space Management and choose which space %@ unlocks by default."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Second Space is an independent space. You can create it in Settings / Password & Spaces and choose which space %@ unlocks by default."
+            "value" : "Second Space is an independent space. You can create it in Settings / Privacy & Security / Space Management and choose which space %@ unlocks by default."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El segundo espacio es un espacio independiente. Se puede crear en \"Configuración/Contraseña y espacio\" y puede cambiar el %@ espacio desbloqueado predeterminado según sea necesario."
+            "value" : "El segundo espacio es un espacio independiente. Se puede crear en \"Configuración / Privacidad y seguridad / gestión del espacio\" y puede cambiar el %@ espacio desbloqueado predeterminado según sea necesario."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le deuxième espace est un espace indépendant. Il peut être créé dans \"Paramètres/Mot de passe et espace\", et vous pouvez changer l'espace déverrouillé par défaut %@ selon vos besoins."
+            "value" : "Le deuxième espace est un espace indépendant. Il peut être créé dans \"Paramètres / Confidentialité et sécurité / gestion de l'espace\", et vous pouvez changer l'espace déverrouillé par défaut %@ selon vos besoins."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Il secondo spazio è uno spazio indipendente. Può essere creato in \"Impostazioni/Password e spazio\" e puoi modificare lo spazio sbloccato predefinito %@ secondo necessità."
+            "value" : "Il secondo spazio è uno spazio indipendente. Può essere creato in \"Impostazioni / Privacy e sicurezza / gestione dello spazio\" e puoi modificare lo spazio sbloccato predefinito %@ secondo necessità."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "2番目の空間は独立した空間です。 「設定/パスワードとスペース」で作成でき、必要に応じて%@デフォルトのロック解除スペースを切り替えることができます。"
+            "value" : "2番目の空間は独立した空間です。 「設定 / プライバシーとセキュリティ / スペース管理」で作成でき、必要に応じて%@デフォルトのロック解除スペースを切り替えることができます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "두 번째 공간은 독립된 공간이다. \"설정/비밀번호 및 공간\"에서 생성할 수 있으며, 필요에 따라 %@ 기본 잠금 해제 공간을 전환할 수 있습니다."
+            "value" : "두 번째 공간은 독립된 공간이다. \"설정 / 개인 정보 보호 및 보안 / 공간 관리\"에서 생성할 수 있으며, 필요에 따라 %@ 기본 잠금 해제 공간을 전환할 수 있습니다."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Второе пространство является независимым пространством. Его можно создать в «Настройки/Пароль и пространство», и при необходимости вы можете переключить разблокированное пространство %@ по умолчанию."
+            "value" : "Второе пространство является независимым пространством. Его можно создать в «Настройки / Конфиденциальность и безопасность / управление пространством», и при необходимости вы можете переключить разблокированное пространство %@ по умолчанию."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "第二空间是一个独立的空间。可以在“设置 / 密码与空间”中创建，可以根据需要切换 %@ 默认解锁的空间。"
+            "value" : "第二空间是一个独立的空间。可以在“设置 / 隐私与安全 / 空间管理”中创建，可以根据需要切换 %@ 默认解锁的空间。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "第二空間是一個獨立的空間。可在「設定 / 密碼與空間」中創建，可根據需要切換 %@ 預設解鎖的空間。"
+            "value" : "第二空間是一個獨立的空間。可在「設定  / 隱私與安全 / 空間管理」中創建，可根據需要切換 %@ 預設解鎖的空間。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "第二空間是一個獨立嘅空間。可在「設定 / 密碼與空間」中創建，可根據需要切換 %@ 預設解鎖嘅空間。"
+            "value" : "第二空間是一個獨立嘅空間。可在「設定  / 隱私與安全 / 空間管理」中創建，可根據需要切換 %@ 預設解鎖嘅空間。"
           }
         }
       }
@@ -37498,6 +38358,9 @@
           }
         }
       }
+    },
+    "设备可用存储空间不足（需要约 %1$@，当前可用 %2$@），请清理空间后重试。" : {
+
     },
     "设置" : {
       "localizations" : {
@@ -40615,82 +41478,6 @@
         }
       }
     },
-    "输入%@当前密码" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geben Sie %@aktuelles Passwort ein"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter %@ Current Password"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter %@ Current Password"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ingrese %@contraseña actual"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entrez %@mot de passe actuel"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inserisci %@password corrente"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@現在のパスワードを入力してください"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@현재 비밀번호를 입력하세요"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Введите %@текущий пароль"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "输入%@当前密码"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "輸入%@當前密碼"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "輸入%@當前密碼"
-          }
-        }
-      }
-    },
     "输入名称，或使用筛选查找照片与视频。" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -41296,82 +42083,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "輸入導出密碼"
-          }
-        }
-      }
-    },
-    "输入当前密码" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geben Sie das aktuelle Passwort ein"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter Current Password"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter Current Password"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ingrese la contraseña actual"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entrez le mot de passe actuel"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inserisci la password attuale"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "現在のパスワードを入力してください"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "현재 비밀번호를 입력하세요"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Введите текущий пароль"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "输入当前密码"
-          }
-        },
-        "zh-Hant-TW" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "輸入目前密碼"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "輸入目前密碼"
           }
         }
       }
@@ -43581,6 +44292,158 @@
         }
       }
     },
+    "重复项" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplikate"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicates"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doublons"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重複項目"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "중복 항목"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дубликаты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重复项"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重複項目"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重複項目"
+          }
+        }
+      }
+    },
+    "重新查重" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut suchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan Again"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan Again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a buscar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relancer la recherche"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca di nuovo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再検索"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 검색"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повторить поиск"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新查重"
+          }
+        },
+        "zh-Hant-TW" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新搜尋"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新搜尋"
+          }
+        }
+      }
+    },
     "锁定" : {
       "localizations" : {
         "de" : {
@@ -44189,6 +45052,12 @@
         }
       }
     },
+    "静音" : {
+
+    },
+    "静音/取消静音" : {
+
+    },
     "项目：%1$lld / %2$lld" : {
       "localizations" : {
         "de" : {
@@ -44493,78 +45362,78 @@
         }
       }
     },
-    "验证密码，以进入密码与空间选项。" : {
+    "验证密码，以进入隐私与安全设置。" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bestätigen Sie Ihr Passwort, um auf die Passwort- und Leerzeichenoptionen zuzugreifen."
+            "value" : "Bestätigen Sie Ihr Passwort, um „Privatsphäre und Sicherheit“ zu öffnen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verify your password to open Password & Spaces."
+            "value" : "Verify your passcode to open Privacy & Security."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verify your password to open Password & Spaces."
+            "value" : "Verify your passcode to open Privacy & Security."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verifique su contraseña para acceder a las opciones de contraseña y espacio."
+            "value" : "Verifica tu código para abrir Privacidad y seguridad."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vérifiez votre mot de passe pour accéder aux options de mot de passe et d'espace."
+            "value" : "Vérifiez votre code pour accéder à Confidentialité et sécurité."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verifica la tua password per accedere alle opzioni password e spazio."
+            "value" : "Verifica il codice per aprire Privacy e sicurezza."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "パスワードとスペースのオプションにアクセスするには、パスワードを確認してください。"
+            "value" : "「プライバシーとセキュリティ」を開くには、パスコードを確認してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verify your password to access the password and space options."
+            "value" : "개인 정보 보호 및 보안 설정을 열려면 암호를 확인하세요."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Подтвердите свой пароль, чтобы получить доступ к параметрам пароля и пробела."
+            "value" : "Подтвердите код-пароль, чтобы открыть настройки конфиденциальности и безопасности."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "验证密码，以进入密码与空间选项。"
+            "value" : "验证密码，以进入隐私与安全设置。"
           }
         },
         "zh-Hant-TW" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "驗證密碼，以進入密碼與空間選項。"
+            "value" : "驗證密碼，以進入隱私與安全設定。"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "驗證密碼，以進入密碼與空間選項。"
+            "value" : "驗證密碼，以進入隱私與安全設定。"
           }
         }
       }

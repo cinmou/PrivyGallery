@@ -21,22 +21,25 @@ final class PlainMediaAssetProvider: MediaAssetProvider {
 
     func image(for item: VaultItem) async throws -> UIImage {
         try Task.checkCancellation()
+        let relativePath = item.relativePath
+        let originalFilename = item.originalFilename
+        let space = item.space
         return try await Task.detached(priority: .userInitiated) {
             try Task.checkCancellation()
             let url = try VaultFileStorageService.shared.decryptedTemporaryURL(
-                for: item.relativePath,
-                originalFilename: item.originalFilename,
-                space: item.space
+                for: relativePath,
+                originalFilename: originalFilename,
+                space: space
             )
             try Task.checkCancellation()
             if let source = CGImageSourceCreateWithURL(url as CFURL, nil),
                let downsampled = MediaPreviewImageDecoder.decodePreviewImage(from: source) {
                 return downsampled
             }
-            if let image = UIImage(contentsOfFile: url.path()) {
+            if let image = UIImage(contentsOfFile: url.path(percentEncoded: false)) {
                 return image
             }
-            guard let image = MediaThumbnailService.shared.previewImage(for: item) else {
+            guard let image = await MediaThumbnailService.shared.previewImage(for: item) else {
                 throw MediaAssetError.unreadableImage
             }
             return image
@@ -45,12 +48,15 @@ final class PlainMediaAssetProvider: MediaAssetProvider {
 
     func videoPlayer(for item: VaultItem) async throws -> MediaVideoPlayer {
         try Task.checkCancellation()
+        let relativePath = item.relativePath
+        let originalFilename = item.originalFilename
+        let space = item.space
         let url = try await Task.detached(priority: .userInitiated) {
             try Task.checkCancellation()
             return try VaultFileStorageService.shared.decryptedTemporaryURL(
-                for: item.relativePath,
-                originalFilename: item.originalFilename,
-                space: item.space
+                for: relativePath,
+                originalFilename: originalFilename,
+                space: space
             )
         }.value
         try Task.checkCancellation()
@@ -69,9 +75,11 @@ final class SecureMediaAssetProvider: MediaAssetProvider {
 
     func image(for item: VaultItem) async throws -> UIImage {
         try Task.checkCancellation()
+        let relativePath = item.relativePath
+        let space = item.space
         return try await Task.detached(priority: .userInitiated) {
             try Task.checkCancellation()
-            let data = try VaultFileStorageService.shared.decryptedData(for: item.relativePath, space: item.space)
+            let data = try VaultFileStorageService.shared.decryptedData(for: relativePath, space: space)
             try Task.checkCancellation()
             if let source = CGImageSourceCreateWithData(data as CFData, nil),
                let downsampled = MediaPreviewImageDecoder.decodePreviewImage(from: source) {
@@ -89,9 +97,11 @@ final class SecureMediaAssetProvider: MediaAssetProvider {
         guard let contentType = UTType(item.contentTypeIdentifier) else {
             throw MediaAssetError.unsupportedVideo
         }
+        let relativePath = item.relativePath
+        let space = item.space
         let reader = try await Task.detached(priority: .userInitiated) {
             try Task.checkCancellation()
-            return try VaultFileStorageService.shared.makeEncryptedStreamReader(for: item.relativePath, space: item.space)
+            return try VaultFileStorageService.shared.makeEncryptedStreamReader(for: relativePath, space: space)
         }.value
         try Task.checkCancellation()
         let source = StreamingEncryptedVideoSource(reader: reader, contentType: contentType)

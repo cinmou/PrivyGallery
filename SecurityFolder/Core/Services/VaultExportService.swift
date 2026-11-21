@@ -312,6 +312,7 @@ nonisolated struct VaultExportService: Sendable {
                 #endif
                 throw error
             }
+            BackupOperationRecoveryService.shared.registerExportedFilesForCleanup(savedURLs)
             #if DEBUG
             let savedBytes = savedURLs.reduce(Int64(0)) { $0 + sourceFileSize(at: $1) }
             VaultTransferLog.mark("export.backupStore.save.finish", "index=\(part.partIndex + 1) savedCount=\(savedURLs.count) bytes=\(savedBytes)")
@@ -426,6 +427,7 @@ nonisolated struct VaultExportService: Sendable {
         var currentPayloads: [VaultBackupItemPayload] = []
         var currentBytes: Int64 = 0
 
+        let planExportedAt = Date.now
         var exportedCoverPaths = Set<String>()
         func flushCurrentPart() {
             guard !currentPayloads.isEmpty else { return }
@@ -461,7 +463,7 @@ nonisolated struct VaultExportService: Sendable {
                 return entry
             }
             let manifest = VaultBackupPartManifest(
-                exportedAt: .now,
+                exportedAt: planExportedAt,
                 spaceRawValue: space.rawValue,
                 partIndex: partIndex,
                 totalParts: 0,
@@ -972,10 +974,12 @@ nonisolated struct VaultExportService: Sendable {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd HH-mm"
-        let base = "PrivyGallery Backup \(formatter.string(from: .now))"
+        let base = "PrivyGallery Backup \(formatter.string(from: part.manifest.exportedAt))"
+        let width = String(totalParts).count
+        let paddedPart = String(format: "%0*d", width, part.partIndex + 1)
         let fileName = totalParts == 1
             ? "\(base).vault"
-            : "\(base) (\(part.partIndex + 1) of \(totalParts)).vault"
+            : "\(base) (\(paddedPart) of \(totalParts)).vault"
         return availableURL(for: fileName, in: directory)
     }
 

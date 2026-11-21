@@ -61,7 +61,7 @@ final class VaultFileStorageService {
     }
 
     nonisolated func fileExists(at storedPath: String) -> Bool {
-        fileManager.fileExists(atPath: fileURL(for: storedPath).path())
+        fileManager.fileExists(atPath: fileURL(for: storedPath).path(percentEncoded: false))
     }
 
     nonisolated func byteCount(for storedPath: String) -> Int64 {
@@ -85,7 +85,7 @@ final class VaultFileStorageService {
     }
 
     nonisolated private func byteCount(at url: URL) -> Int64 {
-        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path()),
+        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path(percentEncoded: false)),
               let size = attributes[.size] as? NSNumber else {
             return 0
         }
@@ -128,7 +128,7 @@ final class VaultFileStorageService {
         )
     }
 
-    func duplicateFile(at relativePath: String, space: VaultSpaceKind) throws -> StoredMediaFile {
+    nonisolated func duplicateFile(at relativePath: String, space: VaultSpaceKind) throws -> StoredMediaFile {
         let sourceURL = fileURL(for: relativePath)
         let mediaKind = try mediaKind(for: sourceURL)
         let fileExtension = sourceURL.pathExtension
@@ -169,7 +169,7 @@ final class VaultFileStorageService {
         return relativePath(for: destinationURL)
     }
 
-    func albumCoverImage(for relativePath: String) -> UIImage? {
+    nonisolated func albumCoverImage(for relativePath: String) -> UIImage? {
         let space: VaultSpaceKind = relativePath.split(separator: "/").contains("Space_B") ? .spaceB : .spaceA
         guard let data = try? cryptoService.decryptedData(forEncryptedFileAt: fileURL(for: relativePath), space: space) else {
             return nil
@@ -185,9 +185,9 @@ final class VaultFileStorageService {
         try move(relativePath: relativePath, to: activeDirectory(for: space))
     }
 
-    func removeFile(relativePath: String) throws {
+    nonisolated func removeFile(relativePath: String) throws {
         let url = fileURL(for: relativePath)
-        guard fileManager.fileExists(atPath: url.path()) else { return }
+        guard fileManager.fileExists(atPath: url.path(percentEncoded: false)) else { return }
         try fileManager.removeItem(at: url)
     }
 
@@ -216,7 +216,7 @@ final class VaultFileStorageService {
         cryptoService.clearTemporaryURLIfManaged(url)
     }
 
-    func decryptedData(for relativePath: String, space: VaultSpaceKind) throws -> Data {
+    nonisolated func decryptedData(for relativePath: String, space: VaultSpaceKind) throws -> Data {
         try cryptoService.decryptedData(
             forEncryptedFileAt: fileURL(for: relativePath),
             space: space
@@ -239,11 +239,11 @@ final class VaultFileStorageService {
         let sourceURL = fileURL(for: relativePath)
         let destinationURL = directory.appending(path: sourceURL.lastPathComponent)
 
-        if sourceURL == destinationURL, fileManager.fileExists(atPath: sourceURL.path()) {
+        if sourceURL == destinationURL, fileManager.fileExists(atPath: sourceURL.path(percentEncoded: false)) {
             return relativePath
         }
 
-        if fileManager.fileExists(atPath: destinationURL.path()) {
+        if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: destinationURL)
         }
 
@@ -251,7 +251,7 @@ final class VaultFileStorageService {
         return self.relativePath(for: destinationURL)
     }
 
-    private func mediaKind(for sourceURL: URL) throws -> MediaKind {
+    nonisolated private func mediaKind(for sourceURL: URL) throws -> MediaKind {
         let fileType = UTType(filenameExtension: sourceURL.pathExtension)
         if fileType?.conforms(to: .movie) == true {
             return .video
@@ -325,7 +325,7 @@ final class VaultFileStorageService {
         return nil
     }
 
-    private func activeDirectory(for space: VaultSpaceKind) throws -> URL {
+    nonisolated private func activeDirectory(for space: VaultSpaceKind) throws -> URL {
         try ensureDirectoryExists(
             documentsDirectory
                 .appendingPathComponent("VaultStorage")
@@ -343,8 +343,8 @@ final class VaultFileStorageService {
         )
     }
 
-    private func ensureDirectoryExists(_ url: URL) throws -> URL {
-        if !fileManager.fileExists(atPath: url.path()) {
+    nonisolated private func ensureDirectoryExists(_ url: URL) throws -> URL {
+        if !fileManager.fileExists(atPath: url.path(percentEncoded: false)) {
             try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
         }
         return url

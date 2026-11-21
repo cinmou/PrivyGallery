@@ -562,7 +562,7 @@ struct AlbumDetailView: View {
                             for: path, originalFilename: filename, space: space, exportGeneration: generation
                         )
                         guard VaultCryptoService.shared.temporaryExportGeneration(for: space) == generation,
-                              FileManager.default.fileExists(atPath: url.path()) else {
+                              FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
                             throw CocoaError(.fileReadNoSuchFile)
                         }
                         completion(url.dataRepresentation, nil)
@@ -2776,7 +2776,7 @@ private final class ZoomableMediaGridViewController: UIViewController, UICollect
             }
             _ = await MediaThumbnailService.shared.thumbnail(for: item, size: size, priority: .utility)
             guard !Task.isCancelled else { return }
-            await MainActor.run {
+            _ = await MainActor.run {
                 #if DEBUG
                 MediaPerformanceLog.mark("grid.preheat.task.finish", "item=\(MediaPerformanceLog.idHash(item.id))")
                 #endif

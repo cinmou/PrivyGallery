@@ -6,6 +6,7 @@ import UIKit
 struct SettingsView: View {
     @ObservedObject var settingsViewModel: SettingsViewModel
     @ObservedObject var session: AppSessionViewModel
+    let library: MediaLibraryViewModel
 
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     // MARK: - AppStorage 属性
@@ -51,7 +52,6 @@ struct SettingsView: View {
     @State private var backupProgressBytes: (current: Int64, total: Int64) = (0, 0)
     
     @State private var privacyAuthPassword = ""
-    @State private var protectedDestination: ProtectedSettingsDestination?
     @State private var showingAdvancedProtectionAlert = false
     @State private var exportAuthPassword = ""
     @State private var importAuthPassword = ""
@@ -74,10 +74,12 @@ struct SettingsView: View {
 
     init(
         settingsViewModel: SettingsViewModel,
-        session: AppSessionViewModel
+        session: AppSessionViewModel,
+        library: MediaLibraryViewModel
     ) {
         self.settingsViewModel = settingsViewModel
         self.session = session
+        self.library = library
     }
 
     var body: some View {
@@ -94,6 +96,16 @@ struct SettingsView: View {
                         #endif
                 }
         }
+            .onChange(of: session.selectedTab) { _, tab in
+                if tab != .settings, selectedSidebarDestination == .privacy {
+                    selectedSidebarDestination = nil
+                }
+            }
+            .onChange(of: session.activeSpace) { _, _ in
+                if selectedSidebarDestination == .privacy {
+                    selectedSidebarDestination = nil
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .settingsShouldResetToRoot)) { _ in
                 // 大屏媒体库右侧嵌入设置时，左侧点相册前先把设置二级页退回根级。
                 selectedSidebarDestination = nil
@@ -211,8 +223,7 @@ struct SettingsView: View {
 
     private var settingsListContent: some View {
         #if targetEnvironment(macCatalyst)
-        ScrollView {
-        VStack(alignment: .leading, spacing: 24) {
+        MacSettingsPageContainer {
             MacSettingsSection(String(localized: "会员管理")) {
                 HStack {
                     Text(String(localized: "当前状态"))
@@ -239,21 +250,11 @@ struct SettingsView: View {
                 autoLockTitle: settingsViewModel.autoLockTitle(for:)
             )
 
-            SettingsPrivacySectionView(
-                lockAfterScreenshotEnabled: $lockAfterScreenshotEnabled,
-                deleteImportedSystemAssetsAfterImport: $deleteImportedSystemAssetsAfterImport,
-                advancedProtectionBinding: advancedProtectionBinding,
-                advancedProtectionEnabled: advancedDataProtectionEnabled,
-                canUseAdvancedProtection: subscriptionManager.currentTier == .fullMember,
-                advancedProtectionFooterText: advancedProtectionFooterText,
-                onOpenPassword: {
-                    protectedDestination = .password
-                    activeAuthPrompt = .privacy
-                },
-                onAttemptEnableAdvancedProtection: {
-                    selectedSidebarDestination = .membership
-                }
-            )
+            MacSettingsSection {
+                privacySettingsRow
+                Divider()
+                duplicateMediaRow
+            }
 
             SettingsBackupSectionView(
                 exportingVault: exportingVault,
@@ -296,11 +297,6 @@ struct SettingsView: View {
                 }
             }
         }
-        .padding(24)
-        .frame(maxWidth: 640)
-        .frame(maxWidth: .infinity)
-        }
-        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
         #else
         List {
             Section(String(localized: "会员管理")) {
@@ -327,21 +323,13 @@ struct SettingsView: View {
                 autoLockTitle: settingsViewModel.autoLockTitle(for:)
             )
 
-            SettingsPrivacySectionView(
-                lockAfterScreenshotEnabled: $lockAfterScreenshotEnabled,
-                deleteImportedSystemAssetsAfterImport: $deleteImportedSystemAssetsAfterImport,
-                advancedProtectionBinding: advancedProtectionBinding,
-                advancedProtectionEnabled: advancedDataProtectionEnabled,
-                canUseAdvancedProtection: subscriptionManager.currentTier == .fullMember,
-                advancedProtectionFooterText: advancedProtectionFooterText,
-                onOpenPassword: {
-                    protectedDestination = .password
-                    activeAuthPrompt = .privacy
-                },
-                onAttemptEnableAdvancedProtection: {
-                    selectedSidebarDestination = .membership
-                }
-            )
+            Section {
+                privacySettingsRow
+            }
+
+            Section {
+                duplicateMediaRow
+            }
 
             SettingsBackupSectionView(
                 exportingVault: exportingVault,
@@ -388,6 +376,21 @@ struct SettingsView: View {
     }
 
     private var settingsPreferencesDetailView: some View {
+        Group {
+        #if targetEnvironment(macCatalyst)
+        MacSettingsPageContainer {
+            SettingsPreferencesSectionView(
+                appTheme: $appTheme,
+                trashRetentionDays: $trashRetentionDays,
+                autoLockTimeoutSeconds: $autoLockTimeoutSeconds,
+                themeOptions: ThemeOption.allCases,
+                trashRetentionOptions: settingsViewModel.trashRetentionOptions,
+                autoLockTimeoutOptions: settingsViewModel.autoLockTimeoutOptions,
+                autoLockFooterText: autoLockFooterText,
+                autoLockTitle: settingsViewModel.autoLockTitle(for:)
+            )
+        }
+        #else
         List {
             SettingsPreferencesSectionView(
                 appTheme: $appTheme,
@@ -400,17 +403,9 @@ struct SettingsView: View {
                 autoLockTitle: settingsViewModel.autoLockTitle(for:)
             )
         }
-        #if targetEnvironment(macCatalyst)
-        .scrollContentBackground(.hidden)
-        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
-        #endif
-        #if targetEnvironment(macCatalyst)
         .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .frame(maxWidth: 720)
-        .frame(maxWidth: .infinity)
-        .background(SettingsAppearance.pageBackground.ignoresSafeArea())
         #endif
+        }
         .navigationTitle(String(localized: "偏好设置"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -422,10 +417,22 @@ struct SettingsView: View {
             MembershipCenterView()
         case .preferences:
             settingsPreferencesDetailView
-        case .password:
-            PasswordSettingsView(settingsViewModel: settingsViewModel, session: session)
+        case .privacy:
+            PrivacySecuritySettingsView(
+                session: session,
+                controls: SettingsPrivacySectionView(
+                    lockAfterScreenshotEnabled: $lockAfterScreenshotEnabled,
+                    deleteImportedSystemAssetsAfterImport: $deleteImportedSystemAssetsAfterImport,
+                    advancedProtectionBinding: advancedProtectionBinding,
+                    advancedProtectionEnabled: advancedDataProtectionEnabled,
+                    canUseAdvancedProtection: subscriptionManager.currentTier == .fullMember,
+                    advancedProtectionFooterText: advancedProtectionFooterText
+                )
+            )
         case .backupFiles:
             StoredVaultBackupFilesView()
+        case .duplicates:
+            DuplicateMediaView(library: library)
         case .guide:
             AppInformationView()
         case .legal:
@@ -436,6 +443,19 @@ struct SettingsView: View {
     }
 
     // MARK: - Private Helpers
+
+    private var duplicateMediaRow: some View {
+        settingsNavigationRow(String(localized: "查找重复项")) {
+            selectedSidebarDestination = .duplicates
+        }
+    }
+
+    private var privacySettingsRow: some View {
+        settingsNavigationRow(String(localized: "隐私与安全")) {
+            privacyAuthPassword = ""
+            activeAuthPrompt = .privacy
+        }
+    }
 
     private func settingsNavigationRow(
         _ title: String,
@@ -468,7 +488,6 @@ struct SettingsView: View {
         guard let activeSpace = session.activeSpace else {
             settingsStatusMessage = String(localized: "当前没有已解锁空间。")
             privacyAuthPassword = ""
-            protectedDestination = nil
             return
         }
 
@@ -476,16 +495,9 @@ struct SettingsView: View {
         privacyAuthPassword = ""
         switch result {
         case .success:
-            switch protectedDestination {
-            case .password:
-                selectedSidebarDestination = .password
-            case .none:
-                break
-            }
-            protectedDestination = nil
+            selectedSidebarDestination = .privacy
         case let .failure(message):
             settingsStatusMessage = String(localized: "密码错误，应用已锁定。")
-            protectedDestination = nil
             authenticationFailureMessage = message
             authenticationFailureRequiresLock = true
             showingAuthenticationFailureAlert = true
@@ -812,6 +824,7 @@ struct SettingsView: View {
 
     private var backupFooterText: String {
         String(localized: "备份功能仅可以备份当前空间，请妥善保存导出的 `.vault` 文件。恢复数据时会把备份合并到当前空间。")
+            .replacingOccurrences(of: "`", with: "")
     }
 
     private func currentTotalMediaItemCount() -> Int {
@@ -892,7 +905,6 @@ struct SettingsView: View {
         switch prompt {
         case .privacy:
             privacyAuthPassword = ""
-            protectedDestination = nil
         case .export:
             exportAuthPassword = ""
         case .import:
