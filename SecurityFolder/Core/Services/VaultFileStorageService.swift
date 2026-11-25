@@ -44,20 +44,30 @@ final class VaultFileStorageService {
 
     nonisolated func fileURL(for storedPath: String) -> URL {
         let normalizedPath = normalizedRelativePath(for: storedPath)
-        if normalizedPath != storedPath {
-            return fileURL(for: normalizedPath)
+        guard !normalizedPath.isEmpty,
+              !normalizedPath.hasPrefix("/"),
+              !normalizedPath.contains("\0") else {
+            return invalidPathSentinelURL
         }
 
-        if storedPath.hasPrefix("/") {
-            return URL(fileURLWithPath: storedPath)
+        let components = normalizedPath.split(separator: "/").map(String.init)
+        guard !components.isEmpty,
+              !components.contains("."),
+              !components.contains("..") else {
+            return invalidPathSentinelURL
         }
 
-        return storedPath
-            .split(separator: "/")
-            .map(String.init)
-            .reduce(documentsDirectory) { partialURL, pathComponent in
-                partialURL.appendingPathComponent(pathComponent, isDirectory: false)
-            }
+        let candidateURL = components.reduce(documentsDirectory) { partialURL, pathComponent in
+            partialURL.appendingPathComponent(pathComponent, isDirectory: false)
+        }.standardizedFileURL
+
+        let vaultRootPath = vaultStorageRootDirectory.standardizedFileURL.path(percentEncoded: false)
+        let requiredPrefix = vaultRootPath.hasSuffix("/") ? vaultRootPath : vaultRootPath + "/"
+        guard candidateURL.path(percentEncoded: false).hasPrefix(requiredPrefix) else {
+            return invalidPathSentinelURL
+        }
+
+        return candidateURL
     }
 
     nonisolated func fileExists(at storedPath: String) -> Bool {
@@ -137,6 +147,10 @@ final class VaultFileStorageService {
         let destinationRelativePath = self.relativePath(for: destinationURL)
 
         try fileManager.copyItem(at: sourceURL, to: destinationURL)
+        try fileManager.setAttributes(
+            [.protectionKey: FileProtectionType.complete],
+            ofItemAtPath: destinationURL.path(percentEncoded: false)
+        )
         let byteCount = self.byteCount(at: destinationURL)
 
         return StoredMediaFile(
@@ -347,7 +361,35 @@ final class VaultFileStorageService {
         if !fileManager.fileExists(atPath: url.path(percentEncoded: false)) {
             try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
         }
+        let vaultRoot = vaultStorageRootDirectory.standardizedFileURL
+        excludeFromBackup(vaultRoot)
+        var current = url.standardizedFileURL
+        let rootPath = vaultRoot.path(percentEncoded: false)
+        while current.path(percentEncoded: false).hasPrefix(rootPath) {
+            excludeFromBackup(current)
+            if current == vaultRoot { break }
+            let parent = current.deletingLastPathComponent().standardizedFileURL
+            if parent == current { break }
+            current = parent
+        }
         return url
+    }
+
+    nonisolated private func excludeFromBackup(_ url: URL) {
+        var resourceURL = url
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? resourceURL.setResourceValues(values)
+    }
+
+    nonisolated private var vaultStorageRootDirectory: URL {
+        documentsDirectory.appendingPathComponent("VaultStorage", isDirectory: true)
+    }
+
+    nonisolated private var invalidPathSentinelURL: URL {
+        vaultStorageRootDirectory
+            .appendingPathComponent(".invalid-path", isDirectory: true)
+            .appendingPathComponent("rejected", isDirectory: false)
     }
 
     nonisolated private var documentsDirectory: URL {

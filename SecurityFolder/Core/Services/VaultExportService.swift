@@ -176,7 +176,7 @@ nonisolated struct VaultExportService: Sendable {
 
         // exportPlannedParts saves each part to BackupFiles immediately after finalizing,
         // so the returned URLs are already stored BackupFiles paths.
-        let storedResultURLs = try await Task.detached(priority: .userInitiated) { [self] in
+        let exportWorker = Task.detached(priority: .userInitiated) { [self] in
             try exportPlannedParts(
                 plan: plan,
                 sourceSpace: space,
@@ -184,7 +184,12 @@ nonisolated struct VaultExportService: Sendable {
                 exportDirectory: exportDirectory,
                 progressEmitter: progressEmitter
             )
-        }.value
+        }
+        let storedResultURLs = try await withTaskCancellationHandler {
+            try await exportWorker.value
+        } onCancel: {
+            exportWorker.cancel()
+        }
         try? fileManager.removeItem(at: exportDirectory)
 
         finishedSuccessfully = true
@@ -519,7 +524,11 @@ nonisolated struct VaultExportService: Sendable {
         if fileManager.fileExists(atPath: archiveURL.path()) {
             try fileManager.removeItem(at: archiveURL)
         }
-        guard fileManager.createFile(atPath: archiveURL.path(), contents: nil) else {
+        guard fileManager.createFile(
+            atPath: archiveURL.path(),
+            contents: nil,
+            attributes: [.protectionKey: FileProtectionType.complete]
+        ) else {
             throw VaultExportError.failedToCreateBackupFile
         }
         try? fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: archiveURL.path())
@@ -1124,9 +1133,18 @@ nonisolated struct VaultExportService: Sendable {
     }
 
     nonisolated private func randomData(count: Int) -> Data {
+        guard count > 0 else { return Data() }
         var data = Data(count: count)
-        _ = data.withUnsafeMutableBytes {
-            SecRandomCopyBytes(kSecRandomDefault, count, $0.baseAddress!)
+        let status = data.withUnsafeMutableBytes { buffer -> OSStatus in
+            guard let baseAddress = buffer.baseAddress else { return errSecParam }
+            return SecRandomCopyBytes(kSecRandomDefault, count, baseAddress)
+        }
+        if status == errSecSuccess {
+            return data
+        }
+        var generator = SystemRandomNumberGenerator()
+        for index in 0..<count {
+            data[index] = UInt8.random(in: .min ... .max, using: &generator)
         }
         return data
     }

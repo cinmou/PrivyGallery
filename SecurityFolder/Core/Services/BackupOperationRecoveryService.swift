@@ -140,7 +140,7 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
         staleDirectories.forEach { directoryURL in
             guard fileManager.fileExists(atPath: directoryURL.path()) else { return }
             let contents = (try? fileManager.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil)) ?? []
-            for url in contents where url.lastPathComponent.hasSuffix(".partial") || directoryURL.lastPathComponent == "VaultImports" {
+            for url in contents {
                 try? fileManager.removeItem(at: url)
             }
         }
@@ -148,7 +148,44 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
 
     private func cleanup(paths: [String]) {
         for path in Set(paths).sorted(by: { $0.count > $1.count }) {
+            guard isAllowedCleanupPath(path) else { continue }
             try? fileManager.removeItem(atPath: path)
+        }
+    }
+
+    private func isAllowedCleanupPath(_ path: String) -> Bool {
+        guard !path.isEmpty,
+              path.hasPrefix("/"),
+              !path.contains("\n"),
+              !path.contains("\r"),
+              !path.contains("\0") else {
+            return false
+        }
+
+        let rawURL = URL(fileURLWithPath: path)
+        let leaf = rawURL.lastPathComponent
+        guard !leaf.isEmpty, leaf != ".", leaf != ".." else {
+            return false
+        }
+
+        // Resolve symlinks on the parent directory (e.g. /var -> /private/var) without following a leaf symlink.
+        let canonicalParent = rawURL.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL
+        let canonicalCandidate = canonicalParent.appendingPathComponent(leaf).standardizedFileURL.path
+
+        var allowedRoots: [String] = [
+            fileManager.temporaryDirectory.resolvingSymlinksInPath().standardizedFileURL.path
+        ]
+        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            allowedRoots.append(documentsURL.resolvingSymlinksInPath().standardizedFileURL.path)
+        }
+        if let appSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let backupFilesURL = appSupportURL.appendingPathComponent("BackupFiles", isDirectory: true)
+            allowedRoots.append(backupFilesURL.resolvingSymlinksInPath().standardizedFileURL.path)
+        }
+
+        return allowedRoots.contains { root in
+            let prefix = root.hasSuffix("/") ? root : root + "/"
+            return canonicalCandidate.hasPrefix(prefix)
         }
     }
 
@@ -166,10 +203,14 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
             return nil
         }
 
-        let directoryURL = applicationSupportURL.appendingPathComponent("BackupRecovery", isDirectory: true)
+        var directoryURL = applicationSupportURL.appendingPathComponent("BackupRecovery", isDirectory: true)
         if !fileManager.fileExists(atPath: directoryURL.path()) {
             try? fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
         }
+        try? fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: directoryURL.path())
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = true
+        try? directoryURL.setResourceValues(resourceValues)
         return directoryURL
     }
 
@@ -185,7 +226,7 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
         cachedRecord = record
         guard let recordURL else { return }
         if let data = try? JSONEncoder().encode(record) {
-            try? data.write(to: recordURL, options: .atomic)
+            try? data.write(to: recordURL, options: [.atomic, .completeFileProtection])
         }
     }
 
@@ -209,10 +250,12 @@ nonisolated final class BackupOperationRecoveryService: @unchecked Sendable {
 
     private func appendCleanupPaths(_ paths: [String]) {
         guard let cleanupLogURL else { return }
-        let payload = paths.joined(separator: "\n") + "\n"
+        let safePaths = paths.filter { !$0.isEmpty && !$0.contains("\n") && !$0.contains("\r") && !$0.contains("\0") }
+        guard !safePaths.isEmpty else { return }
+        let payload = safePaths.joined(separator: "\n") + "\n"
         guard let data = payload.data(using: .utf8) else { return }
         if !fileManager.fileExists(atPath: cleanupLogURL.path()) {
-            try? data.write(to: cleanupLogURL, options: .atomic)
+            try? data.write(to: cleanupLogURL, options: [.atomic, .completeFileProtection])
             return
         }
         guard let handle = try? FileHandle(forWritingTo: cleanupLogURL) else { return }

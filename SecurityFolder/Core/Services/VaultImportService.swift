@@ -109,6 +109,9 @@ nonisolated struct VaultImportService: Sendable {
     private static let maxHeaderBytes = 2 * 1_024 * 1_024
     private static let maxManifestBytes = 64 * 1_024 * 1_024
     private static let maxPathBytes = 4_096
+    private static let minOuterChunkBytes = 1_024
+    private static let maxOuterChunkBytes = 32 * 1_024 * 1_024
+    private static let maxBlobChunkBytes = 16 * 1_024 * 1_024
 
     private var fileManager: FileManager { FileManager() }
     private let mediaStorage = VaultFileStorageService.shared
@@ -123,7 +126,7 @@ nonisolated struct VaultImportService: Sendable {
             throw VaultImportError.invalidBackupFile
         }
 
-        return try await Task.detached(priority: .userInitiated) { [self] in
+        let importWorker = Task.detached(priority: .userInitiated) { [self] in
             let parts = try orderAndValidateBackupParts(backupURLs)
             #if DEBUG
             VaultTransferLog.mark("import.inspect.start", "fileCount=\(parts.count)")
@@ -154,7 +157,12 @@ nonisolated struct VaultImportService: Sendable {
             VaultTransferLog.mark("import.inspect.complete", "mediaCount=\(combined.mediaItemCount)")
             #endif
             return combined
-        }.value
+        }
+        return try await withTaskCancellationHandler {
+            try await importWorker.value
+        } onCancel: {
+            importWorker.cancel()
+        }
     }
 
     nonisolated func importBackups(
@@ -169,7 +177,7 @@ nonisolated struct VaultImportService: Sendable {
             throw VaultImportError.invalidBackupFile
         }
 
-        return try await Task.detached(priority: .userInitiated) { [self] in
+        let importWorker = Task.detached(priority: .userInitiated) { [self] in
             let parts = try orderAndValidateBackupParts(backupURLs)
             let urls = parts.map(\.url)
             try checkAvailableDiskSpaceForImport(backupURLs: urls)
@@ -267,7 +275,12 @@ nonisolated struct VaultImportService: Sendable {
             VaultTransferLog.mark("import.complete", "media=\(combined.importedMediaCount) photos=\(combined.importedRegularPhotoCount) videos=\(combined.importedRegularVideoCount) secure=\(combined.importedStrongProtectedMediaCount)")
             #endif
             return combined
-        }.value
+        }
+        return try await withTaskCancellationHandler {
+            try await importWorker.value
+        } onCancel: {
+            importWorker.cancel()
+        }
     }
 
     nonisolated func inspectBackupForImport(
@@ -461,8 +474,14 @@ nonisolated struct VaultImportService: Sendable {
             to: onProgress
         )
 
-        let manifestBlobMap = Dictionary(uniqueKeysWithValues: manifest.blobEntries.map { ($0.relativePath, $0) })
-        let manifestItemsByRelativePath = Dictionary(uniqueKeysWithValues: manifest.items.map { ($0.relativePath, $0) })
+        let manifestBlobMap = Dictionary(
+            manifest.blobEntries.map { ($0.relativePath, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let manifestItemsByRelativePath = Dictionary(
+            manifest.items.map { ($0.relativePath, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let manifestItemsByCompanionPath = Dictionary(
             manifest.items.compactMap { item in item.livePhotoCompanionRelativePath.map { ($0, item) } },
             uniquingKeysWith: { first, _ in first }
@@ -477,15 +496,22 @@ nonisolated struct VaultImportService: Sendable {
         }
         try handle.seek(toOffset: archive.blobsOffset)
 
-        let blobCount = Int(try readUInt32(from: handle))
+        guard let blobCount = Int(exactly: try readUInt32(from: handle)),
+              blobCount == manifest.blobEntries.count else {
+            throw VaultImportError.invalidManifest
+        }
         var restoredBlobCount = 0
         for _ in 0..<blobCount {
             try Task.checkCancellation()
             let entryPath = try readString(from: handle)
             let domain = try readSourceDomain(from: handle)
-            let expectedByteCount = Int64(try readUInt64(from: handle))
+            guard let expectedByteCount = Int64(exactly: try readUInt64(from: handle)),
+                  expectedByteCount >= 0 else {
+                throw VaultImportError.invalidBackupFile
+            }
 
             guard let manifestBlob = manifestBlobMap[entryPath],
+                  manifestBlob.sourceDomain == domain,
                   manifestBlob.byteCount == expectedByteCount else {
                 throw VaultImportError.invalidManifest
             }
@@ -586,6 +612,8 @@ nonisolated struct VaultImportService: Sendable {
         var entries: [(url: URL, header: VaultBackupHeader)] = []
         entries.reserveCapacity(backupURLs.count)
         var seenSaltSet = Set<String>()
+        var seenPartIndices = Set<Int>()
+        var expectedTotalParts: Int?
 
         for url in backupURLs {
             let header = try readBackupHeader(from: url)
@@ -594,6 +622,18 @@ nonisolated struct VaultImportService: Sendable {
                   header.partIndex < header.totalParts,
                   seenSaltSet.insert(header.kdf.saltBase64).inserted else {
                 throw VaultImportError.invalidBackupFile
+            }
+            if backupURLs.count > 1 {
+                if let expected = expectedTotalParts {
+                    guard header.totalParts == expected else {
+                        throw VaultImportError.invalidBackupFile
+                    }
+                } else {
+                    expectedTotalParts = header.totalParts
+                }
+                guard seenPartIndices.insert(header.partIndex).inserted else {
+                    throw VaultImportError.invalidBackupFile
+                }
             }
             entries.append((url, header))
         }
@@ -624,8 +664,8 @@ nonisolated struct VaultImportService: Sendable {
         guard version == Self.vaultVersion else {
             throw VaultImportError.unsupportedVersion
         }
-        let headerLength = Int(try readUInt32(from: inputHandle))
-        guard headerLength > 0, headerLength <= Self.maxHeaderBytes else {
+        guard let headerLength = Int(exactly: try readUInt32(from: inputHandle)),
+              headerLength > 0, headerLength <= Self.maxHeaderBytes else {
             throw VaultImportError.invalidBackupFile
         }
         let headerData = try readData(count: headerLength, from: inputHandle)
@@ -679,8 +719,8 @@ nonisolated struct VaultImportService: Sendable {
             throw VaultImportError.unsupportedVersion
         }
 
-        let headerLength = Int(try readUInt32(from: inputHandle))
-        guard headerLength > 0, headerLength <= Self.maxHeaderBytes else {
+        guard let headerLength = Int(exactly: try readUInt32(from: inputHandle)),
+              headerLength > 0, headerLength <= Self.maxHeaderBytes else {
             throw VaultImportError.invalidBackupFile
         }
         let headerData = try readData(count: headerLength, from: inputHandle)
@@ -696,13 +736,22 @@ nonisolated struct VaultImportService: Sendable {
             throw VaultImportError.unsupportedLegacyEncryptedMediaBackup
         }
         guard header.kdf.algorithm == "pbkdf2-sha256",
-              let salt = Data(base64Encoded: header.kdf.saltBase64) else {
+              let salt = Data(base64Encoded: header.kdf.saltBase64),
+              salt.count >= VaultBackupCryptoHelper.minSaltBytes,
+              salt.count <= VaultBackupCryptoHelper.maxSaltBytes,
+              header.kdf.rounds >= VaultBackupCryptoHelper.minPBKDF2Rounds,
+              header.kdf.rounds <= VaultBackupCryptoHelper.maxPBKDF2Rounds else {
             throw VaultImportError.unsupportedKDF
+        }
+        guard header.chunkSize >= Self.minOuterChunkBytes,
+              header.chunkSize <= Self.maxOuterChunkBytes,
+              header.archiveByteCount >= 0 else {
+            throw VaultImportError.invalidBackupFile
         }
 
         let importKey = try deriveImportKey(password: password, salt: salt, rounds: header.kdf.rounds)
 
-        fileManager.createFile(atPath: archiveURL.path(), contents: nil)
+        fileManager.createFile(atPath: archiveURL.path(), contents: nil, attributes: [.protectionKey: FileProtectionType.complete])
         try? fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: archiveURL.path())
         let outputHandle = try FileHandle(forWritingTo: archiveURL)
         defer {
@@ -711,9 +760,12 @@ nonisolated struct VaultImportService: Sendable {
 
         var completedBytes: Int64 = 0
         var expectedChunkIndex = 0
-        let importChunkSize = max(header.chunkSize, 1)
+        let importChunkSize = header.chunkSize
         let maxCiphertextBytes = importChunkSize + 4_096
-        let estimatedTotalChunks = max(1, Int((header.archiveByteCount + Int64(importChunkSize) - 1) / Int64(importChunkSize)))
+        let (chunkNumerator, numeratorOverflow) = header.archiveByteCount.addingReportingOverflow(Int64(importChunkSize) - 1)
+        let estimatedTotalChunks = numeratorOverflow
+            ? Int.max
+            : max(1, Int(clamping: chunkNumerator / Int64(importChunkSize)))
         while true {
             try Task.checkCancellation()
             let chunkIndexData = try inputHandle.read(upToCount: MemoryLayout<UInt32>.size) ?? Data()
@@ -727,15 +779,18 @@ nonisolated struct VaultImportService: Sendable {
             guard chunkIndex == expectedChunkIndex else {
                 throw VaultImportError.invalidBackupFile
             }
-            let plaintextLength = Int(try readUInt64(from: inputHandle))
-            let ciphertextLength = Int(try readUInt64(from: inputHandle))
-            let nonceLength = Int(try readUInt32(from: inputHandle))
-            guard nonceLength > 0, nonceLength <= 64 else {
+            guard let plaintextLength = Int(exactly: try readUInt64(from: inputHandle)),
+                  let ciphertextLength = Int(exactly: try readUInt64(from: inputHandle)),
+                  plaintextLength >= 0, plaintextLength <= importChunkSize else {
+                throw VaultImportError.invalidBackupFile
+            }
+            guard let nonceLength = Int(exactly: try readUInt32(from: inputHandle)),
+                  nonceLength > 0, nonceLength <= 64 else {
                 throw VaultImportError.invalidBackupFile
             }
             let nonceData = try readData(count: nonceLength, from: inputHandle)
-            let tagLength = Int(try readUInt32(from: inputHandle))
-            guard tagLength > 0, tagLength <= 64 else {
+            guard let tagLength = Int(exactly: try readUInt32(from: inputHandle)),
+                  tagLength > 0, tagLength <= 64 else {
                 throw VaultImportError.invalidBackupFile
             }
             let tagData = try readData(count: tagLength, from: inputHandle)
@@ -752,8 +807,12 @@ nonisolated struct VaultImportService: Sendable {
                 guard plaintext.count == plaintextLength else {
                     throw VaultImportError.invalidBackupFile
                 }
+                let (nextCompletedBytes, completedOverflow) = completedBytes.addingReportingOverflow(Int64(plaintext.count))
+                guard !completedOverflow, nextCompletedBytes <= header.archiveByteCount else {
+                    throw VaultImportError.invalidBackupFile
+                }
                 try outputHandle.write(contentsOf: plaintext)
-                completedBytes += Int64(plaintext.count)
+                completedBytes = nextCompletedBytes
                 expectedChunkIndex += 1
                 #if DEBUG
                 VaultTransferLog.mark(
@@ -801,8 +860,8 @@ nonisolated struct VaultImportService: Sendable {
         guard version == Self.archiveVersion else {
             throw VaultImportError.unsupportedVersion
         }
-        let manifestLength = Int(try readUInt64(from: handle))
-        guard manifestLength > 0, manifestLength <= Self.maxManifestBytes else {
+        guard let manifestLength = Int(exactly: try readUInt64(from: handle)),
+              manifestLength > 0, manifestLength <= Self.maxManifestBytes else {
             throw VaultImportError.invalidBackupFile
         }
         let manifestData = try readData(count: manifestLength, from: handle)
@@ -935,7 +994,8 @@ nonisolated struct VaultImportService: Sendable {
     }
 
     private func restoredRelativePath(bucket: String, extensionSource: String, targetSpace: VaultSpaceKind) -> String {
-        let pathExtension = URL(fileURLWithPath: extensionSource).pathExtension
+        let rawExtension = URL(fileURLWithPath: extensionSource).pathExtension
+        let pathExtension = String(rawExtension.filter { $0.isASCII && ($0.isLetter || $0.isNumber) }.prefix(16))
         let directoryName = targetSpace == .spaceA ? "Space_A" : "Space_B"
         let filename = pathExtension.isEmpty ? UUID().uuidString : "\(UUID().uuidString).\(pathExtension)"
         return "VaultStorage/\(directoryName)/\(bucket)/\(filename)"
@@ -962,12 +1022,22 @@ nonisolated struct VaultImportService: Sendable {
                 guard let codec = VaultArchiveChunkCodec(rawValue: codecRawValue) else {
                     throw VaultImportError.invalidBackupFile
                 }
-                let plaintextLength = Int(try readUInt32(from: handle))
-                let payloadLength = Int(try readUInt32(from: handle))
+                guard let plaintextLength = Int(exactly: try readUInt32(from: handle)),
+                      let payloadLength = Int(exactly: try readUInt32(from: handle)),
+                      plaintextLength > 0,
+                      plaintextLength <= Self.maxBlobChunkBytes,
+                      Int64(plaintextLength) <= remaining,
+                      payloadLength > 0,
+                      payloadLength <= Self.maxBlobChunkBytes else {
+                    throw VaultImportError.invalidBackupFile
+                }
                 let payload = try readData(count: payloadLength, from: handle)
                 let chunk = try decompressedArchivePayload(payload, codec: codec, plaintextLength: plaintextLength)
                 try writer.append(plaintextChunk: chunk)
                 remaining -= Int64(chunk.count)
+            }
+            guard remaining == 0 else {
+                throw VaultImportError.invalidBackupFile
             }
 
             try writer.finish()
@@ -1007,13 +1077,22 @@ nonisolated struct VaultImportService: Sendable {
             }
             return payload
         case .lzfse:
-            var output = Data(count: plaintextLength)
-            let decodedCount = output.withUnsafeMutableBytes { destinationBuffer in
-                payload.withUnsafeBytes { sourceBuffer in
-                    compression_decode_buffer(
-                        destinationBuffer.bindMemory(to: UInt8.self).baseAddress!,
-                        plaintextLength,
-                        sourceBuffer.bindMemory(to: UInt8.self).baseAddress!,
+            guard plaintextLength > 0, plaintextLength <= Self.maxBlobChunkBytes, !payload.isEmpty else {
+                throw VaultImportError.invalidBackupFile
+            }
+            var output = Data(count: plaintextLength + 1)
+            let decodedCount = output.withUnsafeMutableBytes { destinationBuffer -> Int in
+                guard let dstBase = destinationBuffer.bindMemory(to: UInt8.self).baseAddress else {
+                    return 0
+                }
+                return payload.withUnsafeBytes { sourceBuffer -> Int in
+                    guard let srcBase = sourceBuffer.bindMemory(to: UInt8.self).baseAddress else {
+                        return 0
+                    }
+                    return compression_decode_buffer(
+                        dstBase,
+                        plaintextLength + 1,
+                        srcBase,
                         payload.count,
                         nil,
                         COMPRESSION_LZFSE
@@ -1023,6 +1102,7 @@ nonisolated struct VaultImportService: Sendable {
             guard decodedCount == plaintextLength else {
                 throw VaultImportError.invalidBackupFile
             }
+            output.removeSubrange(plaintextLength..<output.count)
             return output
         }
     }
@@ -1036,6 +1116,12 @@ nonisolated struct VaultImportService: Sendable {
     }
 
     private func readData(count: Int, from handle: FileHandle) throws -> Data {
+        guard count >= 0 else {
+            throw VaultImportError.invalidBackupFile
+        }
+        if count == 0 {
+            return Data()
+        }
         let data = try handle.read(upToCount: count) ?? Data()
         guard data.count == count else {
             throw VaultImportError.invalidBackupFile
@@ -1059,8 +1145,8 @@ nonisolated struct VaultImportService: Sendable {
     }
 
     private func readString(from handle: FileHandle) throws -> String {
-        let byteCount = Int(try readUInt32(from: handle))
-        guard byteCount >= 0, byteCount <= Self.maxPathBytes else {
+        guard let byteCount = Int(exactly: try readUInt32(from: handle)),
+              byteCount >= 0, byteCount <= Self.maxPathBytes else {
             throw VaultImportError.invalidBackupFile
         }
         let data = try readData(count: byteCount, from: handle)

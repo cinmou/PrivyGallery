@@ -4,6 +4,7 @@ import SwiftUI
 /// 它会根据当前空间的密码类型，自动切换为数字圆点输入或复杂密码输入。
 struct SettingsPasscodePromptView: View {
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var isCustomPasscodeFocused: Bool
 
     let title: String
     let message: String
@@ -34,12 +35,17 @@ struct SettingsPasscodePromptView: View {
                         .multilineTextAlignment(.center)
 
                     if kind == .custom {
-                        AutoFocusSecureField(
-                            title: "",
-                            text: $passcode,
-                            textContentType: .password
-                        )
-                        .padding(.horizontal)
+                        SecureField("", text: $passcode)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .textFieldStyle(.roundedBorder)
+                            .focused($isCustomPasscodeFocused)
+                            .onAppear {
+                                DispatchQueue.main.async {
+                                    isCustomPasscodeFocused = true
+                                }
+                            }
+                            .padding(.horizontal)
                     } else {
                         NativeNumericPasscodeField(
                             title: "",

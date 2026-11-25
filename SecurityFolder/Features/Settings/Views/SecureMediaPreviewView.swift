@@ -37,7 +37,7 @@ struct SecureMediaPreviewView: View {
                 title: Text(pendingDeletion.title),
                 message: Text(pendingDeletion.message),
                 primaryButton: .destructive(Text(pendingDeletion.confirmTitle)) {
-                    viewModel.handleDeletion(of: pendingDeletion.itemID, from: albumID)
+                    viewModel.handleDeletion(of: pendingDeletion.itemID, from: pendingDeletion.targetAlbumID)
                     dismiss()
                 },
                 secondaryButton: .cancel()
@@ -74,8 +74,7 @@ struct SecureMediaPreviewView: View {
         }
 
         Button(role: .destructive) {
-            viewModel.handleDeletion(of: item.id, from: trashAlbumID)
-            dismiss()
+            requestPermanentDeletion(for: item)
         } label: {
             Label(String(localized: "永久删除"), systemImage: "trash")
         }
@@ -123,13 +122,30 @@ struct SecureMediaPreviewView: View {
             message = String(localized: "这个项目会被删除。")
         }
 
-        pendingDeletion = PendingSecurePreviewDeletion(itemID: item.id, title: title, message: message, confirmTitle: confirmTitle)
+        pendingDeletion = PendingSecurePreviewDeletion(
+            itemID: item.id,
+            targetAlbumID: albumID,
+            title: title,
+            message: message,
+            confirmTitle: confirmTitle
+        )
+    }
+
+    private func requestPermanentDeletion(for item: VaultItem) {
+        pendingDeletion = PendingSecurePreviewDeletion(
+            itemID: item.id,
+            targetAlbumID: trashAlbumID,
+            title: String(localized: "彻底删除？"),
+            message: String(localized: "这个项目将被永久删除，无法从回收站恢复。"),
+            confirmTitle: String(localized: "永久删除")
+        )
     }
 }
 
 private struct PendingSecurePreviewDeletion: Identifiable {
     let id = UUID()
     let itemID: UUID
+    let targetAlbumID: UUID
     let title: String
     let message: String
     let confirmTitle: String

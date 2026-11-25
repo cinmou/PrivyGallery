@@ -86,6 +86,11 @@ nonisolated enum VaultArchiveChunkCodec: UInt8 {
 }
 
 nonisolated enum VaultBackupCryptoHelper {
+    static let minPBKDF2Rounds = 10_000
+    static let maxPBKDF2Rounds = 5_000_000
+    static let minSaltBytes = 16
+    static let maxSaltBytes = 64
+
     static func derivePBKDF2Key(
         password: String,
         salt: Data,
@@ -95,6 +100,13 @@ nonisolated enum VaultBackupCryptoHelper {
     ) throws -> SymmetricKey {
         guard let passwordData = password.data(using: .utf8) else {
             throw encodingError()
+        }
+        guard salt.count >= minSaltBytes,
+              salt.count <= maxSaltBytes,
+              rounds >= minPBKDF2Rounds,
+              rounds <= maxPBKDF2Rounds,
+              let validRounds = UInt32(exactly: rounds) else {
+            throw derivationError()
         }
 
         var derivedKey = Data(count: 32)
@@ -109,7 +121,7 @@ nonisolated enum VaultBackupCryptoHelper {
                         saltBytes.bindMemory(to: UInt8.self).baseAddress,
                         salt.count,
                         CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                        UInt32(rounds),
+                        validRounds,
                         derivedBytes.bindMemory(to: UInt8.self).baseAddress,
                         derivedKeyCount
                     )

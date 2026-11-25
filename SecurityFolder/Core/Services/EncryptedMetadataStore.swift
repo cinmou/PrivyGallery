@@ -26,8 +26,12 @@ final class EncryptedMetadataStore {
 
     func loadSnapshot(for space: VaultSpaceKind) throws -> SpaceMetadataSnapshot {
         let manifestURL = manifestURL(for: space)
-        guard fileManager.fileExists(atPath: manifestURL.path()) else {
+        guard fileManager.fileExists(atPath: manifestURL.path(percentEncoded: false)) else {
             return SpaceMetadataSnapshot(albums: defaultAlbums(for: space), items: [])
+        }
+
+        guard try cryptoService.isEncryptedVaultFile(at: manifestURL) else {
+            throw EncryptedMetadataStoreError.invalidManifest
         }
 
         let manifestData = try cryptoService.decryptedData(forEncryptedFileAt: manifestURL, space: space)
@@ -105,7 +109,9 @@ final class EncryptedMetadataStore {
                 colorRawValue: $0.colorRawValue
             )
         }
-        let albumsByID = Dictionary(uniqueKeysWithValues: albums.map { ($0.id, $0) })
+        var seenAlbumIDs = Set<UUID>()
+        let uniqueAlbums = albums.filter { seenAlbumIDs.insert($0.id).inserted }
+        let albumsByID = Dictionary(uniqueAlbums.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
         let items = manifest.items.map { record in
             VaultItem(
@@ -137,11 +143,11 @@ final class EncryptedMetadataStore {
         let itemsByAlbumID = Dictionary(grouping: items.flatMap { item in
             item.albums.map { ($0.id, item) }
         }, by: \.0)
-        for album in albums {
+        for album in uniqueAlbums {
             album.items = itemsByAlbumID[album.id]?.map(\.1) ?? []
         }
 
-        return SpaceMetadataSnapshot(albums: normalizedAlbums(albums, for: space), items: items)
+        return SpaceMetadataSnapshot(albums: normalizedAlbums(uniqueAlbums, for: space), items: items)
     }
 
     private func normalizedAlbums(_ albums: [VaultAlbum], for space: VaultSpaceKind) -> [VaultAlbum] {
@@ -172,9 +178,18 @@ final class EncryptedMetadataStore {
     }
 
     private func ensureDirectoryExists(_ url: URL) throws {
-        if !fileManager.fileExists(atPath: url.path()) {
+        if !fileManager.fileExists(atPath: url.path(percentEncoded: false)) {
             try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
         }
+        excludeFromBackup(documentsDirectory.appendingPathComponent("VaultStorage", isDirectory: true))
+        excludeFromBackup(url)
+    }
+
+    private func excludeFromBackup(_ url: URL) {
+        var resourceURL = url
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? resourceURL.setResourceValues(values)
     }
 }
 

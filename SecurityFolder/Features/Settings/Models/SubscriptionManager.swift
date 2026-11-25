@@ -88,22 +88,56 @@ class SubscriptionManager: ObservableObject {
         }
     }
 
+    private var activeRefreshTask: Task<Void, Never>?
+    private var needsAnotherRefresh = false
+
     private init() {}
 
     func refreshFromStore() {
         Task {
-            var highestTier: MembershipTier = .free
-            for await result in Transaction.currentEntitlements {
-                guard case .verified(let transaction) = result else { continue }
-                if let kind = MembershipProductKind(rawValue: transaction.productID) {
-                    if kind.associatedTier > highestTier {
-                        highestTier = kind.associatedTier
-                    }
+            await refreshEntitlements()
+        }
+    }
+
+    func refreshEntitlements() async {
+        if let activeRefreshTask {
+            needsAnotherRefresh = true
+            await activeRefreshTask.value
+            return
+        }
+
+        let task = Task { [weak self] in
+            guard let self else { return }
+            repeat {
+                self.needsAnotherRefresh = false
+                await self.performEntitlementRefreshPass()
+            } while self.needsAnotherRefresh
+        }
+        activeRefreshTask = task
+        await task.value
+        activeRefreshTask = nil
+    }
+
+    private func performEntitlementRefreshPass() async {
+        var highestTier: MembershipTier = .free
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result else { continue }
+            guard transaction.revocationDate == nil else { continue }
+            if let expirationDate = transaction.expirationDate, expirationDate <= Date() {
+                continue
+            }
+            if let kind = MembershipProductKind(rawValue: transaction.productID) {
+                if kind.associatedTier > highestTier {
+                    highestTier = kind.associatedTier
                 }
             }
-            purchasedTier = highestTier
-            syncSharedImportMembershipState()
         }
+        purchasedTier = highestTier
+        if currentTier == .free,
+           UserDefaults.standard.bool(forKey: AppSettingsKey.advancedDataProtectionEnabled) {
+            UserDefaults.standard.set(false, forKey: AppSettingsKey.advancedDataProtectionEnabled)
+        }
+        syncSharedImportMembershipState()
     }
 
     private func syncSharedImportMembershipState() {
@@ -134,10 +168,10 @@ class StoreKitManager: ObservableObject {
     private init() {
         updatesTask = Task {
             for await result in Transaction.updates {
+                await SubscriptionManager.shared.refreshEntitlements()
                 if case .verified(let transaction) = result {
                     await transaction.finish()
                 }
-                SubscriptionManager.shared.refreshFromStore()
             }
         }
         loadProducts()
@@ -189,7 +223,7 @@ class StoreKitManager: ObservableObject {
             switch result {
             case .success(.verified(let transaction)):
                 await transaction.finish()
-                SubscriptionManager.shared.refreshFromStore()
+                await SubscriptionManager.shared.refreshEntitlements()
                 currentNotice = PurchaseNotice(
                     title: String(localized: "购买成功"),
                     message: String(localized: "感谢你的支持，所有权益已解锁。")
@@ -219,11 +253,18 @@ class StoreKitManager: ObservableObject {
         isRestoringPurchases = true
         do {
             try await AppStore.sync()
-            SubscriptionManager.shared.refreshFromStore()
-            currentNotice = PurchaseNotice(
-                title: String(localized: "恢复成功"),
-                message: String(localized: "感谢您，尊敬的会员用户")
-            )
+            await SubscriptionManager.shared.refreshEntitlements()
+            if SubscriptionManager.shared.currentTier == .fullMember {
+                currentNotice = PurchaseNotice(
+                    title: String(localized: "恢复成功"),
+                    message: String(localized: "感谢您，尊敬的会员用户")
+                )
+            } else {
+                currentNotice = PurchaseNotice(
+                    title: String(localized: "恢复购买"),
+                    message: String(localized: "未找到可恢复的会员购买记录。")
+                )
+            }
         } catch {
             currentNotice = PurchaseNotice(title: String(localized: "恢复失败"), message: error.localizedDescription)
         }

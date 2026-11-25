@@ -316,12 +316,20 @@ struct AlbumDetailView: View {
         }
         .fullScreenCover(item: $previewSelection) { selection in
             let previewItems = self.previewItems
-            if albumKind?.isSecure == true, let selectedItem = previewItems.first(where: { $0.id == selection.id }) {
-                SecureMediaPreviewView(
-                    viewModel: viewModel,
-                    albumID: albumID,
-                    item: selectedItem
-                )
+            if albumKind?.isSecure == true {
+                if let selectedItem = previewItems.first(where: { $0.id == selection.id }) {
+                    SecureMediaPreviewView(
+                        viewModel: viewModel,
+                        albumID: albumID,
+                        item: selectedItem
+                    )
+                } else {
+                    Color.black
+                        .ignoresSafeArea()
+                        .onAppear {
+                            previewSelection = nil
+                        }
+                }
             } else {
                 MediaPreviewView(
                     viewModel: viewModel,

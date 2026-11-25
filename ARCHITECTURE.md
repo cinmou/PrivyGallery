@@ -49,6 +49,7 @@ Live Photo 的静态图和配对视频属于同一媒体项目。
 | 相册、搜索、照片转场、视频 | [媒体库与播放器](docs/media-library-and-viewer.md)；`MediaLibraryViewModel`、`AlbumDetailView`、`MediaViewerController` |
 | 系统导入、共享扩展、备份和恢复 | [备份与恢复](docs/backup-and-restore.md)；`SharedImportSupport`、`VaultExportService`、`VaultImportService` |
 | 备份协议、跨平台恢复工具 | [格式规范](docs/vault-format.md)；Swift 导入导出服务与 `tools/vault-unpacker/vault.go` |
+| 云同步（规划，尚未实现） | [iCloud 同步审计](docs/icloud-sync-audit.md)；数据可同步范围、密钥可达性与冲突策略 |
 
 两个空间各有独立的媒体、元数据与密钥。普通媒体和强保护媒体使用不同的展示与操作路径。
 搜索只处理当前空间已解密的内存元数据，不新增持久化索引。

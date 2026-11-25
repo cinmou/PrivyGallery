@@ -66,6 +66,7 @@ final class MediaPageController: UIViewController {
 
     func pausePlayback() {
         videoController?.pause()
+        livePhotoController?.stopPlayback()
     }
 
     func applyPlaybackPreferences(rate: Float, isMuted: Bool, isLooping: Bool) {
@@ -105,6 +106,10 @@ final class MediaPageController: UIViewController {
 
     func cleanup() {
         loadTask?.cancel()
+        loadTask = nil
+        initialPreviewImage = nil
+        imageController?.cleanup()
+        livePhotoController?.cleanup()
         videoController?.cleanup()
         provider.cleanup(item: item)
         if let companionPath = item.livePhotoCompanionRelativePath {
@@ -341,6 +346,16 @@ final class LivePhotoPageController: UIViewController {
         spinner.stopAnimating()
     }
 
+    func stopPlayback() {
+        livePhotoView.stopPlayback()
+    }
+
+    func cleanup() {
+        livePhotoView.stopPlayback()
+        livePhotoView.livePhoto = nil
+        fallbackImageView.image = nil
+    }
+
     func handleViewerTap() {
         onTap?()
     }
@@ -486,6 +501,10 @@ final class ImagePageController: UIViewController, UIScrollViewDelegate {
 
     func showFailure() {
         spinner.stopAnimating()
+    }
+
+    func cleanup() {
+        imageView.image = nil
     }
 
     func handleViewerTap() {

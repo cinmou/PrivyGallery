@@ -99,6 +99,7 @@ final class MediaViewerController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         becomeFirstResponder()
+        updateCapturePrivacyOverlay(animated: false)
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
@@ -120,8 +121,33 @@ final class MediaViewerController: UIViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        guard isBeingDismissed || isMovingFromParent || parent == nil || isAncestorBeingDismissed else {
+            return
+        }
         cleanupAllPages()
-        removeCaptureObserver()
+    }
+
+    deinit {
+        if let captureObserver {
+            NotificationCenter.default.removeObserver(captureObserver)
+        }
+        if let lockObserver {
+            NotificationCenter.default.removeObserver(lockObserver)
+        }
+        if let backgroundObserver {
+            NotificationCenter.default.removeObserver(backgroundObserver)
+        }
+    }
+
+    private var isAncestorBeingDismissed: Bool {
+        var ancestor = parent
+        while let current = ancestor {
+            if current.isBeingDismissed || current.isMovingFromParent {
+                return true
+            }
+            ancestor = current.parent
+        }
+        return false
     }
 
     private func configurePages() {
@@ -391,7 +417,9 @@ final class MediaViewerController: UIViewController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.cleanupAllPages()
+            guard let self else { return }
+            self.presentedViewController?.dismiss(animated: false)
+            self.cleanupAllPages()
         }
         backgroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
@@ -423,15 +451,22 @@ final class MediaViewerController: UIViewController {
 
     private func updateCapturePrivacyOverlay(animated: Bool) {
         guard protectsMediaContentFromCapture else { return }
-        let shouldHideContent = UIScreen.main.isCaptured
-        privacyOverlay.isHidden = false
-        privacyOverlay.isUserInteractionEnabled = shouldHideContent
+        let currentScreen = view.window?.windowScene?.screen ?? UIScreen.main
+        let shouldHideContent = currentScreen.isCaptured
+        if shouldHideContent {
+            currentPage?.pausePlayback()
+            privacyOverlay.layer.removeAllAnimations()
+            privacyOverlay.isHidden = false
+            privacyOverlay.isUserInteractionEnabled = true
+            privacyOverlay.alpha = 1
+            return
+        }
         let changes = {
-            self.privacyOverlay.alpha = shouldHideContent ? 1 : 0
+            self.privacyOverlay.alpha = 0
         }
         let completion: (Bool) -> Void = { _ in
-            self.privacyOverlay.isHidden = !shouldHideContent
-            self.privacyOverlay.isUserInteractionEnabled = shouldHideContent
+            self.privacyOverlay.isHidden = true
+            self.privacyOverlay.isUserInteractionEnabled = false
         }
         if animated {
             UIView.animate(withDuration: 0.18, delay: 0, options: [.curveEaseInOut, .allowUserInteraction], animations: changes, completion: completion)
@@ -561,7 +596,14 @@ final class MediaViewerController: UIViewController {
     private func cleanupAllPages() {
         hideControlsWorkItem?.cancel()
         hideControlsWorkItem = nil
-        pageCache.values.forEach { $0.cleanup() }
+        let activePage = currentPage
+        currentPage = nil
+        activePage?.setActive(false)
+        activePage?.cleanup()
+        for page in pageCache.values where page !== activePage {
+            page.setActive(false)
+            page.cleanup()
+        }
         pageCache.removeAll()
         removeCaptureObserver()
         removeLifecycleObservers()

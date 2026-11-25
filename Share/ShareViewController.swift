@@ -1,4 +1,5 @@
 import AVFoundation
+import ImageIO
 import UIKit
 import UniformTypeIdentifiers
 
@@ -180,10 +181,16 @@ final class ShareViewController: UIViewController {
             view.removeFromSuperview()
         }
 
-        for attachment in supportedAttachments.prefix(SharedImportConstants.shareExtensionBatchLimit) {
+        let attachments = Array(supportedAttachments.prefix(SharedImportConstants.shareExtensionBatchLimit))
+        let thumbnailViews = attachments.map { attachment -> ShareThumbnailView in
             let thumbnailView = ShareThumbnailView(isVideo: attachment.contentType.conforms(to: .movie))
             previewStackView.addArrangedSubview(thumbnailView)
-            Task {
+            return thumbnailView
+        }
+
+        Task { [weak self] in
+            for (attachment, thumbnailView) in zip(attachments, thumbnailViews) {
+                guard self != nil, !Task.isCancelled else { break }
                 let image = try? await attachment.loadThumbnail()
                 await MainActor.run {
                     thumbnailView.imageView.image = image
@@ -234,13 +241,13 @@ final class ShareViewController: UIViewController {
             do {
                 for attachment in supportedAttachments {
                     let savedURL = try await attachment.loadTemporaryFile()
+                    defer { try? FileManager.default.removeItem(at: savedURL) }
                     try store.enqueueFile(
                         at: savedURL,
                         originalFilename: attachment.originalFilename,
                         contentType: attachment.contentType,
                         space: selectedSpace
                     )
-                    try? FileManager.default.removeItem(at: savedURL)
                 }
                 await MainActor.run {
                     extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
@@ -389,10 +396,12 @@ private struct ShareAttachment {
         let url = try await loadTemporaryFile()
         defer { try? FileManager.default.removeItem(at: url) }
 
+        let maxPixelSize: CGFloat = 312
         if contentType.conforms(to: .movie) {
             let asset = AVURLAsset(url: url)
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: maxPixelSize, height: maxPixelSize)
             let cgImage: CGImage
             if #available(iOS 18.0, *) {
                 cgImage = try await withCheckedThrowingContinuation { continuation in
@@ -410,6 +419,18 @@ private struct ShareAttachment {
             return UIImage(cgImage: cgImage)
         }
 
-        return UIImage(contentsOfFile: url.path())
+        guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return nil
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary) else {
+            return nil
+        }
+        return UIImage(cgImage: cgImage)
     }
 }

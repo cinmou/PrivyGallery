@@ -1121,11 +1121,13 @@ struct MediaLibraryView: View {
 
     @ViewBuilder
     private func albumContextMenu(for album: AlbumCellModel) -> some View {
-        Button(String(localized: "编辑封面")) {
-            editingAlbumID = album.id
-            showingCoverEditor = true
+        if !album.isSecureAlbum {
+            Button(String(localized: "编辑封面")) {
+                editingAlbumID = album.id
+                showingCoverEditor = true
+            }
+            .disabled(album.usesRowStyle)
         }
-        .disabled(album.usesRowStyle)
 
         if album.allowsDeletion {
             Button(String(localized: "相册颜色")) {

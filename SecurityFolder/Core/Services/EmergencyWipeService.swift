@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import UIKit
 
@@ -5,28 +6,43 @@ import UIKit
 /// 这里会清除本地密钥、媒体密文、加密元数据、备份文件、缩略图缓存、用户偏好和遗留明文元数据文件，
 /// 然后立即终止进程，让应用回到首次安装后的初始化状态。
 struct EmergencyWipeService {
+    static let pendingWipeMarkerKey = "pendingEmergencyWipe"
+
     private let fileManager = FileManager.default
 
-    func performCoercionWipeAndTerminate() {
+    func performCoercionWipeAndTerminate() -> Never {
+        performWipe()
+        // 使用 exit(0) 同步退出，避免穿透到解锁流程，也不产生包含胁迫字样的崩溃日志。
+        exit(0)
+    }
+
+    func completePendingWipeIfNeeded() {
+        guard UserDefaults.standard.bool(forKey: Self.pendingWipeMarkerKey) else { return }
+        performWipe()
+    }
+
+    private func performWipe() {
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: Self.pendingWipeMarkerKey)
+        defaults.synchronize()
+
         VaultCryptoService.shared.wipeAllPersistentKeys()
         AppLockService().clearCoercionPasscodeStorageForEmergencyWipe()
         MediaThumbnailService.shared.clearCache()
-        clearUserDefaults()
         clearDocumentsDirectory()
         clearApplicationSupportBackupDirectories()
         clearTemporaryDirectory()
         SharedImportStore.shared.wipeAll()
         SecurityFolderApp.wipeLegacyPersistentStoreFiles()
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            // 用 fatalError 主动终止，确保应用不会继续停留在可交互状态。
-            fatalError("Emergency wipe triggered.")
-        }
+        clearUserDefaults()
     }
 
     private func clearUserDefaults() {
         let defaults = UserDefaults.standard
-        defaults.removePersistentDomain(forName: Bundle.main.bundleIdentifier ?? "")
+        if let bundleIdentifier = Bundle.main.bundleIdentifier, !bundleIdentifier.isEmpty {
+            defaults.removePersistentDomain(forName: bundleIdentifier)
+        }
+        defaults.removeObject(forKey: Self.pendingWipeMarkerKey)
         defaults.synchronize()
     }
 

@@ -10,6 +10,10 @@ enum AppMetadata {
     static let displayNameCN = "私影相册"
     static let contactEmail = "liuruhongyi@gmail.com"
     static let appStoreReviewURLString = "itms-apps://itunes.apple.com/app/id6765981187?action=write-review"
+    static let appStoreShareURLString = "https://apps.apple.com/app/id6765981187"
+    static let developerAppStoreURLString = "https://apps.apple.com/developer/id1891542411"
+    static let xiaohongshuURLString = "https://xhslink.cn/m/40pYzqFeaMP"
+    static let coolapkURLString = "https://www.coolapk.com/u/3792313"
     static let openSourceURLString = "https://github.com/cinmou/PrivyGallery"
     static let privacyPolicyURLString = "https://quaint-windscreen-5b3.notion.site/Privacy-Policy-for-Priv-Media-355474154efe8050bde7e2106ade7a83"
     static let standardEULAURLString = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
@@ -151,7 +155,14 @@ struct AppInformationView: View {
 
 struct AboutAppView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.locale) private var locale
     @State private var reviewErrorMessage: String?
+
+    private var showsMainlandSocialLinks: Bool {
+        let language = Locale.Language(identifier: locale.language.maximalIdentifier)
+        return language.languageCode == .chinese
+            && language.script == .hanSimplified
+    }
 
     var body: some View {
         Group {
@@ -162,13 +173,46 @@ struct AboutAppView: View {
                 Text(AppMetadata.versionDisplay)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
-                VStack(spacing: 10) {
-                    Button(String(localized: "联系开发者"), action: contactDeveloper)
-                    Button(String(localized: "开源代码"), action: openSourceRepository)
-                    Button(String.localizedStringWithFormat(String(localized: "给 %@ 评分"), AppMetadata.appName), action: requestAppReview)
+
+                MacSettingsSection(String.localizedStringWithFormat(String(localized: "关于 %@"), AppMetadata.appName)) {
+                    macAboutLinkRow(String(localized: "联系开发者"), systemImage: "envelope", action: contactDeveloper)
+                    Divider()
+                    macAboutCustomImageRow(String(localized: "开源代码"), imageName: "github", action: openSourceRepository)
+                    Divider()
+                    macAboutLinkRow(String.localizedStringWithFormat(String(localized: "给 %@ 评分"), AppMetadata.appName), systemImage: "star", action: requestAppReview)
+                    if let shareURL = URL(string: AppMetadata.appStoreShareURLString) {
+                        Divider()
+                        ShareLink(item: shareURL) {
+                            HStack {
+                                Label(String(localized: "分享给朋友"), systemImage: "square.and.arrow.up")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
+
+                MacSettingsSection(String(localized: "更多与关注")) {
+                    macAboutLinkRow(String(localized: "更多应用"), systemImage: "square.grid.2x2") {
+                        openExternalLink(AppMetadata.developerAppStoreURLString)
+                    }
+                    if showsMainlandSocialLinks {
+                        Divider()
+                        macAboutBrandImageRow(String(localized: "小红书"), imageName: "xiaohongshu") {
+                            openExternalLink(AppMetadata.xiaohongshuURLString)
+                        }
+                        Divider()
+                        macAboutBrandImageRow(String(localized: "酷安"), imageName: "coolapk") {
+                            openExternalLink(AppMetadata.coolapkURLString)
+                        }
+                    }
+                }
+
                 Text(String(localized: "Copyright © 2026 Ruhongyi Liu. All rights reserved."))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -226,8 +270,58 @@ struct AboutAppView: View {
                     Label(String.localizedStringWithFormat(String(localized: "给 %@ 评分"), AppMetadata.appName), systemImage: "star")
                         .foregroundStyle(.primary)
                 }
+
+                if let shareURL = URL(string: AppMetadata.appStoreShareURLString) {
+                    ShareLink(item: shareURL) {
+                        Label(String(localized: "分享给朋友"), systemImage: "square.and.arrow.up")
+                            .foregroundStyle(.primary)
+                    }
+                }
             } header: {
                 Text(String.localizedStringWithFormat(String(localized: "关于 %@"), AppMetadata.appName))
+            }
+
+            Section {
+                Button {
+                    openExternalLink(AppMetadata.developerAppStoreURLString)
+                } label: {
+                    Label(String(localized: "更多应用"), systemImage: "square.grid.2x2")
+                        .foregroundStyle(.primary)
+                }
+
+                if showsMainlandSocialLinks {
+                    Button {
+                        openExternalLink(AppMetadata.xiaohongshuURLString)
+                    } label: {
+                        Label {
+                            Text(String(localized: "小红书"))
+                        } icon: {
+                            Image("xiaohongshu")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                        }
+                        .foregroundStyle(.primary)
+                    }
+
+                    Button {
+                        openExternalLink(AppMetadata.coolapkURLString)
+                    } label: {
+                        Label {
+                            Text(String(localized: "酷安"))
+                        } icon: {
+                            Image("coolapk")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                        }
+                        .foregroundStyle(.primary)
+                    }
+                }
+            } header: {
+                Text(String(localized: "更多与关注"))
             } footer: {
                 Text(String(localized: "Copyright © 2026 Ruhongyi Liu. All rights reserved."))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -266,20 +360,75 @@ struct AboutAppView: View {
     }
 
     private func openSourceRepository() {
-        guard let url = URL(string: AppMetadata.openSourceURLString) else {
+        openExternalLink(AppMetadata.openSourceURLString)
+    }
+
+    private func requestAppReview() {
+        openExternalLink(AppMetadata.appStoreReviewURLString)
+    }
+
+    private func openExternalLink(_ urlString: String) {
+        guard let url = URL(string: urlString) else {
             reviewErrorMessage = String(localized: "暂时无法打开")
             return
         }
         openURL(url)
     }
 
-    private func requestAppReview() {
-        guard let url = URL(string: AppMetadata.appStoreReviewURLString) else {
-            reviewErrorMessage = String(localized: "暂时无法打开")
-            return
+    #if targetEnvironment(macCatalyst)
+    private func macAboutLinkRow(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Label(title, systemImage: systemImage)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
         }
-        openURL(url)
+        .buttonStyle(.plain)
     }
+
+    private func macAboutCustomImageRow(_ title: String, imageName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Label(title, image: imageName)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func macAboutBrandImageRow(_ title: String, imageName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Label {
+                    Text(title)
+                } icon: {
+                    Image(imageName)
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                }
+                .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+    #endif
 }
 
 private struct PressableAppIconCard: View {

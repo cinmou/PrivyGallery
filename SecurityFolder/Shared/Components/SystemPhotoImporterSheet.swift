@@ -4,8 +4,54 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
+    static let systemPhotoImporterDirectoryName = "SystemPhotoImporter"
+    static let livePhotoImportDirectoryPrefix = "LivePhotoImport-"
+
     let selectionLimit: Int
     let onComplete: ([ImportedPickerAsset]) -> Void
+
+    static func cleanupTemporaryFiles(for assets: [ImportedPickerAsset]) {
+        let fileManager = FileManager.default
+        let tempRoot = fileManager.temporaryDirectory.standardizedFileURL.path(percentEncoded: false)
+        for asset in assets {
+            removeTemporaryItem(at: asset.fileURL, fileManager: fileManager, tempRoot: tempRoot)
+            if let companionURL = asset.companionVideoURL {
+                removeTemporaryItem(at: companionURL, fileManager: fileManager, tempRoot: tempRoot)
+            }
+        }
+    }
+
+    static func cleanupAllTemporaryDirectories() {
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory
+        let importerDir = tempDir.appendingPathComponent(systemPhotoImporterDirectoryName, isDirectory: true)
+        if fileManager.fileExists(atPath: importerDir.path(percentEncoded: false)) {
+            try? fileManager.removeItem(at: importerDir)
+        }
+        if let entries = try? fileManager.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil) {
+            for entry in entries where entry.lastPathComponent.hasPrefix(livePhotoImportDirectoryPrefix) {
+                try? fileManager.removeItem(at: entry)
+            }
+        }
+    }
+
+    private static func removeTemporaryItem(at url: URL, fileManager: FileManager, tempRoot: String) {
+        let standardized = url.standardizedFileURL
+        let rootPrefix = tempRoot.hasSuffix("/") ? tempRoot : tempRoot + "/"
+        guard standardized.path(percentEncoded: false).hasPrefix(rootPrefix) else { return }
+        try? fileManager.removeItem(at: standardized)
+        let parent = standardized.deletingLastPathComponent()
+        let normalizedTempRoot = tempRoot.hasSuffix("/") ? String(tempRoot.dropLast()) : tempRoot
+        let parentContainer = parent.deletingLastPathComponent().standardizedFileURL.path(percentEncoded: false)
+        let normalizedParentContainer = parentContainer.hasSuffix("/") ? String(parentContainer.dropLast()) : parentContainer
+        if parent.lastPathComponent.hasPrefix(livePhotoImportDirectoryPrefix),
+           normalizedParentContainer == normalizedTempRoot {
+            let contents = (try? fileManager.contentsOfDirectory(atPath: parent.path(percentEncoded: false))) ?? []
+            if contents.isEmpty {
+                try? fileManager.removeItem(at: parent)
+            }
+        }
+    }
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var configuration = PHPickerConfiguration(photoLibrary: .shared())
@@ -26,18 +72,51 @@ struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
 
     final class Coordinator: NSObject, PHPickerViewControllerDelegate {
         private let parent: SystemPhotoImporterSheet
+        private var loadTask: Task<Void, Never>?
+        private var lockObserver: NSObjectProtocol?
 
         init(parent: SystemPhotoImporterSheet) {
             self.parent = parent
         }
 
+        deinit {
+            loadTask?.cancel()
+            if let lockObserver {
+                NotificationCenter.default.removeObserver(lockObserver)
+            }
+        }
+
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             picker.dismiss(animated: true)
 
-            Task {
-                let assets = await loadImportedAssets(from: results)
+            loadTask?.cancel()
+            if let lockObserver {
+                NotificationCenter.default.removeObserver(lockObserver)
+                self.lockObserver = nil
+            }
+            lockObserver = NotificationCenter.default.addObserver(
+                forName: .vaultDidLock,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.loadTask?.cancel()
+                SystemPhotoImporterSheet.cleanupAllTemporaryDirectories()
+            }
+
+            loadTask = Task { [weak self] in
+                guard let self else { return }
+                let assets = await self.loadImportedAssets(from: results)
                 await MainActor.run {
-                    parent.onComplete(assets)
+                    if let observer = self.lockObserver {
+                        NotificationCenter.default.removeObserver(observer)
+                        self.lockObserver = nil
+                    }
+                    self.loadTask = nil
+                    if Task.isCancelled {
+                        SystemPhotoImporterSheet.cleanupTemporaryFiles(for: assets)
+                        return
+                    }
+                    self.parent.onComplete(assets)
                 }
             }
         }
@@ -48,6 +127,10 @@ struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
             var importedAssets: [ImportedPickerAsset] = []
 
             for (index, result) in results.enumerated() {
+                if Task.isCancelled {
+                    SystemPhotoImporterSheet.cleanupTemporaryFiles(for: importedAssets)
+                    return []
+                }
                 let fallbackName = "Imported Media \(index + 1)"
 
                 // ── Live Photo: authoritative PHAsset-level detection ──────────────────────
@@ -143,10 +226,12 @@ struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
                 try? FileManager.default.removeItem(at: tempDir)
                 return nil
             }
+            try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: stillURL.path(percentEncoded: false))
             guard await writePHAssetResource(videoResource, to: videoURL) else {
                 try? FileManager.default.removeItem(at: tempDir)
                 return nil
             }
+            try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: videoURL.path(percentEncoded: false))
 
             let contentType = UTType(filenameExtension: stillURL.pathExtension) ?? .jpeg
             return ImportedPickerAsset(
@@ -219,6 +304,7 @@ struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
                             try FileManager.default.removeItem(at: targetURL)
                         }
                         try FileManager.default.copyItem(at: sourceURL, to: targetURL)
+                        try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: targetURL.path(percentEncoded: false))
                         continuation.resume(returning: targetURL)
                     } catch {
                         print("[SystemPhotoImporterSheet] Failed to copy picked file: \(error)")

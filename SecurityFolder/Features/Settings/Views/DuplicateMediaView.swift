@@ -229,6 +229,14 @@ struct DuplicateMediaView: View {
             await scan(id: scanID)
         }
         .onDisappear { scanID = nil }
+        .onReceive(NotificationCenter.default.publisher(for: .vaultDidLock)) { _ in
+            scanID = nil
+            result = nil
+            itemByteCounts = [:]
+            selectedIDs.removeAll()
+            preview = nil
+            showingTrashConfirmation = false
+        }
         .fullScreenCover(item: $preview) { session in
             MediaViewerView(
                 items: session.items,
@@ -427,11 +435,14 @@ struct DuplicateMediaView: View {
         let includeNearPhotos = includeNearPhotos
         let worker = Task.detached(priority: .utility) {
             let scanned = try DuplicateMediaScan.scan(snapshots, space: space, includeNearPhotos: includeNearPhotos)
+            let pathsByID = Dictionary(snapshots.map { ($0.id, $0.path) }, uniquingKeysWith: { first, _ in first })
             var counts: [UUID: Int64] = [:]
             for group in scanned.groups {
+                try Task.checkCancellation()
                 for candidateID in group.ids {
-                    if let snapshot = snapshots.first(where: { $0.id == candidateID }) {
-                        counts[candidateID] = VaultFileStorageService.shared.byteCount(for: snapshot.path)
+                    try Task.checkCancellation()
+                    if let path = pathsByID[candidateID] {
+                        counts[candidateID] = VaultFileStorageService.shared.byteCount(for: path)
                     }
                 }
             }

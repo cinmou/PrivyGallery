@@ -73,6 +73,31 @@ enum DroppedMediaImportSupport {
         }
     }
 
+    static let stagingDirectoryName = "DroppedMediaImport"
+
+    private static var stagingDirectory: URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent(stagingDirectoryName, isDirectory: true)
+    }
+
+    static func cleanupTemporaryFiles(_ urls: [URL]) {
+        let fileManager = FileManager.default
+        let stagingRoot = stagingDirectory.standardizedFileURL.path(percentEncoded: false)
+        let rootPrefix = stagingRoot.hasSuffix("/") ? stagingRoot : stagingRoot + "/"
+        for url in urls {
+            let standardized = url.standardizedFileURL
+            guard standardized.path(percentEncoded: false).hasPrefix(rootPrefix) else { continue }
+            try? fileManager.removeItem(at: standardized)
+        }
+    }
+
+    static func cleanupAllTemporaryDirectories() {
+        let fileManager = FileManager.default
+        let dir = stagingDirectory
+        if fileManager.fileExists(atPath: dir.path(percentEncoded: false)) {
+            try? fileManager.removeItem(at: dir)
+        }
+    }
+
     private static func stageDroppedItem(_ item: Any?, contentType: UTType) -> URL? {
         let url = (item as? URL) ?? (contentType == .fileURL ? (item as? Data).flatMap {
             URL(dataRepresentation: $0, relativeTo: nil)
@@ -82,10 +107,11 @@ enum DroppedMediaImportSupport {
             return copyToTemporaryLocation(sourceURL: url, preferredExtension: fileExtension)
         }
         guard contentType != .fileURL, let data = item as? Data else { return nil }
-        let destination = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension(fileExtension ?? (contentType.conforms(to: .movie) ? "mov" : "jpg"))
         do {
-            try data.write(to: destination, options: .atomic)
+            try FileManager.default.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
+            let destination = stagingDirectory.appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension(fileExtension ?? (contentType.conforms(to: .movie) ? "mov" : "jpg"))
+            try data.write(to: destination, options: [.atomic, .completeFileProtection])
             return destination
         } catch {
             return nil
@@ -96,7 +122,7 @@ enum DroppedMediaImportSupport {
         let fileManager = FileManager.default
         let pathExtension = sourceURL.pathExtension.isEmpty ? (preferredExtension ?? "") : sourceURL.pathExtension
         let filename = pathExtension.isEmpty ? UUID().uuidString : UUID().uuidString + "." + pathExtension
-        let destinationURL = fileManager.temporaryDirectory.appendingPathComponent(filename)
+        let destinationURL = stagingDirectory.appendingPathComponent(filename)
 
         var didStartSecurityScope = false
         if sourceURL.startAccessingSecurityScopedResource() {
@@ -110,15 +136,23 @@ enum DroppedMediaImportSupport {
         }
 
         do {
+            try fileManager.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
             if fileManager.fileExists(atPath: destinationURL.path) {
                 try fileManager.removeItem(at: destinationURL)
             }
             try fileManager.copyItem(at: sourceURL, to: destinationURL)
+            try? fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: destinationURL.path(percentEncoded: false))
             return destinationURL
         } catch {
             return nil
         }
     }
+}
+
+fileprivate struct PresentedImportResult: Identifiable {
+    var id: UUID { summary.id }
+    let summary: MediaImportResultSummary
+    let importedSystemAssetIdentifiers: [String]
 }
 
 @MainActor
@@ -127,10 +161,24 @@ final class MediaImportFlowController: ObservableObject {
     @Published var showingFileImporter = false
     @Published var isDropTargeted = false
     @Published fileprivate var importedSystemAssetsDeletionPrompt: ImportedSystemAssetsDeletionPrompt?
-    @Published fileprivate var presentedImportResultSummary: MediaImportResultSummary?
+    @Published fileprivate var presentedImportResult: PresentedImportResult?
 
-    private var pendingImportedSystemAssetIdentifiers: [String] = []
+    private var activeDropLoadTask: Task<Void, Never>?
     private var dropOverlayResetToken = UUID()
+    private var lockGeneration = 0
+
+    func handleVaultDidLock() {
+        lockGeneration &+= 1
+        activeDropLoadTask?.cancel()
+        activeDropLoadTask = nil
+        showingManagedPhotoImporter = false
+        showingFileImporter = false
+        isDropTargeted = false
+        presentedImportResult = nil
+        importedSystemAssetsDeletionPrompt = nil
+        DroppedMediaImportSupport.cleanupAllTemporaryDirectories()
+        SystemPhotoImporterSheet.cleanupAllTemporaryDirectories()
+    }
 
     func beginSystemPhotoImport(
         deleteOriginalAfterImport: Bool,
@@ -174,14 +222,21 @@ final class MediaImportFlowController: ObservableObject {
         // SwiftUI grants access to the providers while the onDrop action is on the stack.
         let requests = DroppedMediaImportSupport.beginLoadingURLs(from: providers)
         guard !requests.isEmpty else { return false }
-        Task {
+        activeDropLoadTask?.cancel()
+        activeDropLoadTask = Task { [weak self] in
             var urls: [URL] = []
             for request in requests {
-                for await url in request { urls.append(url) }
+                for await url in request {
+                    urls.append(url)
+                }
             }
+            guard !Task.isCancelled else {
+                DroppedMediaImportSupport.cleanupTemporaryFiles(urls)
+                return
+            }
+            self?.activeDropLoadTask = nil
             guard !urls.isEmpty else { return }
-            pendingImportedSystemAssetIdentifiers = []
-            viewModel.importFiles(urls, directlyInto: targetAlbumID)
+            viewModel.importFiles(urls, directlyInto: targetAlbumID, deleteSourceFilesAfterImport: true)
         }
 
         return true
@@ -206,7 +261,6 @@ final class MediaImportFlowController: ObservableObject {
         viewModel: MediaLibraryViewModel
     ) {
         guard case let .success(urls) = result else { return }
-        pendingImportedSystemAssetIdentifiers = []
         if let targetAlbumID {
             viewModel.importFiles(urls, directlyInto: targetAlbumID)
         }
@@ -219,10 +273,11 @@ final class MediaImportFlowController: ObservableObject {
     ) {
         showingManagedPhotoImporter = false
         guard !importedAssets.isEmpty else { return }
-        pendingImportedSystemAssetIdentifiers = importedAssets.compactMap(\.assetIdentifier)
-        if let targetAlbumID {
-            viewModel.importPickerAssets(importedAssets, directlyInto: targetAlbumID)
+        guard let targetAlbumID else {
+            SystemPhotoImporterSheet.cleanupTemporaryFiles(for: importedAssets)
+            return
         }
+        viewModel.importPickerAssets(importedAssets, directlyInto: targetAlbumID)
     }
 
     fileprivate func presentImportResultIfNeeded(
@@ -232,26 +287,35 @@ final class MediaImportFlowController: ObservableObject {
         guard canPresent(),
               !viewModel.isImportingMedia,
               viewModel.importResultSummary != nil,
-              presentedImportResultSummary == nil else { return }
+              presentedImportResult == nil else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             guard let self,
                   canPresent(),
                   !viewModel.isImportingMedia,
                   let latestSummary = viewModel.importResultSummary,
-                  self.presentedImportResultSummary == nil else { return }
-            self.presentedImportResultSummary = latestSummary
+                  self.presentedImportResult == nil else { return }
+            let assetIdentifiers = viewModel.consumeImportedSystemAssetIdentifiers(for: latestSummary.id)
+            self.presentedImportResult = PresentedImportResult(
+                summary: latestSummary,
+                importedSystemAssetIdentifiers: assetIdentifiers
+            )
             viewModel.dismissImportResult()
         }
     }
 
     fileprivate func scheduleDeletePromptAfterImport(
-        importedCount: Int,
+        assetIdentifiers: [String],
         deleteOriginalAfterImport: Bool
     ) {
+        guard deleteOriginalAfterImport else { return }
+        let uniqueIdentifiers = Array(Set(assetIdentifiers.filter { !$0.isEmpty }))
+        guard !uniqueIdentifiers.isEmpty else { return }
+        let generation = lockGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            self?.maybePromptToDeleteImportedSystemAssets(
-                afterImportCount: importedCount,
-                deleteOriginalAfterImport: deleteOriginalAfterImport
+            guard let self, self.lockGeneration == generation else { return }
+            self.importedSystemAssetsDeletionPrompt = ImportedSystemAssetsDeletionPrompt(
+                assetIdentifiers: uniqueIdentifiers,
+                importedCount: uniqueIdentifiers.count
             )
         }
     }
@@ -269,20 +333,6 @@ final class MediaImportFlowController: ObservableObject {
                 }
             }
         }
-    }
-
-    private func maybePromptToDeleteImportedSystemAssets(
-        afterImportCount importedCount: Int,
-        deleteOriginalAfterImport: Bool
-    ) {
-        defer { pendingImportedSystemAssetIdentifiers = [] }
-        guard deleteOriginalAfterImport else { return }
-        let assetIdentifiers = Array(Set(pendingImportedSystemAssetIdentifiers.filter { !$0.isEmpty }))
-        guard !assetIdentifiers.isEmpty else { return }
-        importedSystemAssetsDeletionPrompt = ImportedSystemAssetsDeletionPrompt(
-            assetIdentifiers: assetIdentifiers,
-            importedCount: importedCount
-        )
     }
 }
 
@@ -320,13 +370,19 @@ private struct MediaImportFlowModifier: ViewModifier {
                     )
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .vaultDidLock)) { _ in
+                controller.handleVaultDidLock()
+            }
             .onChange(of: viewModel.importResultSummary?.id) { _, _ in
                 controller.presentImportResultIfNeeded(
                     viewModel: viewModel,
                     canPresent: canPresentImportResult
                 )
             }
-            .sheet(item: $controller.presentedImportResultSummary) { summary in
+            .sheet(item: $controller.presentedImportResult, onDismiss: {
+                controller.presentedImportResult = nil
+            }) { presented in
+                let summary = presented.summary
                 NavigationStack {
                     List {
                         Section {
@@ -343,10 +399,11 @@ private struct MediaImportFlowModifier: ViewModifier {
 
                         Section {
                             Button(String(localized: "知道了")) {
+                                let assetIdentifiers = presented.importedSystemAssetIdentifiers
                                 controller.showingManagedPhotoImporter = false
-                                controller.presentedImportResultSummary = nil
+                                controller.presentedImportResult = nil
                                 controller.scheduleDeletePromptAfterImport(
-                                    importedCount: summary.photoCount + summary.videoCount,
+                                    assetIdentifiers: assetIdentifiers,
                                     deleteOriginalAfterImport: deleteOriginalAfterImport
                                 )
                             }

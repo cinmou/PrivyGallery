@@ -862,10 +862,9 @@ private struct SecondSpaceSetupView: View {
                     .multilineTextAlignment(.center)
 
                 if kind == .custom {
-                    AutoFocusSecureField(
+                    PrivatePasscodeSecureField(
                         title: String(localized: "密码"),
-                        text: text,
-                        textContentType: .newPassword
+                        text: text
                     )
                         .padding(.horizontal)
                 } else {
@@ -927,8 +926,7 @@ private struct CoercionPasscodeSetupView: View {
                         title: String(localized: "设置胁迫密码"),
                         message: String(localized: "胁迫密码类型必须和两个空间保持一致，而且不能和任何一个空间的解锁密码相同。"),
                         text: $draft.primaryValue,
-                        kind: resolvedKind,
-                        secureTextType: .newPassword
+                        kind: resolvedKind
                     )
                     errorSection
                 case .passcodeConfirmation:
@@ -936,8 +934,7 @@ private struct CoercionPasscodeSetupView: View {
                         title: String(localized: "确认胁迫密码"),
                         message: String(localized: "请再次输入胁迫密码。"),
                         text: $draft.confirmationValue,
-                        kind: resolvedKind,
-                        secureTextType: .newPassword
+                        kind: resolvedKind
                     )
                     errorSection
                 }
@@ -1137,8 +1134,7 @@ private struct CoercionPasscodeSetupView: View {
         title: String,
         message: String,
         text: Binding<String>,
-        kind: AppPasscodeKind,
-        secureTextType: UITextContentType
+        kind: AppPasscodeKind
     ) -> some View {
         Section {
             VStack(spacing: 16) {
@@ -1160,10 +1156,9 @@ private struct CoercionPasscodeSetupView: View {
                     .multilineTextAlignment(.center)
 
                 if kind == .custom {
-                    AutoFocusSecureField(
+                    PrivatePasscodeSecureField(
                         title: String(localized: "密码"),
-                        text: text,
-                        textContentType: secureTextType
+                        text: text
                     )
                         .padding(.horizontal)
                 } else {
@@ -1185,6 +1180,28 @@ private struct CoercionPasscodeSetupView: View {
     private func presentError(_ message: String) {
         UINotificationFeedbackGenerator().notificationOccurred(.error)
         errorMessage = message
+    }
+}
+
+private struct PrivatePasscodeSecureField: View {
+    let title: String
+    @Binding var text: String
+    var autoFocus: Bool = true
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        SecureField(title, text: $text)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .textFieldStyle(.roundedBorder)
+            .focused($isFocused)
+            .onAppear {
+                guard autoFocus else { return }
+                DispatchQueue.main.async {
+                    isFocused = true
+                }
+            }
     }
 }
 

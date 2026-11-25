@@ -89,6 +89,8 @@ final class MediaLibraryViewModel: ObservableObject {
     private let fileStorage: VaultFileStorageService
     private var activeImportTask: Task<Void, Never>?
     private var durationReadAttempts = Set<UUID>()
+    private var importedSystemAssetIdentifiersBySummaryID: [UUID: [String]] = [:]
+    private var lockObserver: NSObjectProtocol?
 
     init(
         space: VaultSpaceKind,
@@ -103,9 +105,51 @@ final class MediaLibraryViewModel: ObservableObject {
             self.librarySortOption = storedSortOption
         }
 
+        lockObserver = NotificationCenter.default.addObserver(
+            forName: .vaultDidLock,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.handleVaultDidLock()
+            }
+        }
+
         bootstrapIfNeeded()
         refresh()
         importSharedPendingItemsIfNeeded()
+    }
+
+    deinit {
+        if let lockObserver {
+            NotificationCenter.default.removeObserver(lockObserver)
+        }
+    }
+
+    private func handleVaultDidLock() {
+        activeImportTask?.cancel()
+        activeImportTask = nil
+        isImportingMedia = false
+        isDraggingVaultItems = false
+        importResultSummary = nil
+        importedSystemAssetIdentifiersBySummaryID.removeAll()
+        durationReadAttempts.removeAll()
+        let oldAlbums = albums
+        let oldItems = items
+        albums.removeAll()
+        items.removeAll()
+        breakModelReferenceCycles(albums: oldAlbums, items: oldItems)
+        SystemPhotoImporterSheet.cleanupAllTemporaryDirectories()
+        DroppedMediaImportSupport.cleanupAllTemporaryDirectories()
+    }
+
+    private func breakModelReferenceCycles(albums oldAlbums: [VaultAlbum], items oldItems: [VaultItem]) {
+        for album in oldAlbums {
+            album.items.removeAll()
+        }
+        for item in oldItems {
+            item.albums.removeAll()
+        }
     }
 
     var canShowRealData: Bool {
@@ -186,12 +230,15 @@ final class MediaLibraryViewModel: ObservableObject {
 
     func refresh() {
         do {
+            let previousAlbums = albums
+            let previousItems = items
             let snapshot = try metadataStore.loadSnapshot(for: space)
             albums = snapshot.albums
             mediaPresentationRevision &+= 1
             let insertedRequiredAlbums = ensureRequiredAlbumsPresent()
             let fetchedItems = snapshot.items
             items = fetchedItems
+            breakModelReferenceCycles(albums: previousAlbums, items: previousItems)
             let didNormalizePaths = normalizeStoredPaths(in: fetchedItems)
             migratePlaintextFilesIfNeeded(in: fetchedItems)
             let purgedItemIDs = purgeExpiredTrashItems(in: fetchedItems)
@@ -319,6 +366,7 @@ final class MediaLibraryViewModel: ObservableObject {
             item.updatedAt = .now
         }
 
+        let oldCoverPath = targetAlbum.coverImageRelativePath
         targetAlbum.items.removeAll()
         targetAlbum.coverItemID = nil
         targetAlbum.coverImageRelativePath = nil
@@ -326,6 +374,7 @@ final class MediaLibraryViewModel: ObservableObject {
         targetAlbum.showsCover = false
 
         albums.removeAll { $0.id == targetAlbum.id }
+        removeCoverImageFileIfUnreferenced(oldCoverPath, excludingAlbumID: targetAlbum.id)
         saveAndRefresh()
     }
 
@@ -411,11 +460,13 @@ final class MediaLibraryViewModel: ObservableObject {
     func assignCover(albumID: UUID) {
         guard let targetAlbum = album(for: albumID) else { return }
         guard !targetAlbum.isSecureAlbum else { return }
+        let oldCoverPath = targetAlbum.coverImageRelativePath
         let albumItems = filteredItems(for: targetAlbum)
         targetAlbum.coverItemID = albumItems.first?.id
         targetAlbum.coverImageRelativePath = nil
         targetAlbum.coverSymbolName = nil
         targetAlbum.showsCover = true
+        removeCoverImageFileIfUnreferenced(oldCoverPath, excludingAlbumID: targetAlbum.id)
         saveAndRefresh()
     }
 
@@ -424,10 +475,15 @@ final class MediaLibraryViewModel: ObservableObject {
         guard !targetAlbum.isSecureAlbum else { return }
 
         do {
-            targetAlbum.coverImageRelativePath = try fileStorage.storeAlbumCoverImage(image, albumID: albumID, space: space)
+            let oldCoverPath = targetAlbum.coverImageRelativePath
+            let newCoverPath = try fileStorage.storeAlbumCoverImage(image, albumID: albumID, space: space)
+            targetAlbum.coverImageRelativePath = newCoverPath
             targetAlbum.coverItemID = nil
             targetAlbum.coverSymbolName = nil
             targetAlbum.showsCover = true
+            if oldCoverPath != newCoverPath {
+                removeCoverImageFileIfUnreferenced(oldCoverPath, excludingAlbumID: targetAlbum.id)
+            }
             saveAndRefresh()
         } catch {
             lastErrorMessage = error.localizedDescription
@@ -436,21 +492,32 @@ final class MediaLibraryViewModel: ObservableObject {
 
     func clearCover(albumID: UUID) {
         guard let targetAlbum = album(for: albumID) else { return }
+        let oldCoverPath = targetAlbum.coverImageRelativePath
         targetAlbum.coverItemID = nil
         targetAlbum.coverImageRelativePath = nil
         targetAlbum.coverSymbolName = nil
         targetAlbum.showsCover = false
+        removeCoverImageFileIfUnreferenced(oldCoverPath, excludingAlbumID: targetAlbum.id)
         saveAndRefresh()
     }
 
     func setCoverSymbol(_ symbolName: String, for albumID: UUID) {
         guard let targetAlbum = album(for: albumID) else { return }
         guard !targetAlbum.isSecureAlbum else { return }
+        let oldCoverPath = targetAlbum.coverImageRelativePath
         targetAlbum.coverSymbolName = symbolName
         targetAlbum.coverItemID = nil
         targetAlbum.coverImageRelativePath = nil
         targetAlbum.showsCover = true
+        removeCoverImageFileIfUnreferenced(oldCoverPath, excludingAlbumID: targetAlbum.id)
         saveAndRefresh()
+    }
+
+    private func removeCoverImageFileIfUnreferenced(_ relativePath: String?, excludingAlbumID: UUID) {
+        guard let relativePath else { return }
+        let stillReferenced = albums.contains { $0.id != excludingAlbumID && $0.coverImageRelativePath == relativePath }
+        guard !stillReferenced else { return }
+        try? fileStorage.removeFile(relativePath: relativePath)
     }
 
     func setLibrarySortOption(_ option: LibraryAlbumSortOption) {
@@ -474,18 +541,35 @@ final class MediaLibraryViewModel: ObservableObject {
         saveAndRefresh()
     }
 
-    func importFiles(_ urls: [URL], directlyInto albumID: UUID) {
-        guard canShowRealData else { return }
-        guard validateBatchImportCount(urls.count) else { return }
+    func importFiles(_ urls: [URL], directlyInto albumID: UUID, deleteSourceFilesAfterImport: Bool = false) {
+        let cleanupStagedFiles = {
+            if deleteSourceFilesAfterImport {
+                DroppedMediaImportSupport.cleanupTemporaryFiles(urls)
+            }
+        }
+        guard canShowRealData else {
+            cleanupStagedFiles()
+            return
+        }
+        guard validateBatchImportCount(urls.count) else {
+            cleanupStagedFiles()
+            return
+        }
         guard checkImportQuota(requestedCount: urls.count) else {
+            cleanupStagedFiles()
             return
         }
 
         startImport(totalCount: urls.count, albumID: albumID, sourceDescription: String(localized: "文件"))
         activeImportTask = Task { @MainActor [weak self] in
+            defer { cleanupStagedFiles() }
             guard let self else { return }
             do {
-                let summary = try await self.importFileURLs(urls, directlyInto: albumID)
+                let summary = try await self.importFileURLs(
+                    urls,
+                    directlyInto: albumID,
+                    deleteSourceFilesAfterImport: deleteSourceFilesAfterImport
+                )
                 self.finishImport(with: summary)
             } catch is CancellationError {
                 self.cancelImportState(message: String(localized: "导入已停止。"))
@@ -496,29 +580,44 @@ final class MediaLibraryViewModel: ObservableObject {
     }
 
     func importPickerAssets(_ pickerAssets: [ImportedPickerAsset], directlyInto albumID: UUID) {
-        guard canShowRealData else { return }
+        let cleanupPickerFiles = {
+            SystemPhotoImporterSheet.cleanupTemporaryFiles(for: pickerAssets)
+        }
+        guard canShowRealData else {
+            cleanupPickerFiles()
+            return
+        }
         guard !pickerAssets.isEmpty else {
             lastErrorMessage = String(localized: "没有读取到可导入的照片或视频数据。")
             return
         }
-        guard validateBatchImportCount(pickerAssets.count) else { return }
+        guard validateBatchImportCount(pickerAssets.count) else {
+            cleanupPickerFiles()
+            return
+        }
 
         guard checkImportQuota(requestedCount: pickerAssets.count) else {
+            cleanupPickerFiles()
             return
         }
 
         startImport(totalCount: pickerAssets.count, albumID: albumID, sourceDescription: String(localized: "系统相册"))
         activeImportTask = Task { @MainActor [weak self] in
+            defer { cleanupPickerFiles() }
             guard let self else { return }
             do {
-                let summary = try await self.importPickerAssetPayloads(pickerAssets, directlyInto: albumID)
-                self.finishImport(with: summary)
+                let result = try await self.importPickerAssetPayloads(pickerAssets, directlyInto: albumID)
+                self.finishImport(with: result.summary, importedSystemAssetIdentifiers: result.importedSystemAssetIdentifiers)
             } catch is CancellationError {
                 self.cancelImportState(message: String(localized: "导入已停止。"))
             } catch {
                 self.failImport(with: error.localizedDescription)
             }
         }
+    }
+
+    func consumeImportedSystemAssetIdentifiers(for summaryID: UUID) -> [String] {
+        importedSystemAssetIdentifiersBySummaryID.removeValue(forKey: summaryID) ?? []
     }
 
     func canImportAdditionalItems(_ requestedCount: Int) -> Bool {
@@ -1224,10 +1323,16 @@ final class MediaLibraryViewModel: ObservableObject {
 
     private func permanentlyDelete(_ item: VaultItem) {
         do {
+            fileStorage.clearDecryptedTemporaryFile(for: item.relativePath)
+            if let companionPath = item.livePhotoCompanionRelativePath {
+                fileStorage.clearDecryptedTemporaryFile(for: companionPath)
+            }
+            MediaThumbnailService.shared.removeCachedThumbnail(for: item.id)
             try fileStorage.removeFile(relativePath: item.relativePath)
             if let companionPath = item.livePhotoCompanionRelativePath {
-                try? fileStorage.removeFile(relativePath: companionPath)
+                try fileStorage.removeFile(relativePath: companionPath)
             }
+            item.albums.removeAll()
             items.removeAll { $0.id == item.id }
             for album in albums {
                 album.items.removeAll { $0.id == item.id }
@@ -1281,22 +1386,27 @@ final class MediaLibraryViewModel: ObservableObject {
     private func importFileURLs(
         _ urls: [URL],
         directlyInto albumID: UUID,
+        deleteSourceFilesAfterImport: Bool = false,
         onFileImported: ((Int) -> Void)? = nil
     ) async throws -> MediaImportResultSummary {
-        let targetAlbum = userAlbum(for: albumID)
         let importIntoStrongProtection = album(for: albumID)?.kind.isSecure == true
         var photoCount = 0
         var videoCount = 0
         var didFinish = false
         defer {
             // A stopped or failed batch still keeps the files that were already encrypted.
-            if !didFinish, photoCount + videoCount > 0 {
+            if !didFinish, photoCount + videoCount > 0, !items.isEmpty {
                 saveAndRefresh()
             }
         }
 
         for (index, url) in urls.enumerated() {
             try Task.checkCancellation()
+            defer {
+                if deleteSourceFilesAfterImport {
+                    DroppedMediaImportSupport.cleanupTemporaryFiles([url])
+                }
+            }
             updateImportProgress(
                 title: String(localized: "正在加密导入"),
                 detail: String.localizedStringWithFormat(String(localized: "正在处理 %@"), url.lastPathComponent),
@@ -1321,7 +1431,7 @@ final class MediaLibraryViewModel: ObservableObject {
                 videoDuration: storedFile.videoDuration
             )
 
-            if let targetAlbum {
+            if let targetAlbum = userAlbum(for: albumID) {
                 item.albums.append(targetAlbum)
             }
             if importIntoStrongProtection {
@@ -1344,19 +1454,23 @@ final class MediaLibraryViewModel: ObservableObject {
         }
 
         didFinish = true
-        saveAndRefresh()
+        try persistCurrentState()
+        refresh()
         return MediaImportResultSummary(photoCount: photoCount, videoCount: videoCount)
     }
 
-    private func importPickerAssetPayloads(_ pickerAssets: [ImportedPickerAsset], directlyInto albumID: UUID) async throws -> MediaImportResultSummary {
-        let targetAlbum = userAlbum(for: albumID)
+    private func importPickerAssetPayloads(
+        _ pickerAssets: [ImportedPickerAsset],
+        directlyInto albumID: UUID
+    ) async throws -> (summary: MediaImportResultSummary, importedSystemAssetIdentifiers: [String]) {
         let importIntoStrongProtection = album(for: albumID)?.kind.isSecure == true
         var photoCount = 0
         var videoCount = 0
+        var importedSystemAssetIdentifiers: [String] = []
         var didFinish = false
         defer {
             // A stopped or failed batch still keeps the files that were already encrypted.
-            if !didFinish, photoCount + videoCount > 0 {
+            if !didFinish, photoCount + videoCount > 0, !items.isEmpty {
                 saveAndRefresh()
             }
         }
@@ -1364,6 +1478,9 @@ final class MediaLibraryViewModel: ObservableObject {
 
         for (index, pickerAsset) in pickerAssets.enumerated() {
             try Task.checkCancellation()
+            defer {
+                SystemPhotoImporterSheet.cleanupTemporaryFiles(for: [pickerAsset])
+            }
             let fallbackName = "Imported Media \(nextImportedMediaNumber)"
             nextImportedMediaNumber += 1
             updateImportProgress(
@@ -1374,14 +1491,17 @@ final class MediaLibraryViewModel: ObservableObject {
             )
 
             let fileURL = pickerAsset.fileURL
-            defer { try? FileManager.default.removeItem(at: fileURL) }
             let storedFile = try await fileStorage.importFile(from: fileURL, space: space)
 
             // Import the companion video for Live Photos, then clean up the temp file.
             var companionRelativePath: String? = nil
             if let companionURL = pickerAsset.companionVideoURL {
-                defer { try? FileManager.default.removeItem(at: companionURL) }
-                companionRelativePath = try fileStorage.importCompanionFile(from: companionURL, space: space)
+                do {
+                    companionRelativePath = try fileStorage.importCompanionFile(from: companionURL, space: space)
+                } catch {
+                    try? fileStorage.removeFile(relativePath: storedFile.relativePath)
+                    throw error
+                }
             }
 
             let effectiveMediaKind: MediaKind = (companionRelativePath != nil) ? .livePhoto : storedFile.mediaKind
@@ -1403,7 +1523,7 @@ final class MediaLibraryViewModel: ObservableObject {
                 videoDuration: storedFile.videoDuration
             )
 
-            if let targetAlbum {
+            if let targetAlbum = userAlbum(for: albumID) {
                 item.albums.append(targetAlbum)
             }
             if importIntoStrongProtection {
@@ -1416,6 +1536,9 @@ final class MediaLibraryViewModel: ObservableObject {
             }
 
             items.append(item)
+            if let assetID = pickerAsset.assetIdentifier, !assetID.isEmpty {
+                importedSystemAssetIdentifiers.append(assetID)
+            }
             updateImportProgress(
                 title: String(localized: "写入媒体索引"),
                 detail: String.localizedStringWithFormat(String(localized: "已完成 %1$lld / %2$lld"), index + 1, pickerAssets.count),
@@ -1425,8 +1548,12 @@ final class MediaLibraryViewModel: ObservableObject {
         }
 
         didFinish = true
-        saveAndRefresh()
-        return MediaImportResultSummary(photoCount: photoCount, videoCount: videoCount)
+        try persistCurrentState()
+        refresh()
+        return (
+            summary: MediaImportResultSummary(photoCount: photoCount, videoCount: videoCount),
+            importedSystemAssetIdentifiers: importedSystemAssetIdentifiers
+        )
     }
 
     private func updateImportProgress(title: String, detail: String, currentIndex: Int, totalCount: Int) {
@@ -1436,10 +1563,16 @@ final class MediaLibraryViewModel: ObservableObject {
         importProgressValue = min(max(Double(currentIndex) / Double(safeTotal), 0), 1)
     }
 
-    private func finishImport(with summary: MediaImportResultSummary) {
+    private func finishImport(
+        with summary: MediaImportResultSummary,
+        importedSystemAssetIdentifiers: [String] = []
+    ) {
         activeImportTask = nil
         isImportingMedia = false
         importProgressValue = 1
+        if !importedSystemAssetIdentifiers.isEmpty {
+            importedSystemAssetIdentifiersBySummaryID[summary.id] = importedSystemAssetIdentifiers
+        }
         importResultSummary = summary
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
@@ -1464,27 +1597,115 @@ final class MediaLibraryViewModel: ObservableObject {
         guard checkImportQuota(requestedCount: pendingEntries.count) else { return }
         guard let albumID = albums.first(where: { $0.kind == .allPhotos })?.id ?? albums.first?.id else { return }
 
-        do {
-            let urls = try pendingEntries.map { try store.fileURL(for: $0) }
-            startImport(totalCount: urls.count, albumID: albumID, sourceDescription: String(localized: "分享扩展"))
-            activeImportTask = Task { @MainActor [weak self] in
-                guard let self else { return }
-                var importedCount = 0
-                do {
-                    let summary = try await self.importFileURLs(urls, directlyInto: albumID) { importedCount = $0 + 1 }
-                    store.removeEntries(pendingEntries)
-                    self.finishImport(with: summary)
-                } catch is CancellationError {
-                    store.removeEntries(Array(pendingEntries.prefix(importedCount)))
-                    self.cancelImportState(message: String(localized: "分享导入已停止。"))
-                } catch {
-                    store.removeEntries(Array(pendingEntries.prefix(importedCount)))
-                    self.failImport(with: error.localizedDescription)
+        startImport(totalCount: pendingEntries.count, albumID: albumID, sourceDescription: String(localized: "分享扩展"))
+        activeImportTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var importedEntries: [SharedImportQueueEntry] = []
+            var photoCount = 0
+            var videoCount = 0
+            var lastSkippedError: String?
+            var didFinish = false
+            defer {
+                if !didFinish, !importedEntries.isEmpty, !self.items.isEmpty {
+                    do {
+                        try self.persistCurrentState()
+                        store.removeEntries(importedEntries)
+                        self.refresh()
+                    } catch {
+                        self.lastErrorMessage = error.localizedDescription
+                    }
                 }
             }
-        } catch {
-            lastErrorMessage = error.localizedDescription
+
+            do {
+                for (index, entry) in pendingEntries.enumerated() {
+                    try Task.checkCancellation()
+                    self.updateImportProgress(
+                        title: String(localized: "正在加密导入"),
+                        detail: String.localizedStringWithFormat(String(localized: "正在处理 %@"), entry.originalFilename),
+                        currentIndex: index,
+                        totalCount: pendingEntries.count
+                    )
+
+                    do {
+                        let url = try store.fileURL(for: entry)
+                        let storedFile = try await self.fileStorage.importFile(from: url, space: self.space)
+                        let item = VaultItem(
+                            name: self.availableItemName(for: storedFile.displayName),
+                            createdAt: .now,
+                            importedAt: .now,
+                            lastExportedAt: nil,
+                            originalCapturedAt: storedFile.originalCapturedAt,
+                            mediaKind: storedFile.mediaKind,
+                            space: self.space,
+                            relativePath: storedFile.relativePath,
+                            originalFilename: storedFile.originalFilename,
+                            contentTypeIdentifier: storedFile.contentTypeIdentifier,
+                            locationLatitude: storedFile.locationLatitude,
+                            locationLongitude: storedFile.locationLongitude,
+                            videoDuration: storedFile.videoDuration
+                        )
+
+                        switch storedFile.mediaKind {
+                        case .photo, .livePhoto: photoCount += 1
+                        case .video: videoCount += 1
+                        }
+
+                        self.items.append(item)
+                        importedEntries.append(entry)
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch {
+                        if self.shouldPreserveSharedQueueEntry(on: error) {
+                            throw error
+                        }
+                        lastSkippedError = error.localizedDescription
+                        store.removeEntries([entry])
+                    }
+
+                    self.updateImportProgress(
+                        title: String(localized: "写入媒体索引"),
+                        detail: String.localizedStringWithFormat(String(localized: "已完成 %1$lld / %2$lld"), index + 1, pendingEntries.count),
+                        currentIndex: index + 1,
+                        totalCount: pendingEntries.count
+                    )
+                }
+
+                didFinish = true
+                if !importedEntries.isEmpty {
+                    try self.persistCurrentState()
+                    store.removeEntries(importedEntries)
+                    self.refresh()
+                    self.finishImport(with: MediaImportResultSummary(photoCount: photoCount, videoCount: videoCount))
+                } else if let lastSkippedError {
+                    self.failImport(with: lastSkippedError)
+                } else {
+                    self.activeImportTask = nil
+                    self.isImportingMedia = false
+                }
+            } catch is CancellationError {
+                self.cancelImportState(message: String(localized: "分享导入已停止。"))
+            } catch {
+                self.failImport(with: error.localizedDescription)
+            }
         }
+    }
+
+    private func shouldPreserveSharedQueueEntry(on error: Error) -> Bool {
+        if case .keyUnavailable = error as? VaultCryptoError {
+            return true
+        }
+        if let sharedError = error as? SharedImportError, case .appGroupUnavailable = sharedError {
+            return true
+        }
+        let nsError = error as NSError
+        if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileWriteOutOfSpaceError {
+            return true
+        }
+        if nsError.domain == NSPOSIXErrorDomain && nsError.code == Int(ENOSPC) {
+            return true
+        }
+        return false
     }
 
     private func saveAndRefresh() {
@@ -1744,7 +1965,7 @@ final class MediaLibraryViewModel: ObservableObject {
     }
 
     private func resolvedCover(for album: VaultAlbum) -> (title: String?, item: VaultItem?, systemImage: String?) {
-        guard album.showsCover else {
+        guard !album.isSecureAlbum, album.showsCover else {
             return (nil, nil, nil)
         }
 

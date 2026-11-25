@@ -18,7 +18,7 @@ final class AppSessionViewModel: ObservableObject {
     private var hasEnteredBackground = false
     private let logger = Logger(subsystem: "com.cinmouice.SecurityFolder", category: "AppLock")
     private var autoLockTimer: AnyCancellable?
-    private var lastInteractionAt = Date()
+    private var lastInteractionUptime = ProcessInfo.processInfo.systemUptime
     private var shouldAutomaticallyAttemptBiometricUnlock = true
     private var consecutiveBiometricFailureCount = 0
 
@@ -292,7 +292,7 @@ final class AppSessionViewModel: ObservableObject {
 
     func registerInteraction() {
         guard isUnlocked else { return }
-        lastInteractionAt = .now
+        lastInteractionUptime = ProcessInfo.processInfo.systemUptime
     }
 
     func consumePendingUnlockMessage() -> String? {
@@ -336,7 +336,7 @@ final class AppSessionViewModel: ObservableObject {
         guard timeoutSeconds > 0 else { return }
 
         let timeoutInterval = TimeInterval(timeoutSeconds)
-        if Date().timeIntervalSince(lastInteractionAt) >= timeoutInterval {
+        if ProcessInfo.processInfo.systemUptime - lastInteractionUptime >= timeoutInterval {
             lock()
         }
     }

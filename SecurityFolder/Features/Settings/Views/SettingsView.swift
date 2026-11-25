@@ -110,6 +110,16 @@ struct SettingsView: View {
                 // 大屏媒体库右侧嵌入设置时，左侧点相册前先把设置二级页退回根级。
                 selectedSidebarDestination = nil
             }
+            .onReceive(NotificationCenter.default.publisher(for: .vaultDidLock)) { _ in
+                activeBackupTask?.cancel()
+                activeBackupTask = nil
+                resetExportInputs()
+                resetImportInputs()
+                privacyAuthPassword = ""
+                exportAuthPassword = ""
+                importAuthPassword = ""
+                activeAuthPrompt = nil
+            }
             .fileImporter(
                 isPresented: $showingImportPicker,
                 allowedContentTypes: [.data],
@@ -140,9 +150,9 @@ struct SettingsView: View {
             }
             .alert(String(localized: "设置导出密码"), isPresented: $showingExportAlert) {
                 SecureField(String(localized: "输入导出密码"), text: $exportPassword)
-                    .textContentType(.newPassword)
+                    .autocorrectionDisabled()
                 SecureField(String(localized: "再次输入导出密码"), text: $exportPasswordConfirmation)
-                    .textContentType(.newPassword)
+                    .autocorrectionDisabled()
                 Button(String(localized: "取消"), role: .cancel) {
                     resetExportInputs()
                 }
@@ -154,7 +164,7 @@ struct SettingsView: View {
             }
             .alert(String(localized: "输入导入密码"), isPresented: $showingImportAlert) {
                 SecureField(String(localized: "导入密码"), text: $importPassword)
-                    .textContentType(.password)
+                    .autocorrectionDisabled()
                 Button(String(localized: "取消"), role: .cancel) {
                     resetImportInputs()
                 }
@@ -499,8 +509,9 @@ struct SettingsView: View {
         case let .failure(message):
             settingsStatusMessage = String(localized: "密码错误，应用已锁定。")
             authenticationFailureMessage = message
-            authenticationFailureRequiresLock = true
-            showingAuthenticationFailureAlert = true
+            authenticationFailureRequiresLock = false
+            showingAuthenticationFailureAlert = false
+            session.lock(withMessage: message)
         }
     }
     
@@ -520,8 +531,9 @@ struct SettingsView: View {
         case let .failure(message):
             settingsStatusMessage = String(localized: "密码错误，应用已锁定。")
             authenticationFailureMessage = message
-            authenticationFailureRequiresLock = true
-            showingAuthenticationFailureAlert = true
+            authenticationFailureRequiresLock = false
+            showingAuthenticationFailureAlert = false
+            session.lock(withMessage: message)
         }
     }
     
@@ -542,8 +554,9 @@ struct SettingsView: View {
             settingsStatusMessage = String(localized: "密码错误，应用已锁定。")
             selectedImportURLs = []
             authenticationFailureMessage = message
-            authenticationFailureRequiresLock = true
-            showingAuthenticationFailureAlert = true
+            authenticationFailureRequiresLock = false
+            showingAuthenticationFailureAlert = false
+            session.lock(withMessage: message)
         }
     }
 

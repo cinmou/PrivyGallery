@@ -54,9 +54,12 @@ nonisolated final class VaultBackupFileStore: @unchecked Sendable {
             throw VaultExportError.failedToCreateBackupFile
         }
 
-        let directoryURL = applicationSupportURL.appendingPathComponent("BackupFiles", isDirectory: true)
+        var directoryURL = applicationSupportURL.appendingPathComponent("BackupFiles", isDirectory: true)
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
         try? fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: directoryURL.path())
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = true
+        try? directoryURL.setResourceValues(resourceValues)
         return directoryURL
     }
 

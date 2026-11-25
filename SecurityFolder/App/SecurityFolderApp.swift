@@ -9,6 +9,8 @@ struct SecurityFolderApp: App {
     #endif
 
     init() {
+        EmergencyWipeService().completePendingWipeIfNeeded()
+        Self.cleanupStaleTemporaryMediaDirectories()
         AppLockService().reconcilePersistentSecurityState()
         let recoveryNotice = BackupOperationRecoveryService.shared.recoverIfNeeded()
         if let recoveryNotice {
@@ -66,14 +68,40 @@ struct SecurityFolderApp: App {
         guard let storeURL = try? legacyPersistentStoreURL() else { return }
 
         let fileManager = FileManager.default
+        let parentURL = storeURL.deletingLastPathComponent()
         let siblingURLs = [
             storeURL,
             storeURL.appendingPathExtension("shm"),
-            storeURL.appendingPathExtension("wal")
+            storeURL.appendingPathExtension("wal"),
+            parentURL.appendingPathComponent("default.store-shm"),
+            parentURL.appendingPathComponent("default.store-wal")
         ]
 
         siblingURLs.forEach { url in
             if fileManager.fileExists(atPath: url.path()) {
+                try? fileManager.removeItem(at: url)
+            }
+        }
+    }
+
+    /// 清理上次进程崩溃或被系统强杀后可能遗留在 tmp 中的明文解码/导入临时目录。
+    private static func cleanupStaleTemporaryMediaDirectories() {
+        let fileManager = FileManager.default
+        let temporaryURL = fileManager.temporaryDirectory
+        let fixedDirectories = [
+            temporaryURL.appendingPathComponent("VaultDecryptedCache", isDirectory: true),
+            temporaryURL.appendingPathComponent("SystemPhotoImporter", isDirectory: true)
+        ]
+
+        for directory in fixedDirectories where fileManager.fileExists(atPath: directory.path()) {
+            try? fileManager.removeItem(at: directory)
+        }
+
+        if let contents = try? fileManager.contentsOfDirectory(
+            at: temporaryURL,
+            includingPropertiesForKeys: nil
+        ) {
+            for url in contents where url.lastPathComponent.hasPrefix("LivePhotoImport-") {
                 try? fileManager.removeItem(at: url)
             }
         }

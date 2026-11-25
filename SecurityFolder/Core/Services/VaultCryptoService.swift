@@ -7,6 +7,7 @@ enum VaultCryptoError: LocalizedError {
     case biometricUnavailable
     case biometricKeyMissing
     case keyUnavailable
+    case keychainFailure(OSStatus)
     case invalidEncryptedFile
     case corruptEncryptedChunk
 
@@ -16,7 +17,7 @@ enum VaultCryptoError: LocalizedError {
             return String(localized: "当前设备不可用 Face ID / Touch ID。")
         case .biometricKeyMissing:
             return String(localized: "默认生物识别空间的密钥还没有完成绑定。")
-        case .keyUnavailable:
+        case .keyUnavailable, .keychainFailure:
             return String(localized: "当前空间的加密密钥不可用，请先重新解锁。")
         case .invalidEncryptedFile:
             return String(localized: "文件密文格式无效，无法读取。")
@@ -39,6 +40,7 @@ final class VaultCryptoService {
     nonisolated(unsafe) private var activeKeys: [VaultSpaceKind: SymmetricKey] = [:]
     nonisolated(unsafe) private var temporaryFilesByPath: [String: URL] = [:]
     nonisolated(unsafe) private var temporaryFileGeneration = 0
+    nonisolated(unsafe) private var lockGeneration = 0
 
     private init() {}
 
@@ -110,16 +112,16 @@ final class VaultCryptoService {
         setActiveKey(SymmetricKey(data: data), for: space)
     }
 
-    /// 使用密码解锁空间；如果该空间首次配置密码，会同步生成该空间的 DEK 与生物识别入口。
+    /// 使用密码解锁空间；仅解包已存在的空间 DEK，不隐式生成新密钥。
     func unlock(space: VaultSpaceKind, passcode: String) throws {
-        try ensureWrappedKeyExists(for: space, passcode: passcode)
         guard let wrappedKeyData = try keychainData(for: wrappedAccount(for: space)) else {
             throw VaultCryptoError.keyUnavailable
         }
 
         let wrappingKey = wrappingKey(for: space, passcode: passcode)
         let sealedBox = try AES.GCM.SealedBox(combined: wrappedKeyData)
-        let rawKeyData = try AES.GCM.open(sealedBox, using: wrappingKey)
+        var rawKeyData = try AES.GCM.open(sealedBox, using: wrappingKey)
+        defer { zeroize(&rawKeyData) }
         setActiveKey(SymmetricKey(data: rawKeyData), for: space)
         try saveBiometricKeyIfMissing(rawKeyData, for: space)
     }
@@ -127,10 +129,12 @@ final class VaultCryptoService {
     /// 只校验密码能否解开该空间的主密钥，不加载密钥，也不清除其他空间已加载的密钥。
     func verifyPasscode(_ passcode: String, for space: VaultSpaceKind) -> Bool {
         guard let wrappedKeyData = try? keychainData(for: wrappedAccount(for: space)),
-              let sealedBox = try? AES.GCM.SealedBox(combined: wrappedKeyData) else {
+              let sealedBox = try? AES.GCM.SealedBox(combined: wrappedKeyData),
+              var rawKeyData = try? AES.GCM.open(sealedBox, using: wrappingKey(for: space, passcode: passcode)) else {
             return false
         }
-        return (try? AES.GCM.open(sealedBox, using: wrappingKey(for: space, passcode: passcode))) != nil
+        zeroize(&rawKeyData)
+        return true
     }
 
     /// 首次设置密码时创建空间主密钥；若该空间已经有密钥，则只做重包裹。
@@ -140,7 +144,8 @@ final class VaultCryptoService {
         }
 
         let newKey = SymmetricKey(size: .bits256)
-        let rawKeyData = newKey.rawData
+        var rawKeyData = newKey.rawData
+        defer { zeroize(&rawKeyData) }
         try saveWrappedKey(rawKeyData, for: space, passcode: newPasscode)
         try saveBiometricKey(rawKeyData, for: space)
         setActiveKey(newKey, for: space)
@@ -148,14 +153,14 @@ final class VaultCryptoService {
 
     /// 修改空间密码时不重加密媒体，只重新包裹现有 DEK。
     func changePasscode(for space: VaultSpaceKind, oldPasscode: String, newPasscode: String) throws {
-        try ensureWrappedKeyExists(for: space, passcode: oldPasscode)
         guard let wrappedKeyData = try keychainData(for: wrappedAccount(for: space)) else {
             throw VaultCryptoError.keyUnavailable
         }
 
         let oldWrappingKey = wrappingKey(for: space, passcode: oldPasscode)
         let sealedBox = try AES.GCM.SealedBox(combined: wrappedKeyData)
-        let rawKeyData = try AES.GCM.open(sealedBox, using: oldWrappingKey)
+        var rawKeyData = try AES.GCM.open(sealedBox, using: oldWrappingKey)
+        defer { zeroize(&rawKeyData) }
         try saveWrappedKey(rawKeyData, for: space, passcode: newPasscode)
         try saveBiometricKey(rawKeyData, for: space)
         setActiveKey(SymmetricKey(data: rawKeyData), for: space)
@@ -187,6 +192,7 @@ final class VaultCryptoService {
             temporaryFileGeneration &+= 1
             if clearActiveKeys {
                 activeKeys.removeAll()
+                lockGeneration &+= 1
             }
             return files
         }
@@ -244,6 +250,11 @@ final class VaultCryptoService {
         _ = try readExact(from: inputHandle, byteCount: 1)
         _ = try readExact(from: inputHandle, byteCount: 4)
 
+        let chunksStart = try inputHandle.offset()
+        let fileEnd = try inputHandle.seekToEnd()
+        try inputHandle.seek(toOffset: chunksStart)
+        let maxSealedLength = chunkSize + 28
+
         while true {
             let lengthData = try inputHandle.read(upToCount: 4) ?? Data()
             if lengthData.isEmpty {
@@ -255,6 +266,13 @@ final class VaultCryptoService {
             }
 
             let sealedLength = Int(UInt32(bigEndianData: lengthData))
+            let offset = try inputHandle.offset()
+            guard sealedLength >= 28,
+                  sealedLength <= maxSealedLength,
+                  offset <= fileEnd,
+                  UInt64(sealedLength) <= fileEnd - offset else {
+                throw VaultCryptoError.invalidEncryptedFile
+            }
             let combinedData = try readExact(from: inputHandle, byteCount: sealedLength)
             let sealedBox = try AES.GCM.SealedBox(combined: combinedData)
             let plaintext = try AES.GCM.open(sealedBox, using: key)
@@ -276,9 +294,16 @@ final class VaultCryptoService {
         cacheResult: Bool = true,
         exportGeneration: Int? = nil
     ) throws -> URL {
-        if let exportGeneration, temporaryExportGeneration(for: space) != exportGeneration {
-            throw VaultCryptoError.keyUnavailable
+        let (key, startLockGeneration, startTempGeneration): (SymmetricKey, Int, Int) = try stateQueue.sync {
+            guard let key = activeKeys[space] else {
+                throw VaultCryptoError.keyUnavailable
+            }
+            if let exportGeneration, temporaryFileGeneration != exportGeneration {
+                throw VaultCryptoError.keyUnavailable
+            }
+            return (key, lockGeneration, temporaryFileGeneration)
         }
+
         guard fileManager.fileExists(atPath: encryptedURL.path(percentEncoded: false)) else {
             return encryptedURL
         }
@@ -288,36 +313,65 @@ final class VaultCryptoService {
         }
 
         if cacheResult {
-            if let cachedURL = stateQueue.sync(execute: { temporaryFilesByPath[relativePath] }),
+            let cachedURL = stateQueue.sync { () -> URL? in
+                guard lockGeneration == startLockGeneration,
+                      exportGeneration == nil || temporaryFileGeneration == exportGeneration else {
+                    return nil
+                }
+                return temporaryFilesByPath[relativePath]
+            }
+            if let cachedURL,
                fileManager.fileExists(atPath: cachedURL.path(percentEncoded: false)) {
                 return cachedURL
             }
         }
 
-        let key = try activeKey(for: space)
         try ensureTemporaryDirectoryExists()
         let itemDirectory = temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try fileManager.createDirectory(at: itemDirectory, withIntermediateDirectories: true)
+        try fileManager.createDirectory(
+            at: itemDirectory,
+            withIntermediateDirectories: true,
+            attributes: [.protectionKey: FileProtectionType.complete]
+        )
         let tempURL = itemDirectory.appendingPathComponent(sanitizedTemporaryFilename(from: originalFilename))
 
         do {
-            try decryptFile(from: encryptedURL, to: tempURL, using: key)
+            try decryptFile(
+                from: encryptedURL,
+                to: tempURL,
+                using: key,
+                shouldAbort: { [self] in
+                    stateQueue.sync {
+                        lockGeneration != startLockGeneration
+                            || temporaryFileGeneration != startTempGeneration
+                            || activeKeys[space] == nil
+                    }
+                }
+            )
             try protectFile(at: tempURL)
         } catch {
             try? fileManager.removeItem(at: itemDirectory)
             throw error
         }
 
-        if cacheResult {
-            let saved = stateQueue.sync {
-                guard exportGeneration == nil || temporaryFileGeneration == exportGeneration else { return false }
-                temporaryFilesByPath[relativePath] = tempURL
-                return true
+        let (isValid, replacedURL): (Bool, URL?) = stateQueue.sync {
+            guard lockGeneration == startLockGeneration,
+                  temporaryFileGeneration == startTempGeneration,
+                  activeKeys[space] != nil else {
+                return (false, nil)
             }
-            if !saved {
-                try? fileManager.removeItem(at: itemDirectory)
-                throw VaultCryptoError.keyUnavailable
+            if cacheResult {
+                let previous = temporaryFilesByPath.updateValue(tempURL, forKey: relativePath)
+                return (true, previous)
             }
+            return (true, nil)
+        }
+        if !isValid {
+            try? fileManager.removeItem(at: itemDirectory)
+            throw VaultCryptoError.keyUnavailable
+        }
+        if let replacedURL, replacedURL != tempURL {
+            removeManagedTemporaryFile(at: replacedURL)
         }
         return tempURL
     }
@@ -336,14 +390,67 @@ final class VaultCryptoService {
     }
 
     nonisolated private func sanitizedTemporaryFilename(from originalFilename: String) -> String {
-        let lastComponent = (originalFilename as NSString).lastPathComponent
+        let strippedScalars = originalFilename.unicodeScalars.filter { scalar in
+            let value = scalar.value
+            if value == 0 { return false }
+            if CharacterSet.controlCharacters.contains(scalar) { return false }
+            // Strip Unicode bidirectional control/override characters (e.g. RTLO U+202E).
+            if (0x202A...0x202E).contains(value)
+                || (0x2066...0x2069).contains(value)
+                || value == 0x200E || value == 0x200F || value == 0x061C {
+                return false
+            }
+            return true
+        }
+        let cleanedInput = String(String.UnicodeScalarView(strippedScalars))
+        var candidate = (cleanedInput as NSString).lastPathComponent
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: "\\", with: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !lastComponent.isEmpty, lastComponent != ".", lastComponent != ".." else {
+
+        while candidate.hasPrefix(".") {
+            candidate.removeFirst()
+        }
+        candidate = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !candidate.isEmpty, candidate != ".", candidate != ".." else {
             return UUID().uuidString
         }
-        return lastComponent
+
+        let maxUTF8Bytes = 200
+        if candidate.utf8.count <= maxUTF8Bytes {
+            return candidate
+        }
+
+        let nsCandidate = candidate as NSString
+        let ext = nsCandidate.pathExtension
+        let extSuffix = ext.isEmpty ? "" : ".\(ext)"
+        if !extSuffix.isEmpty, extSuffix.utf8.count < maxUTF8Bytes - 16 {
+            let stem = nsCandidate.deletingPathExtension
+            let truncatedStem = truncateUTF8(stem, maxBytes: maxUTF8Bytes - extSuffix.utf8.count)
+            if !truncatedStem.isEmpty {
+                return truncatedStem + extSuffix
+            }
+        }
+
+        let truncated = truncateUTF8(candidate, maxBytes: maxUTF8Bytes)
+        return truncated.isEmpty ? UUID().uuidString : truncated
+    }
+
+    nonisolated private func truncateUTF8(_ text: String, maxBytes: Int) -> String {
+        guard maxBytes > 0 else { return "" }
+        var result = ""
+        var byteCount = 0
+        for character in text {
+            let charBytes = String(character).utf8.count
+            if byteCount + charBytes > maxBytes {
+                break
+            }
+            result.append(character)
+            byteCount += charBytes
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func migrateFileToEncryptedStorageIfNeeded(at fileURL: URL, space: VaultSpaceKind) throws -> Bool {
@@ -360,11 +467,15 @@ final class VaultCryptoService {
             .deletingLastPathComponent()
             .appendingPathComponent(".\(UUID().uuidString).migration")
 
-        try encryptFile(from: fileURL, to: destinationURL, using: key)
-        try fileManager.removeItem(at: fileURL)
-        try fileManager.moveItem(at: destinationURL, to: fileURL)
-        try protectFile(at: fileURL)
-        return true
+        do {
+            try encryptFile(from: fileURL, to: destinationURL, using: key)
+            _ = try fileManager.replaceItemAt(fileURL, withItemAt: destinationURL)
+            try protectFile(at: fileURL)
+            return true
+        } catch {
+            try? fileManager.removeItem(at: destinationURL)
+            throw error
+        }
     }
 
     /// 读取当前空间媒体文件的明文字节数。
@@ -387,6 +498,11 @@ final class VaultCryptoService {
         _ = try readExact(from: inputHandle, byteCount: 1)
         _ = try readExact(from: inputHandle, byteCount: 4)
 
+        let chunksStart = try inputHandle.offset()
+        let fileEnd = try inputHandle.seekToEnd()
+        try inputHandle.seek(toOffset: chunksStart)
+        let maxSealedLength = chunkSize + 28
+
         var plaintextByteCount: Int64 = 0
         while true {
             let lengthData = try inputHandle.read(upToCount: 4) ?? Data()
@@ -399,10 +515,14 @@ final class VaultCryptoService {
             }
 
             let sealedLength = Int(UInt32(bigEndianData: lengthData))
-            guard sealedLength >= 28 else {
+            let offset = try inputHandle.offset()
+            guard sealedLength >= 28,
+                  sealedLength <= maxSealedLength,
+                  offset <= fileEnd,
+                  UInt64(sealedLength) <= fileEnd - offset else {
                 throw VaultCryptoError.invalidEncryptedFile
             }
-            _ = try readExact(from: inputHandle, byteCount: sealedLength)
+            try inputHandle.seek(toOffset: offset + UInt64(sealedLength))
             plaintextByteCount += Int64(sealedLength - 28)
         }
 
@@ -462,7 +582,10 @@ final class VaultCryptoService {
 
                 let sealedLength = Int(UInt32(bigEndianData: lengthData))
                 let offset = try inputHandle.offset()
-                guard sealedLength >= 28, offset <= fileEnd, UInt64(sealedLength) <= fileEnd - offset else {
+                guard sealedLength >= 28,
+                      sealedLength <= chunkSize + 28,
+                      offset <= fileEnd,
+                      UInt64(sealedLength) <= fileEnd - offset else {
                     throw VaultCryptoError.invalidEncryptedFile
                 }
                 let combinedData = try readExact(from: inputHandle, byteCount: sealedLength)
@@ -493,15 +616,15 @@ final class VaultCryptoService {
         forEncryptedFileAt encryptedURL: URL,
         space: VaultSpaceKind
     ) throws -> VaultEncryptedStreamReader {
+        let key = try activeKey(for: space)
         guard fileManager.fileExists(atPath: encryptedURL.path(percentEncoded: false)) else {
             throw VaultCryptoError.invalidEncryptedFile
         }
         let isEncrypted = try isEncryptedVaultFile(at: encryptedURL)
-        let key = isEncrypted ? try activeKey(for: space) : nil
         return try VaultEncryptedStreamReader(
             fileURL: encryptedURL,
             isEncrypted: isEncrypted,
-            key: key,
+            key: isEncrypted ? key : nil,
             headerByteCount: Self.fileMagic.count + 1 + 4,
             maxPlaintextChunkSize: chunkSize
         )
@@ -523,12 +646,19 @@ final class VaultCryptoService {
             try fileManager.removeItem(at: tempURL)
         }
 
-        fileManager.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
+        fileManager.createFile(
+            atPath: tempURL.path(percentEncoded: false),
+            contents: nil,
+            attributes: [.protectionKey: FileProtectionType.complete]
+        )
         let inputHandle = try FileHandle(forReadingFrom: sourceURL)
         let outputHandle = try FileHandle(forWritingTo: tempURL)
+        var outputClosed = false
         defer {
             try? inputHandle.close()
-            try? outputHandle.close()
+            if !outputClosed {
+                try? outputHandle.close()
+            }
         }
 
         do {
@@ -552,17 +682,20 @@ final class VaultCryptoService {
                 processedUnits += Int64(chunk.count)
                 progress?(processedUnits, totalUnits)
             }
+            try outputHandle.synchronize()
+            try outputHandle.close()
+            outputClosed = true
+
+            if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
+                _ = try fileManager.replaceItemAt(destinationURL, withItemAt: tempURL)
+            } else {
+                try fileManager.moveItem(at: tempURL, to: destinationURL)
+            }
+            try protectFile(at: destinationURL)
         } catch {
             try? fileManager.removeItem(at: tempURL)
             throw error
         }
-
-        if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-
-        try fileManager.moveItem(at: tempURL, to: destinationURL)
-        try protectFile(at: destinationURL)
     }
 
     private func writeEncryptedData(_ plaintextData: Data, to destinationURL: URL, using key: SymmetricKey) throws {
@@ -574,10 +707,17 @@ final class VaultCryptoService {
             try fileManager.removeItem(at: tempURL)
         }
 
-        fileManager.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
+        fileManager.createFile(
+            atPath: tempURL.path(percentEncoded: false),
+            contents: nil,
+            attributes: [.protectionKey: FileProtectionType.complete]
+        )
         let outputHandle = try FileHandle(forWritingTo: tempURL)
+        var outputClosed = false
         defer {
-            try? outputHandle.close()
+            if !outputClosed {
+                try? outputHandle.close()
+            }
         }
 
         do {
@@ -598,25 +738,33 @@ final class VaultCryptoService {
                 try outputHandle.write(contentsOf: combined)
                 offset = nextOffset
             }
+            try outputHandle.synchronize()
+            try outputHandle.close()
+            outputClosed = true
+
+            if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
+                _ = try fileManager.replaceItemAt(destinationURL, withItemAt: tempURL)
+            } else {
+                try fileManager.moveItem(at: tempURL, to: destinationURL)
+            }
+            try protectFile(at: destinationURL)
         } catch {
             try? fileManager.removeItem(at: tempURL)
             throw error
         }
-
-        if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-
-        try fileManager.moveItem(at: tempURL, to: destinationURL)
-        try protectFile(at: destinationURL)
     }
 
-    nonisolated private func decryptFile(from encryptedURL: URL, to destinationURL: URL, using key: SymmetricKey) throws {
+    nonisolated private func decryptFile(
+        from encryptedURL: URL,
+        to destinationURL: URL,
+        using key: SymmetricKey,
+        shouldAbort: (() -> Bool)? = nil
+    ) throws {
         if !fileManager.fileExists(atPath: destinationURL.deletingLastPathComponent().path(percentEncoded: false)) {
             try fileManager.createDirectory(
                 at: destinationURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true,
-                attributes: nil
+                attributes: [.protectionKey: FileProtectionType.complete]
             )
         }
 
@@ -635,7 +783,11 @@ final class VaultCryptoService {
         if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: destinationURL)
         }
-        fileManager.createFile(atPath: destinationURL.path(percentEncoded: false), contents: nil)
+        fileManager.createFile(
+            atPath: destinationURL.path(percentEncoded: false),
+            contents: nil,
+            attributes: [.protectionKey: FileProtectionType.complete]
+        )
 
         let inputHandle = try FileHandle(forReadingFrom: encryptedURL)
         let outputHandle = try FileHandle(forWritingTo: destinationURL)
@@ -649,7 +801,15 @@ final class VaultCryptoService {
             _ = try readExact(from: inputHandle, byteCount: 1)
             _ = try readExact(from: inputHandle, byteCount: 4)
 
+            let chunksStart = try inputHandle.offset()
+            let fileEnd = try inputHandle.seekToEnd()
+            try inputHandle.seek(toOffset: chunksStart)
+            let maxSealedLength = chunkSize + 28
+
             while true {
+                if shouldAbort?() == true {
+                    throw VaultCryptoError.keyUnavailable
+                }
                 let lengthData = try inputHandle.read(upToCount: 4) ?? Data()
                 if lengthData.isEmpty {
                     break
@@ -660,9 +820,19 @@ final class VaultCryptoService {
                 }
 
                 let sealedLength = Int(UInt32(bigEndianData: lengthData))
+                let offset = try inputHandle.offset()
+                guard sealedLength >= 28,
+                      sealedLength <= maxSealedLength,
+                      offset <= fileEnd,
+                      UInt64(sealedLength) <= fileEnd - offset else {
+                    throw VaultCryptoError.invalidEncryptedFile
+                }
                 let combinedData = try readExact(from: inputHandle, byteCount: sealedLength)
                 let sealedBox = try AES.GCM.SealedBox(combined: combinedData)
                 let plaintext = try AES.GCM.open(sealedBox, using: key)
+                if shouldAbort?() == true {
+                    throw VaultCryptoError.keyUnavailable
+                }
                 try outputHandle.write(contentsOf: plaintext)
             }
         } catch {
@@ -671,7 +841,7 @@ final class VaultCryptoService {
         }
     }
 
-    nonisolated private func isEncryptedVaultFile(at url: URL) throws -> Bool {
+    nonisolated func isEncryptedVaultFile(at url: URL) throws -> Bool {
         let handle = try FileHandle(forReadingFrom: url)
         defer {
             try? handle.close()
@@ -694,17 +864,6 @@ final class VaultCryptoService {
         }
     }
 
-    private func ensureWrappedKeyExists(for space: VaultSpaceKind, passcode: String) throws {
-        if keychainItemExists(for: wrappedAccount(for: space)) {
-            return
-        }
-
-        let newKey = SymmetricKey(size: .bits256)
-        let rawKeyData = newKey.rawData
-        try saveWrappedKey(rawKeyData, for: space, passcode: passcode)
-        try saveBiometricKeyIfMissing(rawKeyData, for: space)
-    }
-
     private func saveWrappedKey(_ rawKeyData: Data, for space: VaultSpaceKind, passcode: String) throws {
         let wrappingKey = wrappingKey(for: space, passcode: passcode)
         let sealedBox = try AES.GCM.seal(rawKeyData, using: wrappingKey)
@@ -725,17 +884,27 @@ final class VaultCryptoService {
     }
 
     private func saveBiometricKey(_ rawKeyData: Data, for space: VaultSpaceKind) throws {
-        let accessControl = SecAccessControlCreateWithFlags(
+        var accessError: Unmanaged<CFError>?
+        guard let accessControl = SecAccessControlCreateWithFlags(
             nil,
             kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             .biometryCurrentSet,
-            nil
-        )
+            &accessError
+        ) else {
+            _ = accessError?.takeRetainedValue()
+            throw VaultCryptoError.keychainFailure(errSecParam)
+        }
 
         try saveKeychainData(rawKeyData, account: biometricAccount(for: space), accessControl: accessControl)
     }
 
     private func saveKeychainData(_ data: Data, account: String, accessControl: SecAccessControl?) throws {
+        let matchQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: account
+        ]
+
         var attributes: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainService,
@@ -745,24 +914,24 @@ final class VaultCryptoService {
 
         if let accessControl {
             attributes[kSecAttrAccessControl as String] = accessControl
-        } else {
-            attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        }
-
-        let status = SecItemAdd(attributes as CFDictionary, nil)
-        if status == errSecSuccess {
-            return
-        }
-
-        if status == errSecDuplicateItem {
-            let deleteStatus = SecItemDelete(
-                [
-                    kSecClass as String: kSecClassGenericPassword,
-                    kSecAttrService as String: keychainService,
-                    kSecAttrAccount as String: account
-                ] as CFDictionary
+            var updateQuery = matchQuery
+            updateQuery[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
+            let updateStatus = SecItemUpdate(
+                updateQuery as CFDictionary,
+                [kSecValueData as String: data] as CFDictionary
             )
+            if updateStatus == errSecSuccess {
+                return
+            }
+            if updateStatus == errSecItemNotFound {
+                let addStatus = SecItemAdd(attributes as CFDictionary, nil)
+                guard addStatus == errSecSuccess else {
+                    throw NSError(domain: NSOSStatusErrorDomain, code: Int(addStatus))
+                }
+                return
+            }
 
+            let deleteStatus = SecItemDelete(matchQuery as CFDictionary)
             guard deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound else {
                 throw NSError(domain: NSOSStatusErrorDomain, code: Int(deleteStatus))
             }
@@ -774,7 +943,23 @@ final class VaultCryptoService {
             return
         }
 
-        throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        let updateStatus = SecItemUpdate(
+            matchQuery as CFDictionary,
+            [kSecValueData as String: data] as CFDictionary
+        )
+        if updateStatus == errSecSuccess {
+            return
+        }
+        if updateStatus == errSecItemNotFound {
+            let addStatus = SecItemAdd(attributes as CFDictionary, nil)
+            guard addStatus == errSecSuccess else {
+                throw NSError(domain: NSOSStatusErrorDomain, code: Int(addStatus))
+            }
+            return
+        }
+
+        throw NSError(domain: NSOSStatusErrorDomain, code: Int(updateStatus))
     }
 
     private func keychainData(for account: String, authenticationContext: LAContext? = nil) throws -> Data? {
@@ -817,13 +1002,19 @@ final class VaultCryptoService {
             nil
         )
 
-        return status == errSecSuccess || status == errSecInteractionNotAllowed
+        return status != errSecItemNotFound
     }
 
     private func wrappingKey(for space: VaultSpaceKind, passcode: String) -> SymmetricKey {
-        let material = Data("SecurityFolder|\(space.rawValue)|\(passcode)".utf8)
+        var material = Data("SecurityFolder|\(space.rawValue)|\(passcode)".utf8)
+        defer { zeroize(&material) }
         let digest = SHA256.hash(data: material)
         return SymmetricKey(data: Data(digest))
+    }
+
+    nonisolated private func zeroize(_ data: inout Data) {
+        guard !data.isEmpty else { return }
+        data.resetBytes(in: 0..<data.count)
     }
 
     nonisolated private func protectFile(at url: URL) throws {
@@ -840,7 +1031,11 @@ final class VaultCryptoService {
 
     nonisolated private func ensureTemporaryDirectoryExists() throws {
         if !fileManager.fileExists(atPath: temporaryDirectory.path(percentEncoded: false)) {
-            try fileManager.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true, attributes: nil)
+            try fileManager.createDirectory(
+                at: temporaryDirectory,
+                withIntermediateDirectories: true,
+                attributes: [.protectionKey: FileProtectionType.complete]
+            )
         }
     }
 
@@ -915,7 +1110,11 @@ nonisolated final class VaultEncryptedFileWriter {
             try fileManager.removeItem(at: tempURL)
         }
 
-        fileManager.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
+        fileManager.createFile(
+            atPath: tempURL.path(percentEncoded: false),
+            contents: nil,
+            attributes: [.protectionKey: FileProtectionType.complete]
+        )
         outputHandle = try FileHandle(forWritingTo: tempURL)
         try outputHandle.write(contentsOf: fileMagic)
         try outputHandle.write(contentsOf: Data([fileVersion]))
@@ -941,14 +1140,20 @@ nonisolated final class VaultEncryptedFileWriter {
     func finish() throws {
         guard !isFinished else { return }
         isFinished = true
-        try outputHandle.close()
+        do {
+            try outputHandle.synchronize()
+            try outputHandle.close()
 
-        if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
-            try fileManager.removeItem(at: destinationURL)
+            if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
+                _ = try fileManager.replaceItemAt(destinationURL, withItemAt: tempURL)
+            } else {
+                try fileManager.moveItem(at: tempURL, to: destinationURL)
+            }
+            try fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: destinationURL.path(percentEncoded: false))
+        } catch {
+            try? fileManager.removeItem(at: tempURL)
+            throw error
         }
-
-        try fileManager.moveItem(at: tempURL, to: destinationURL)
-        try fileManager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: destinationURL.path(percentEncoded: false))
     }
 
     func abort() {

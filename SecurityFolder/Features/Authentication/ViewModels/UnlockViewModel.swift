@@ -169,7 +169,11 @@ final class UnlockViewModel: ObservableObject {
     /// 首次设置完成后，沿用正常解锁链路进入主空间，避免出现特殊分支状态。
     func unlockPrimaryAfterOnboarding(using session: AppSessionViewModel) {
         guard !recentPrimaryPasscode.isEmpty else { return }
-        _ = session.unlock(space: .spaceA, using: recentPrimaryPasscode)
+        let passcode = recentPrimaryPasscode
+        recentPrimaryPasscode = ""
+        if case .failure = session.unlock(space: .spaceA, using: passcode) {
+            stage = .locked
+        }
     }
 
     func submitUnlock(passcode: String, using session: AppSessionViewModel) {

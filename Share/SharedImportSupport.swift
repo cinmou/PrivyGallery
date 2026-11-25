@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import UniformTypeIdentifiers
 
@@ -115,7 +116,9 @@ final class SharedImportStore {
     }
 
     var pendingEntries: [SharedImportQueueEntry] {
-        loadEntries()
+        withQueueLock {
+            loadEntriesUnlocked()
+        } ?? []
     }
 
     func validateCanAccept(itemCount: Int, into space: SharedImportSpace) throws {
@@ -157,16 +160,18 @@ final class SharedImportStore {
         }
 
         let id = UUID()
-        let extensionFromType = contentType.preferredFilenameExtension
-        let extensionFromName = URL(fileURLWithPath: originalFilename).pathExtension
-        let fileExtension = extensionFromName.isEmpty ? (extensionFromType ?? "dat") : extensionFromName
+        let fileExtension = resolvedFileExtension(for: contentType, originalFilename: originalFilename)
         let storedFilename = "\(id.uuidString).\(fileExtension)"
-        let destinationURL = try filesDirectory().appendingPathComponent(storedFilename)
+        let destinationURL = try filesDirectory().appendingPathComponent(storedFilename, isDirectory: false)
 
         if fileManager.fileExists(atPath: destinationURL.path()) {
             try fileManager.removeItem(at: destinationURL)
         }
         try fileManager.copyItem(at: sourceURL, to: destinationURL)
+        try? fileManager.setAttributes(
+            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+            ofItemAtPath: destinationURL.path()
+        )
 
         let entry = SharedImportQueueEntry(
             id: id,
@@ -176,17 +181,34 @@ final class SharedImportStore {
             contentTypeIdentifier: contentType.identifier,
             createdAt: .now
         )
-        appendEntry(entry)
+        do {
+            try appendEntry(entry)
+        } catch {
+            try? fileManager.removeItem(at: destinationURL)
+            throw error
+        }
     }
 
     func fileURL(for entry: SharedImportQueueEntry) throws -> URL {
-        try filesDirectory().appendingPathComponent(entry.relativePath)
+        let filename = entry.relativePath
+        guard !filename.isEmpty,
+              filename != ".",
+              filename != "..",
+              !filename.contains("/"),
+              !filename.contains("\\"),
+              !filename.contains("\0"),
+              URL(fileURLWithPath: filename).lastPathComponent == filename else {
+            throw SharedImportError.noReadableItems
+        }
+        return try filesDirectory().appendingPathComponent(filename, isDirectory: false)
     }
 
     func removeEntries(_ entries: [SharedImportQueueEntry]) {
         let removingIDs = Set(entries.map(\.id))
-        let remaining = loadEntries().filter { !removingIDs.contains($0.id) }
-        saveEntries(remaining)
+        _ = withQueueLock {
+            let remaining = loadEntriesUnlocked().filter { !removingIDs.contains($0.id) }
+            try? saveEntriesUnlocked(remaining)
+        }
 
         for entry in entries {
             if let url = try? fileURL(for: entry),
@@ -208,26 +230,63 @@ final class SharedImportStore {
         UserDefaults(suiteName: SharedImportConstants.appGroupIdentifier)
     }
 
-    private func appendEntry(_ entry: SharedImportQueueEntry) {
-        var entries = loadEntries()
-        entries.append(entry)
-        saveEntries(entries)
+    private func resolvedFileExtension(for contentType: UTType, originalFilename: String) -> String {
+        if let extensionFromType = contentType.preferredFilenameExtension, !extensionFromType.isEmpty {
+            return extensionFromType
+        }
+        let rawNameExtension = URL(fileURLWithPath: originalFilename).pathExtension
+        let sanitized = String(rawNameExtension.filter { $0.isASCII && ($0.isLetter || $0.isNumber) }.prefix(16))
+        if !sanitized.isEmpty,
+           let inferredType = UTType(filenameExtension: sanitized),
+           inferredType.conforms(to: .image) || inferredType.conforms(to: .movie) {
+            return sanitized
+        }
+        return contentType.conforms(to: .movie) ? "mov" : "jpg"
     }
 
-    private func loadEntries() -> [SharedImportQueueEntry] {
-        guard let data = try? Data(contentsOf: queueURL()),
+    private func appendEntry(_ entry: SharedImportQueueEntry) throws {
+        try withQueueLockThrowing {
+            var entries = loadEntriesUnlocked()
+            entries.append(entry)
+            try saveEntriesUnlocked(entries)
+        }
+    }
+
+    private func loadEntriesUnlocked() -> [SharedImportQueueEntry] {
+        guard let url = try? queueURL(),
+              let data = try? Data(contentsOf: url),
               let entries = try? JSONDecoder.sharedImportDecoder.decode([SharedImportQueueEntry].self, from: data) else {
             return []
         }
         return entries
     }
 
-    private func saveEntries(_ entries: [SharedImportQueueEntry]) {
-        guard let data = try? JSONEncoder.sharedImportEncoder.encode(entries),
-              let url = try? queueURL() else {
-            return
+    private func saveEntriesUnlocked(_ entries: [SharedImportQueueEntry]) throws {
+        let data = try JSONEncoder.sharedImportEncoder.encode(entries)
+        let url = try queueURL()
+        try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    private func withQueueLock<T>(_ body: () -> T) -> T? {
+        try? withQueueLockThrowing {
+            body()
         }
-        try? data.write(to: url, options: .atomic)
+    }
+
+    private func withQueueLockThrowing<T>(_ body: () throws -> T) throws -> T {
+        let lockURL = try rootDirectory().appendingPathComponent(".queue.lock", isDirectory: false)
+        let fd = lockURL.path.withCString { pathPointer in
+            Darwin.open(pathPointer, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
+        }
+        guard fd >= 0 else {
+            return try body()
+        }
+        defer {
+            _ = flock(fd, LOCK_UN)
+            Darwin.close(fd)
+        }
+        _ = flock(fd, LOCK_EX)
+        return try body()
     }
 
     private func queueURL() throws -> URL {
@@ -246,10 +305,18 @@ final class SharedImportStore {
     }
 
     private func ensureDirectory(_ url: URL) throws -> URL {
-        if !fileManager.fileExists(atPath: url.path()) {
-            try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
+        var directoryURL = url
+        if !fileManager.fileExists(atPath: directoryURL.path()) {
+            try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
         }
-        return url
+        try? fileManager.setAttributes(
+            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+            ofItemAtPath: directoryURL.path()
+        )
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = true
+        try? directoryURL.setResourceValues(resourceValues)
+        return directoryURL
     }
 
     private enum Keys {

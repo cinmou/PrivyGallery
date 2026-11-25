@@ -80,7 +80,15 @@ nonisolated enum DuplicateMediaScan {
                 var matchingGroup: Int?
                 for index in approximateGroups.indices {
                     try Task.checkCancellation()
-                    if approximateGroups[index].allSatisfy({ $0.photo.matches(photo) }) {
+                    var allMatch = true
+                    for member in approximateGroups[index] {
+                        try Task.checkCancellation()
+                        if !member.photo.matches(photo) {
+                            allMatch = false
+                            break
+                        }
+                    }
+                    if allMatch {
                         matchingGroup = index
                         break
                     }
@@ -124,11 +132,18 @@ nonisolated enum DuplicateMediaScan {
         let url = VaultFileStorageService.shared.fileURL(for: path)
         let maxBytes = 64 * 1024 * 1024
         var data = Data()
+        defer {
+            if !data.isEmpty {
+                data.resetBytes(in: 0..<data.count)
+            }
+            data.removeAll(keepingCapacity: false)
+        }
         try VaultCryptoService.shared.streamPlaintextChunks(fromEncryptedFileAt: url, space: space) { chunk in
             try Task.checkCancellation()
             guard chunk.count <= maxBytes - data.count else { throw CocoaError(.fileReadTooLarge) }
             data.append(chunk)
         }
+        try Task.checkCancellation()
         return try NearDuplicatePhoto(data: data)
     }
 

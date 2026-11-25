@@ -62,6 +62,7 @@ struct AppRootView: View {
         #if targetEnvironment(macCatalyst)
         if session.isUnlocked, let activeSpace = session.activeSpace {
             LibraryTabView(space: activeSpace, session: session)
+                .id(activeSpace)
         } else {
             ContentUnavailableView(
                 String(localized: "保险箱已锁定"),
@@ -72,6 +73,7 @@ struct AppRootView: View {
         #else
         if session.isUnlocked, let activeSpace = session.activeSpace {
             LibraryTabView(space: activeSpace, session: session)
+                .id(activeSpace)
         } else {
             UnlockView(session: session)
         }

@@ -133,7 +133,6 @@ private struct HiddenNumericTextField: UIViewRepresentable {
     func makeUIView(context: Context) -> UITextField {
         let textField = HiddenKeyboardTextField(frame: .zero)
         textField.keyboardType = .numberPad
-        textField.textContentType = .password
         textField.isSecureTextEntry = true
         textField.textColor = .clear
         textField.tintColor = .clear
@@ -194,14 +193,13 @@ private final class HiddenKeyboardTextField: UITextField {
 struct AutoFocusSecureField: View {
     let title: String
     @Binding var text: String
-    var textContentType: UITextContentType
+    var textContentType: UITextContentType? = nil
     var autoFocus: Bool = true
 
     @FocusState private var isFocused: Bool
 
     var body: some View {
         SecureField(title, text: $text)
-            .textContentType(textContentType)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .textFieldStyle(.roundedBorder)

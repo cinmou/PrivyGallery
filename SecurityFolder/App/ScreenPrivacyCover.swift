@@ -1,3 +1,4 @@
+import QuartzCore
 import SwiftUI
 import UIKit
 
@@ -56,6 +57,9 @@ final class PrivacyWindowAnchor: UIView {
             } else {
                 self.session.handleScenePhaseChange(isActive: scene.activationState == .foregroundActive)
             }
+            #if targetEnvironment(macCatalyst)
+            self.updateMacWindowSharingType()
+            #endif
         }
         observe(UIScene.willDeactivateNotification) { anchor in
             // A biometric prompt can deactivate the scene while the lock screen is visible.
@@ -73,6 +77,9 @@ final class PrivacyWindowAnchor: UIView {
             anchor.isSceneActive = true
             anchor.session.handleScenePhaseChange(isActive: true)
             anchor.updateCover()
+            #if targetEnvironment(macCatalyst)
+            anchor.updateMacWindowSharingType()
+            #endif
         }
         observers.append(NotificationCenter.default.addObserver(
             forName: UIScreen.capturedDidChangeNotification, object: scene.screen, queue: .main
@@ -80,6 +87,9 @@ final class PrivacyWindowAnchor: UIView {
             MainActor.assumeIsolated { self?.updateCover() }
         })
         updateCover()
+        #if targetEnvironment(macCatalyst)
+        updateMacWindowSharingType()
+        #endif
     }
 
     private func observe(_ name: Notification.Name, action: @escaping @MainActor (PrivacyWindowAnchor) -> Void) {
@@ -94,6 +104,9 @@ final class PrivacyWindowAnchor: UIView {
     func setCaptureProtection(_ enabled: Bool) {
         hideContentDuringCapture = enabled
         updateCover()
+        #if targetEnvironment(macCatalyst)
+        updateMacWindowSharingType()
+        #endif
     }
 
     private func updateCover() {
@@ -104,18 +117,52 @@ final class PrivacyWindowAnchor: UIView {
             coverWindow = nil
             return
         }
-        if coverWindow == nil {
-            let cover = UIWindow(windowScene: scene)
-            cover.windowLevel = .alert + 1
-            cover.overrideUserInterfaceStyle = window?.traitCollection.userInterfaceStyle ?? .unspecified
-            cover.backgroundColor = .systemBackground
-            cover.rootViewController = UIHostingController(rootView: PrivacyCoverContent(isCaptured: isCaptured))
-            coverWindow = cover
-        } else if let host = coverWindow?.rootViewController as? UIHostingController<PrivacyCoverContent> {
-            host.rootView = PrivacyCoverContent(isCaptured: isCaptured)
+        // 零延迟立即遮罩，避免录屏或切出瞬间出现淡入暴露窗口。
+        UIView.performWithoutAnimation {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            defer { CATransaction.commit() }
+
+            if coverWindow == nil {
+                let cover = UIWindow(windowScene: scene)
+                cover.windowLevel = .alert + 1
+                cover.overrideUserInterfaceStyle = window?.traitCollection.userInterfaceStyle ?? .unspecified
+                cover.backgroundColor = .systemBackground
+                cover.rootViewController = UIHostingController(rootView: PrivacyCoverContent(isCaptured: isCaptured))
+                coverWindow = cover
+            } else if let host = coverWindow?.rootViewController as? UIHostingController<PrivacyCoverContent> {
+                host.rootView = PrivacyCoverContent(isCaptured: isCaptured)
+            }
+            coverWindow?.layer.removeAllAnimations()
+            coverWindow?.isHidden = false
+            coverWindow?.layoutIfNeeded()
         }
-        coverWindow?.isHidden = false
     }
+
+    #if targetEnvironment(macCatalyst)
+    private func updateMacWindowSharingType() {
+        // NSWindowSharingNone = 0, NSWindowSharingReadOnly = 1 (AppKit 默认值)
+        let sharingType: UInt = hideContentDuringCapture ? 0 : 1
+        let sharedAppSelector = NSSelectorFromString("sharedApplication")
+        guard let nsAppClass = NSClassFromString("NSApplication") as? NSObject.Type,
+              nsAppClass.responds(to: sharedAppSelector),
+              let sharedApp = nsAppClass.perform(sharedAppSelector)?.takeUnretainedValue() as? NSObject else {
+            return
+        }
+
+        let windowsSelector = NSSelectorFromString("windows")
+        guard sharedApp.responds(to: windowsSelector),
+              let nsWindows = sharedApp.perform(windowsSelector)?.takeUnretainedValue() as? [NSObject] else {
+            return
+        }
+
+        let setSharingTypeSelector = NSSelectorFromString("setSharingType:")
+        for nsWindow in nsWindows {
+            guard nsWindow.responds(to: setSharingTypeSelector) else { continue }
+            nsWindow.setValue(NSNumber(value: sharingType), forKey: "sharingType")
+        }
+    }
+    #endif
 
     func detach() {
         observers.forEach(NotificationCenter.default.removeObserver)

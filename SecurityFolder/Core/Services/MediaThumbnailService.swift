@@ -343,8 +343,9 @@ final class MediaThumbnailService {
     private let generationLimiter = ThumbnailGenerationLimiter(maxConcurrentOperations: 2)
     nonisolated private let cacheOrderQueue = DispatchQueue(label: "SecurityFolder.MediaThumbnailService.CacheOrder")
     nonisolated(unsafe) private var cacheInsertionOrder: [NSString] = []
-    private let inFlightLock = NSLock()
-    private var inFlightTasks: [NSString: Task<UIImage?, Never>] = [:]
+    nonisolated private let inFlightLock = NSLock()
+    nonisolated(unsafe) private var inFlightTasks: [NSString: Task<UIImage?, Never>] = [:]
+    nonisolated(unsafe) private var cacheGeneration = 0
     private let maxVideoThumbnailSourceByteCount: Int64 = 256 * 1_024 * 1_024
 
     private init() {
@@ -409,6 +410,7 @@ final class MediaThumbnailService {
         #endif
 
         let scale = UIScreen.main.scale
+        let generation = currentCacheGeneration()
         let request = ThumbnailGenerationRequest(
             itemID: item.id,
             mediaKind: item.mediaKind,
@@ -420,13 +422,19 @@ final class MediaThumbnailService {
         let task: Task<UIImage?, Never> = Task.detached(priority: priority) { [self] in
             let result: UIImage?? = await generationLimiter.schedule(priority: priority) { [self] in
                 let detachedCacheKey = cacheKeyString as NSString
-                return await generateThumbnail(for: request, size: size, cacheKey: detachedCacheKey, scale: scale)
+                return await generateThumbnail(
+                    for: request,
+                    size: size,
+                    cacheKey: detachedCacheKey,
+                    scale: scale,
+                    generation: generation
+                )
             }
             return result ?? nil
         }
-        setInFlightTask(task, for: cacheKey)
+        setInFlightTask(task, for: cacheKey, expectedGeneration: generation)
         let image = await task.value
-        removeInFlightTask(for: cacheKey)
+        removeInFlightTask(for: cacheKey, expectedGeneration: generation)
         return image
     }
 
@@ -451,6 +459,16 @@ final class MediaThumbnailService {
     }
 
     func clearCache() {
+        let tasksToCancel: [Task<UIImage?, Never>] = {
+            inFlightLock.lock()
+            defer { inFlightLock.unlock() }
+            cacheGeneration &+= 1
+            let tasks = Array(inFlightTasks.values)
+            inFlightTasks.removeAll()
+            return tasks
+        }()
+        tasksToCancel.forEach { $0.cancel() }
+
         cache.removeAllObjects()
         cacheOrderQueue.sync {
             cacheInsertionOrder.removeAll()
@@ -469,10 +487,28 @@ final class MediaThumbnailService {
         try? fileManager.removeItem(at: thumbnailDirectory.appendingPathComponent("\(itemID.uuidString).jpg"))
     }
 
-    nonisolated private func storeThumbnail(_ image: UIImage, for request: ThumbnailGenerationRequest, cacheKey: NSString) -> UIImage {
+    nonisolated private func storeThumbnail(
+        _ image: UIImage,
+        for request: ThumbnailGenerationRequest,
+        cacheKey: NSString,
+        generation: Int
+    ) -> UIImage? {
+        guard !Task.isCancelled, currentCacheGeneration() == generation else {
+            return nil
+        }
         let compressed = compressedThumbnail(from: image) ?? image
+        guard !Task.isCancelled, currentCacheGeneration() == generation else {
+            return nil
+        }
         setCachedImage(compressed, for: cacheKey)
-        persistThumbnailToDisk(compressed, for: request)
+        if currentCacheGeneration() != generation {
+            cache.removeObject(forKey: cacheKey)
+            cacheOrderQueue.sync {
+                cacheInsertionOrder.removeAll { $0 == cacheKey }
+            }
+            return nil
+        }
+        persistThumbnailToDisk(compressed, for: request, generation: generation)
         return compressed
     }
 
@@ -500,25 +536,52 @@ final class MediaThumbnailService {
         return compressed
     }
 
-    nonisolated private func diskCachedThumbnail(for request: ThumbnailGenerationRequest, cacheKey: NSString) -> UIImage? {
+    nonisolated private func diskCachedThumbnail(
+        for request: ThumbnailGenerationRequest,
+        cacheKey: NSString,
+        generation: Int
+    ) -> UIImage? {
+        guard !Task.isCancelled, currentCacheGeneration() == generation else {
+            return nil
+        }
         let url = thumbnailURL(for: request)
         guard fileManager.fileExists(atPath: url.path(percentEncoded: false)),
               let image = UIImage(contentsOfFile: url.path(percentEncoded: false)) else {
             return nil
         }
+        guard !Task.isCancelled, currentCacheGeneration() == generation else {
+            return nil
+        }
         setCachedImage(image, for: cacheKey)
+        if currentCacheGeneration() != generation {
+            cache.removeObject(forKey: cacheKey)
+            cacheOrderQueue.sync {
+                cacheInsertionOrder.removeAll { $0 == cacheKey }
+            }
+            return nil
+        }
         #if DEBUG
         MediaPerformanceLog.recordThumbnailDiskHit(key: cacheKey)
         #endif
         return image
     }
 
-    nonisolated private func persistThumbnailToDisk(_ image: UIImage, for request: ThumbnailGenerationRequest) {
+    nonisolated private func persistThumbnailToDisk(
+        _ image: UIImage,
+        for request: ThumbnailGenerationRequest,
+        generation: Int
+    ) {
+        guard !Task.isCancelled, currentCacheGeneration() == generation else { return }
         let url = thumbnailURL(for: request)
         guard let data = image.jpegData(compressionQuality: 0.76) else { return }
+        guard !Task.isCancelled, currentCacheGeneration() == generation else { return }
         do {
             try ensureThumbnailDirectoryExists()
+            guard !Task.isCancelled, currentCacheGeneration() == generation else { return }
             try data.write(to: url, options: [.atomic, .completeFileProtection])
+            if currentCacheGeneration() != generation {
+                try? fileManager.removeItem(at: url)
+            }
         } catch {
             return
         }
@@ -532,6 +595,10 @@ final class MediaThumbnailService {
         if !fileManager.fileExists(atPath: thumbnailDirectory.path(percentEncoded: false)) {
             try fileManager.createDirectory(at: thumbnailDirectory, withIntermediateDirectories: true)
         }
+        var directoryURL = thumbnailDirectory
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? directoryURL.setResourceValues(values)
     }
 
     nonisolated private var thumbnailDirectory: URL {
@@ -628,25 +695,47 @@ final class MediaThumbnailService {
         return "\(itemID.uuidString)-\(width)x\(height)-\(contentMode.rawValue)" as NSString
     }
 
+    nonisolated private func currentCacheGeneration() -> Int {
+        inFlightLock.lock()
+        defer { inFlightLock.unlock() }
+        return cacheGeneration
+    }
+
     private func inFlightTask(for key: NSString) -> Task<UIImage?, Never>? {
         inFlightLock.lock()
         defer { inFlightLock.unlock() }
         return inFlightTasks[key]
     }
 
-    private func setInFlightTask(_ task: Task<UIImage?, Never>, for key: NSString) {
+    private func setInFlightTask(_ task: Task<UIImage?, Never>, for key: NSString, expectedGeneration: Int) {
+        var shouldCancel = false
         inFlightLock.lock()
-        inFlightTasks[key] = task
+        if cacheGeneration == expectedGeneration {
+            inFlightTasks[key] = task
+        } else {
+            shouldCancel = true
+        }
+        inFlightLock.unlock()
+        if shouldCancel {
+            task.cancel()
+        }
+    }
+
+    private func removeInFlightTask(for key: NSString, expectedGeneration: Int) {
+        inFlightLock.lock()
+        if cacheGeneration == expectedGeneration {
+            inFlightTasks.removeValue(forKey: key)
+        }
         inFlightLock.unlock()
     }
 
-    private func removeInFlightTask(for key: NSString) {
-        inFlightLock.lock()
-        inFlightTasks.removeValue(forKey: key)
-        inFlightLock.unlock()
-    }
-
-    nonisolated private func generateThumbnail(for request: ThumbnailGenerationRequest, size: CGSize, cacheKey: NSString, scale: CGFloat) async -> UIImage? {
+    nonisolated private func generateThumbnail(
+        for request: ThumbnailGenerationRequest,
+        size: CGSize,
+        cacheKey: NSString,
+        scale: CGFloat,
+        generation: Int
+    ) async -> UIImage? {
         #if DEBUG
         let generationStart = CFAbsoluteTimeGetCurrent()
         MediaPerformanceLog.generationStarted(kind: request.mediaKind, key: cacheKey)
@@ -661,7 +750,7 @@ final class MediaThumbnailService {
         }
         #endif
 
-        guard !Task.isCancelled else {
+        guard !Task.isCancelled, currentCacheGeneration() == generation else {
             #if DEBUG
             return finish(nil)
             #else
@@ -678,7 +767,7 @@ final class MediaThumbnailService {
             #endif
         }
 
-        guard !Task.isCancelled else {
+        guard !Task.isCancelled, currentCacheGeneration() == generation else {
             #if DEBUG
             return finish(nil)
             #else
@@ -686,7 +775,7 @@ final class MediaThumbnailService {
             #endif
         }
 
-        if let diskCached = diskCachedThumbnail(for: request, cacheKey: cacheKey) {
+        if let diskCached = diskCachedThumbnail(for: request, cacheKey: cacheKey, generation: generation) {
             #if DEBUG
             return finish(diskCached)
             #else
@@ -694,7 +783,7 @@ final class MediaThumbnailService {
             #endif
         }
 
-        guard !Task.isCancelled else {
+        guard !Task.isCancelled, currentCacheGeneration() == generation else {
             #if DEBUG
             return finish(nil)
             #else
@@ -738,11 +827,27 @@ final class MediaThumbnailService {
             VaultFileStorageService.shared.clearDecryptedTemporaryURLIfManaged(fileURL)
         }
 
+        guard !Task.isCancelled, currentCacheGeneration() == generation else {
+            #if DEBUG
+            return finish(nil)
+            #else
+            return nil
+            #endif
+        }
+
         if let renderedImage = await renderThumbnail(for: request, fileURL: fileURL, size: size, scale: scale) {
             #if DEBUG
-            return finish(storeThumbnail(renderedImage, for: request, cacheKey: cacheKey))
+            return finish(storeThumbnail(renderedImage, for: request, cacheKey: cacheKey, generation: generation))
             #else
-            return storeThumbnail(renderedImage, for: request, cacheKey: cacheKey)
+            return storeThumbnail(renderedImage, for: request, cacheKey: cacheKey, generation: generation)
+            #endif
+        }
+
+        guard !Task.isCancelled, currentCacheGeneration() == generation else {
+            #if DEBUG
+            return finish(nil)
+            #else
+            return nil
             #endif
         }
 
@@ -756,9 +861,9 @@ final class MediaThumbnailService {
         do {
             let representation = try await QLThumbnailGenerator.shared.generateBestRepresentation(for: qlRequest)
             #if DEBUG
-            return finish(storeThumbnail(representation.uiImage, for: request, cacheKey: cacheKey))
+            return finish(storeThumbnail(representation.uiImage, for: request, cacheKey: cacheKey, generation: generation))
             #else
-            return storeThumbnail(representation.uiImage, for: request, cacheKey: cacheKey)
+            return storeThumbnail(representation.uiImage, for: request, cacheKey: cacheKey, generation: generation)
             #endif
         } catch {
             #if DEBUG

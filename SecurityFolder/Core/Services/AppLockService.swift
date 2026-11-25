@@ -144,9 +144,16 @@ struct AppLockService {
     /// Time left before the lock screen accepts another passcode, or nil when not locked out.
     func unlockLockoutRemaining(now: Date = .now) -> TimeInterval? {
         let throttle = loadUnlockThrottle()
-        guard let lockedAt = throttle.lockedAt, let lockedUntil = throttle.lockedUntil else { return nil }
-        // Moving the clock backwards must not shorten the lockout.
-        let remaining = lockedUntil.timeIntervalSince(max(now, lockedAt))
+        var wallRemaining: TimeInterval = 0
+        if let lockedAt = throttle.lockedAt, let lockedUntil = throttle.lockedUntil {
+            // Moving the clock backwards must not shorten the lockout.
+            wallRemaining = max(0, lockedUntil.timeIntervalSince(max(now, lockedAt)))
+            if wallRemaining > 0 {
+                MonotonicLockoutTracker.seedIfUnset(duration: wallRemaining)
+            }
+        }
+        // Moving the clock forwards must not shorten an active in-process lockout.
+        let remaining = max(wallRemaining, MonotonicLockoutTracker.remaining())
         return remaining > 0 ? remaining : nil
     }
 
@@ -255,6 +262,7 @@ struct AppLockService {
             // so a user who picks 1111 for space B is not wiped on the next launch.
             defaults.set(true, forKey: AppSettingsKey.legacySecondary1111CleanupCompleted)
             deleteKeychainItem(account: unlockThrottleAccount)
+            MonotonicLockoutTracker.clear()
             return
         }
 
@@ -321,6 +329,7 @@ struct AppLockService {
         defaults.removeObject(forKey: coercionKindKey())
         clearLegacyCoercionPasscodeState()
         deleteKeychainItem(account: unlockThrottleAccount)
+        MonotonicLockoutTracker.clear()
     }
 
     func wipeAllSecurityStateForTesting() {
@@ -440,7 +449,16 @@ struct AppLockService {
         }
 
         let normalized = kind.normalized(passcode)
-        return storedDigest == coercionDigest(for: normalized)
+        return constantTimeEquals(storedDigest, coercionDigest(for: normalized))
+    }
+
+    private func constantTimeEquals(_ lhs: Data, _ rhs: Data) -> Bool {
+        guard lhs.count == rhs.count else { return false }
+        var diff: UInt8 = 0
+        for (a, b) in zip(lhs, rhs) {
+            diff |= a ^ b
+        }
+        return diff == 0
     }
 
     private func matchesPrimaryPasscode(
@@ -581,6 +599,7 @@ struct AppLockService {
         defaults.removeObject(forKey: AppSettingsKey.biometricScheduleEndMinutes)
         deleteKeychainItem(account: coercionAccount())
         deleteKeychainItem(account: unlockThrottleAccount)
+        MonotonicLockoutTracker.clear()
         clearLegacyCoercionPasscodeState()
     }
 
@@ -667,6 +686,7 @@ struct AppLockService {
             throttle.lockedAt = now
             throttle.lockedUntil = now.addingTimeInterval(duration)
             saveUnlockThrottle(throttle)
+            MonotonicLockoutTracker.recordLockout(duration: duration)
             return lockoutMessage(remaining: duration)
         }
 
@@ -680,6 +700,7 @@ struct AppLockService {
 
     private func resetUnlockThrottle() {
         deleteKeychainItem(account: unlockThrottleAccount)
+        MonotonicLockoutTracker.clear()
     }
 
     private func lockoutMessage(remaining: TimeInterval) -> String {
@@ -723,4 +744,47 @@ private struct UnlockThrottle: Codable {
     var failedAttempts = 0
     var lockedAt: Date?
     var lockedUntil: Date?
+}
+
+/// Process-local monotonic clock deadline so advancing wall-clock time cannot bypass an active lockout.
+private enum MonotonicLockoutTracker {
+    private static let lock = NSLock()
+    private static var lockedUntilUptime: TimeInterval?
+
+    static func recordLockout(duration: TimeInterval) {
+        lock.lock()
+        defer { lock.unlock() }
+        let deadline = ProcessInfo.processInfo.systemUptime + duration
+        if let existing = lockedUntilUptime {
+            lockedUntilUptime = max(existing, deadline)
+        } else {
+            lockedUntilUptime = deadline
+        }
+    }
+
+    static func seedIfUnset(duration: TimeInterval) {
+        lock.lock()
+        defer { lock.unlock() }
+        if lockedUntilUptime == nil {
+            lockedUntilUptime = ProcessInfo.processInfo.systemUptime + duration
+        }
+    }
+
+    static func remaining() -> TimeInterval {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let deadline = lockedUntilUptime else { return 0 }
+        let left = deadline - ProcessInfo.processInfo.systemUptime
+        if left <= 0 {
+            lockedUntilUptime = nil
+            return 0
+        }
+        return left
+    }
+
+    static func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        lockedUntilUptime = nil
+    }
 }

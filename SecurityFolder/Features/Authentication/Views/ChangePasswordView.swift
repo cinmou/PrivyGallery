@@ -27,6 +27,7 @@ struct ChangePasswordView: View {
     @StateObject private var coercionDraft = PasscodeDraftController()
 
     @State private var stage: Stage = .verifyCurrent
+    @State private var initialKind: AppPasscodeKind
     @State private var currentPasscode = ""
     @State private var secondaryCurrentPasscode = ""
     @State private var errorMessage: String?
@@ -36,6 +37,8 @@ struct ChangePasswordView: View {
     init(session: AppSessionViewModel, initialStage: Stage = .verifyCurrent) {
         self.session = session
         self._stage = State(initialValue: initialStage)
+        let resolvedKind = session.activeSpace.flatMap { session.configuredPasscodeKind(for: $0) } ?? .fourDigits
+        self._initialKind = State(initialValue: resolvedKind)
     }
     
     enum Stage: Int, CaseIterable {
@@ -179,6 +182,7 @@ struct ChangePasswordView: View {
                 )
             }
             .onAppear {
+                initialKind = activeSpace.flatMap { session.configuredPasscodeKind(for: $0) } ?? .fourDigits
                 resetDrafts()
                 primaryDraft.kind = currentKind
             }
@@ -223,8 +227,7 @@ struct ChangePasswordView: View {
     }
 
     private var currentKind: AppPasscodeKind {
-        guard let activeSpace else { return .fourDigits }
-        return session.configuredPasscodeKind(for: activeSpace) ?? .fourDigits
+        initialKind
     }
 
     private var counterpartKind: AppPasscodeKind? {
@@ -247,8 +250,12 @@ struct ChangePasswordView: View {
         isChangingKind && session.hasCoercionPasscode(for: .spaceA)
     }
 
+    private var requiresMigration: Bool {
+        requiresCounterpartMigration || requiresCoercionMigration
+    }
+
     private var canCancel: Bool {
-        !isSaving && stage.rawValue <= Stage.confirmPrimaryNew.rawValue
+        !isSaving
     }
 
     private var canGoBack: Bool {
@@ -279,11 +286,11 @@ struct ChangePasswordView: View {
         case .enterPrimaryNew, .enterSecondaryNew, .enterPrimaryCoercion:
             return String(localized: "确认并继续")
         case .confirmPrimaryNew:
-            return isChangingKind ? String(localized: "保存并继续") : String(localized: "保存新密码")
+            return requiresMigration ? String(localized: "保存并继续") : String(localized: "保存新密码")
         case .verifySecondaryCurrent:
             return String(localized: "验证并继续")
         case .confirmSecondaryNew:
-            return String(localized: "保存并继续")
+            return requiresCoercionMigration ? String(localized: "保存并继续") : String(localized: "完成")
         case .confirmPrimaryCoercion:
             return String(localized: "完成")
         }
@@ -336,7 +343,6 @@ struct ChangePasswordView: View {
                 
                 if currentKind == .custom {
                     SecureField(String(localized: "密码"), text: $currentPasscode)
-                        .textContentType(.password) // 提示系统键盘这属于密码，允许密码填充
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .textFieldStyle(.roundedBorder) // 给予输入框一个圆角描边
@@ -414,8 +420,7 @@ struct ChangePasswordView: View {
                 title: String(localized: "输入密码"),
                 helper: (counterpartKind ?? selectedKind).helperText(for: counterpartSpaceName),
                 kind: counterpartKind ?? selectedKind,
-                text: $secondaryCurrentPasscode,
-                secureTextType: .password
+                text: $secondaryCurrentPasscode
             )
         }
     }
@@ -431,8 +436,7 @@ struct ChangePasswordView: View {
             title: title,
             helper: helper,
             kind: kind,
-            text: text,
-            secureTextType: .newPassword
+            text: text
         )
     }
 
@@ -447,8 +451,7 @@ struct ChangePasswordView: View {
             title: title,
             helper: helper,
             kind: kind,
-            text: text,
-            secureTextType: .newPassword
+            text: text
         )
     }
 
@@ -457,8 +460,7 @@ struct ChangePasswordView: View {
         title: String,
         helper: String, // 底部用来补充说明的小字
         kind: AppPasscodeKind, // 密码类型：4位、6位 或 自定义
-        text: Binding<String>, // 和外面哪个变量做双向绑定
-        secureTextType: UITextContentType // 系统键盘填充提示
+        text: Binding<String> // 和外面哪个变量做双向绑定
     ) -> some View {
         Section {
             VStack(spacing: 16) {
@@ -483,7 +485,6 @@ struct ChangePasswordView: View {
 
                 if kind == .custom {
                     SecureField(String(localized: "密码"), text: text)
-                        .textContentType(secureTextType)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .textFieldStyle(.roundedBorder)
@@ -576,19 +577,24 @@ struct ChangePasswordView: View {
             return
         }
 
+        if requiresMigration {
+            moveToNextMigrationStageAfterPrimarySave()
+            return
+        }
+
         isSaving = true
         let result = session.changePasscode(
             for: currentSpace,
             currentPasscode: currentPasscode,
             newPasscode: primaryDraft.normalizedPrimaryValue,
             kind: selectedKind,
-            allowTemporaryTypeMismatch: isChangingKind
+            allowTemporaryTypeMismatch: false
         )
         isSaving = false
 
         switch result {
         case .success:
-            moveToNextMigrationStageAfterPrimarySave()
+            presentSuccessAndDismiss()
         case let .failure(message):
             clearInputForCurrentStage()
             presentError(message)
@@ -638,6 +644,12 @@ struct ChangePasswordView: View {
             return
         }
 
+        if secondaryDraft.normalizedPrimaryValue == primaryDraft.normalizedPrimaryValue {
+            clearInputForCurrentStage()
+            presentError(String(localized: "两个空间不能使用相同的密码。"))
+            return
+        }
+
         secondaryDraft.confirmationValue = ""
         stage = .confirmSecondaryNew
     }
@@ -651,28 +663,19 @@ struct ChangePasswordView: View {
             return
         }
 
-        isSaving = true
-        let result = session.changePasscode(
-            for: counterpartSpace,
-            currentPasscode: secondaryCurrentPasscode,
-            newPasscode: secondaryDraft.normalizedPrimaryValue,
-            kind: selectedKind,
-            allowTemporaryTypeMismatch: true
-        )
-        isSaving = false
-
-        switch result {
-        case .success:
-            if requiresCoercionMigration {
-                coercionDraft.reset(kind: selectedKind)
-                stage = .enterPrimaryCoercion
-            } else {
-                presentSuccessAndDismiss()
-            }
-        case let .failure(message):
+        if secondaryDraft.normalizedPrimaryValue == primaryDraft.normalizedPrimaryValue {
             clearInputForCurrentStage()
-            presentError(message)
+            presentError(String(localized: "两个空间不能使用相同的密码。"))
+            return
         }
+
+        if requiresCoercionMigration {
+            coercionDraft.reset(kind: selectedKind)
+            stage = .enterPrimaryCoercion
+            return
+        }
+
+        commitPendingTypeMigration(includeCoercion: false)
     }
 
     private func continuePrimaryCoercion() {
@@ -681,6 +684,14 @@ struct ChangePasswordView: View {
         guard selectedKind.isValid(coercionDraft.normalizedPrimaryValue) else {
             clearInputForCurrentStage()
             presentError(String(localized: "密码格式不符合要求。"))
+            return
+        }
+
+        let candidate = coercionDraft.normalizedPrimaryValue
+        if candidate == primaryDraft.normalizedPrimaryValue ||
+            (requiresCounterpartMigration && candidate == secondaryDraft.normalizedPrimaryValue) {
+            clearInputForCurrentStage()
+            presentError(String(localized: "胁迫密码、主空间密码和第二空间密码不能重复。"))
             return
         }
 
@@ -697,22 +708,94 @@ struct ChangePasswordView: View {
             return
         }
 
+        let candidate = coercionDraft.normalizedPrimaryValue
+        if candidate == primaryDraft.normalizedPrimaryValue ||
+            (requiresCounterpartMigration && candidate == secondaryDraft.normalizedPrimaryValue) {
+            clearInputForCurrentStage()
+            presentError(String(localized: "胁迫密码、主空间密码和第二空间密码不能重复。"))
+            return
+        }
+
+        commitPendingTypeMigration(includeCoercion: true)
+    }
+
+    private func commitPendingTypeMigration(includeCoercion: Bool) {
+        let newPrimary = primaryDraft.normalizedPrimaryValue
+        let newSecondary = secondaryDraft.normalizedPrimaryValue
+        let newCoercion = coercionDraft.normalizedPrimaryValue
+        let originalKind = initialKind
+        let originalCounterpartKind = counterpartKind ?? originalKind
+        let migrateCounterpart = requiresCounterpartMigration
+
         isSaving = true
-        let result = session.configureCoercionPasscode(
-            coercionDraft.normalizedPrimaryValue,
+        defer { isSaving = false }
+
+        let primaryResult = session.changePasscode(
+            for: currentSpace,
+            currentPasscode: currentPasscode,
+            newPasscode: newPrimary,
             kind: selectedKind,
-            for: .spaceA,
             allowTemporaryTypeMismatch: true
         )
-        isSaving = false
-
-        switch result {
-        case .success:
-            presentSuccessAndDismiss()
-        case let .failure(message):
+        if case let .failure(message) = primaryResult {
             clearInputForCurrentStage()
             presentError(message)
+            return
         }
+
+        if migrateCounterpart {
+            let secondaryResult = session.changePasscode(
+                for: counterpartSpace,
+                currentPasscode: secondaryCurrentPasscode,
+                newPasscode: newSecondary,
+                kind: selectedKind,
+                allowTemporaryTypeMismatch: true
+            )
+            if case let .failure(message) = secondaryResult {
+                _ = session.changePasscode(
+                    for: currentSpace,
+                    currentPasscode: newPrimary,
+                    newPasscode: currentPasscode,
+                    kind: originalKind,
+                    allowTemporaryTypeMismatch: true
+                )
+                clearInputForCurrentStage()
+                presentError(message)
+                return
+            }
+        }
+
+        if includeCoercion {
+            let coercionResult = session.configureCoercionPasscode(
+                newCoercion,
+                kind: selectedKind,
+                for: .spaceA,
+                allowTemporaryTypeMismatch: true
+            )
+            if case let .failure(message) = coercionResult {
+                if migrateCounterpart {
+                    _ = session.changePasscode(
+                        for: counterpartSpace,
+                        currentPasscode: newSecondary,
+                        newPasscode: secondaryCurrentPasscode,
+                        kind: originalCounterpartKind,
+                        allowTemporaryTypeMismatch: true
+                    )
+                }
+                _ = session.changePasscode(
+                    for: currentSpace,
+                    currentPasscode: newPrimary,
+                    newPasscode: currentPasscode,
+                    kind: originalKind,
+                    allowTemporaryTypeMismatch: true
+                )
+                clearInputForCurrentStage()
+                presentError(message)
+                return
+            }
+        }
+
+        presentSuccessAndDismiss()
     }
 
     private func goBack() {
