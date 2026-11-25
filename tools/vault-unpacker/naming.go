@@ -43,10 +43,7 @@ func (n *namer) destination(item manifestItem) (string, bool) {
 // companionDestination places a Live Photo's paired video next to its still
 // image with the same base name (IMG_0001.HEIC + IMG_0001.MOV).
 func (n *namer) companionDestination(item manifestItem, stillDest, companionPath string) (string, bool) {
-	ext := filepath.Ext(companionPath)
-	if ext == "" {
-		ext = ".mov"
-	}
+	ext := sanitizeExt(companionPath, ".mov")
 	if stillDest == "" {
 		base := sanitize(strings.TrimSpace(item.OriginalFilename))
 		if base == "" {
@@ -72,10 +69,7 @@ func (n *namer) coverDestination(album manifestAlbum, coverPath string) string {
 	if name == "" {
 		name = "album"
 	}
-	ext := filepath.Ext(coverPath)
-	if ext == "" {
-		ext = ".jpg"
-	}
+	ext := sanitizeExt(coverPath, ".jpg")
 	return n.claim(filepath.Join(n.outDir, "_AlbumCovers", name+ext))
 }
 
@@ -100,9 +94,30 @@ func sanitize(name string) string {
 		"?", "_", "\"", "_", "<", "_", ">", "_", "|", "_",
 	)
 	name = replacer.Replace(name)
+	name = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, name)
 	name = strings.TrimSpace(name)
 	if name == "." || name == ".." {
 		return ""
 	}
 	return name
+}
+
+// sanitizeExt extracts and sanitizes a file extension so untrusted paths cannot
+// inject separators, NTFS alternate data streams (':'), or control characters.
+func sanitizeExt(path, fallback string) string {
+	raw := filepath.Ext(path)
+	if raw == "" {
+		return fallback
+	}
+	cleaned := sanitize(strings.TrimPrefix(raw, "."))
+	cleaned = strings.TrimLeft(cleaned, ".")
+	if cleaned == "" || len(cleaned) > 16 {
+		return fallback
+	}
+	return "." + cleaned
 }

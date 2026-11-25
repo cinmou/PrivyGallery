@@ -12,12 +12,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
+	"path/filepath"
+	"strings"
 
 	lzfse "github.com/blacktop/lzfse-cgo"
 )
 
-// The .vault format is documented in ../../Materials/docs/vault-format.md. The constants
+// The .vault format is documented in ../../docs/vault-format.md. The constants
 // and binary layout below mirror exactly what the iOS/macOS app writes in
 // VaultExportService.swift. Anything that diverges from that file is a bug.
 
@@ -34,6 +37,16 @@ const (
 
 	codecRaw   = 0
 	codecLZFSE = 1
+
+	maxHeaderBytes     = 2 << 20
+	maxCiphertextBytes = 64 << 20
+	maxManifestBytes   = 64 << 20
+	maxPathBytes       = 4096
+	maxPlaintextChunk  = 16 << 20
+	minKDFRounds       = 10_000
+	maxKDFRounds       = 5_000_000
+	minSaltBytes       = 16
+	maxSaltBytes       = 64
 )
 
 // ErrWrongPassword is returned when AES-GCM authentication fails, which almost
@@ -166,6 +179,9 @@ func decryptVaultToArchive(vaultPath, password, archivePath string) (*vaultHeade
 	if err != nil {
 		return nil, err
 	}
+	if headerLen == 0 || headerLen > maxHeaderBytes {
+		return nil, fmt.Errorf("invalid header length %d", headerLen)
+	}
 	headerBytes, err := rd.full(int(headerLen))
 	if err != nil {
 		return nil, fmt.Errorf("read header: %w", err)
@@ -182,13 +198,22 @@ func decryptVaultToArchive(vaultPath, password, archivePath string) (*vaultHeade
 		return nil, fmt.Errorf("unsupported backup format (version=%d encoding=%q cipher=%q)",
 			header.FormatVersion, header.ArchiveEncoding, header.Cipher)
 	}
+	if header.ArchiveByteCount < 0 {
+		return nil, fmt.Errorf("invalid archiveByteCount %d", header.ArchiveByteCount)
+	}
 	if header.KDF.Algorithm != "pbkdf2-sha256" {
 		return nil, fmt.Errorf("unsupported key derivation %q", header.KDF.Algorithm)
+	}
+	if header.KDF.Rounds < minKDFRounds || header.KDF.Rounds > maxKDFRounds {
+		return nil, fmt.Errorf("unsupported KDF rounds %d", header.KDF.Rounds)
 	}
 
 	salt, err := base64.StdEncoding.DecodeString(header.KDF.SaltBase64)
 	if err != nil {
 		return nil, fmt.Errorf("decode salt: %w", err)
+	}
+	if len(salt) < minSaltBytes || len(salt) > maxSaltBytes {
+		return nil, fmt.Errorf("invalid KDF salt length %d", len(salt))
 	}
 	key, err := pbkdf2.Key(sha256.New, password, salt, header.KDF.Rounds, 32)
 	if err != nil {
@@ -203,7 +228,7 @@ func decryptVaultToArchive(vaultPath, password, archivePath string) (*vaultHeade
 		return nil, err
 	}
 
-	out, err := os.Create(archivePath)
+	out, err := os.OpenFile(archivePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -227,13 +252,22 @@ func decryptVaultToArchive(vaultPath, password, archivePath string) (*vaultHeade
 		if err != nil {
 			return nil, err
 		}
+		if plaintextLen > maxCiphertextBytes {
+			return nil, fmt.Errorf("chunk %d: plaintext length %d exceeds limit", chunkIndex, plaintextLen)
+		}
 		ciphertextLen, err := rd.u64()
 		if err != nil {
 			return nil, err
 		}
+		if ciphertextLen > maxCiphertextBytes {
+			return nil, fmt.Errorf("chunk %d: ciphertext length %d exceeds limit", chunkIndex, ciphertextLen)
+		}
 		nonceLen, err := rd.u32()
 		if err != nil {
 			return nil, err
+		}
+		if int(nonceLen) != gcm.NonceSize() {
+			return nil, fmt.Errorf("chunk %d: invalid nonce length %d", chunkIndex, nonceLen)
 		}
 		nonce, err := rd.full(int(nonceLen))
 		if err != nil {
@@ -242,6 +276,9 @@ func decryptVaultToArchive(vaultPath, password, archivePath string) (*vaultHeade
 		tagLen, err := rd.u32()
 		if err != nil {
 			return nil, err
+		}
+		if int(tagLen) != gcm.Overhead() {
+			return nil, fmt.Errorf("chunk %d: invalid tag length %d", chunkIndex, tagLen)
 		}
 		tag, err := rd.full(int(tagLen))
 		if err != nil {
@@ -263,6 +300,9 @@ func decryptVaultToArchive(vaultPath, password, archivePath string) (*vaultHeade
 		}
 		if uint64(len(plaintext)) != plaintextLen {
 			return nil, fmt.Errorf("chunk %d: decrypted length %d != declared %d", chunkIndex, len(plaintext), plaintextLen)
+		}
+		if written+int64(len(plaintext)) > header.ArchiveByteCount {
+			return nil, fmt.Errorf("archive exceeds declared byte count %d", header.ArchiveByteCount)
 		}
 		if _, err := bw.Write(plaintext); err != nil {
 			return nil, err
@@ -291,7 +331,7 @@ type extractedFile struct {
 // (decompressing LZFSE chunks as needed) and writes the files into outDir.
 // When listOnly is true it parses the manifest and blob headers but writes
 // nothing. namer maps a blob to its on-disk destination path.
-func extractArchive(archivePath, outDir string, listOnly bool) ([]extractedFile, *manifest, error) {
+func extractArchive(archivePath, outDir string, listOnly bool, naming *namer) ([]extractedFile, *manifest, error) {
 	f, err := os.Open(archivePath)
 	if err != nil {
 		return nil, nil, err
@@ -317,6 +357,9 @@ func extractArchive(archivePath, outDir string, listOnly bool) ([]extractedFile,
 	manifestLen, err := rd.u64()
 	if err != nil {
 		return nil, nil, err
+	}
+	if manifestLen == 0 || manifestLen > maxManifestBytes {
+		return nil, nil, fmt.Errorf("invalid manifest length %d", manifestLen)
 	}
 	manifestBytes, err := rd.full(int(manifestLen))
 	if err != nil {
@@ -348,14 +391,35 @@ func extractArchive(archivePath, outDir string, listOnly bool) ([]extractedFile,
 	if err != nil {
 		return nil, nil, err
 	}
+	if int(blobCount) != len(man.BlobEntries) {
+		return nil, nil, fmt.Errorf("blob count %d does not match manifest entries %d", blobCount, len(man.BlobEntries))
+	}
 
-	naming := newNamer(outDir)
+	if naming == nil {
+		naming = newNamer(outDir)
+	}
+
+	var root *os.Root
+	if !listOnly {
+		if err := os.MkdirAll(outDir, 0o700); err != nil {
+			return nil, nil, err
+		}
+		root, err = os.OpenRoot(outDir)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer root.Close()
+	}
+
 	var results []extractedFile
 
 	for i := uint32(0); i < blobCount; i++ {
 		pathLen, err := rd.u32()
 		if err != nil {
 			return nil, nil, err
+		}
+		if pathLen > maxPathBytes {
+			return nil, nil, fmt.Errorf("blob path length %d exceeds limit", pathLen)
 		}
 		pathBytes, err := rd.full(int(pathLen))
 		if err != nil {
@@ -371,13 +435,15 @@ func extractArchive(archivePath, outDir string, listOnly bool) ([]extractedFile,
 		if err != nil {
 			return nil, nil, err
 		}
+		if expectedBytesU > math.MaxInt64 {
+			return nil, nil, fmt.Errorf("blob %q byte count %d overflows int64", relativePath, expectedBytesU)
+		}
 		expectedBytes := int64(expectedBytesU)
 		var dest string
 		var inTrash bool
 		switch domain {
 		case domainMedia:
 			dest, inTrash = naming.destination(itemByPath[relativePath])
-			destByItemPath[relativePath] = dest
 		case domainLivePhotoCompanion:
 			item := itemByCompanionPath[relativePath]
 			dest, inTrash = naming.companionDestination(item, destByItemPath[item.RelativePath], relativePath)
@@ -389,21 +455,22 @@ func extractArchive(archivePath, outDir string, listOnly bool) ([]extractedFile,
 
 		var w *bufio.Writer
 		var out *os.File
+		var relDest string
 		if !listOnly {
-			if err := os.MkdirAll(parentDir(dest), 0o755); err != nil {
-				return nil, nil, err
-			}
-			out, err = os.Create(dest)
+			out, dest, relDest, err = openUniqueFileInRoot(root, outDir, naming, dest)
 			if err != nil {
 				return nil, nil, err
 			}
 			w = bufio.NewWriterSize(out, 1<<20)
 		}
+		if domain == domainMedia {
+			destByItemPath[relativePath] = dest
+		}
 
 		if err := readBlobChunks(rd, expectedBytes, w); err != nil {
 			if out != nil {
 				out.Close()
-				os.Remove(dest)
+				root.Remove(relDest)
 			}
 			return nil, nil, fmt.Errorf("%s: %w", relativePath, err)
 		}
@@ -411,6 +478,7 @@ func extractArchive(archivePath, outDir string, listOnly bool) ([]extractedFile,
 		if !listOnly {
 			if err := w.Flush(); err != nil {
 				out.Close()
+				root.Remove(relDest)
 				return nil, nil, err
 			}
 			if err := out.Close(); err != nil {
@@ -421,6 +489,43 @@ func extractArchive(archivePath, outDir string, listOnly bool) ([]extractedFile,
 	}
 
 	return results, &man, nil
+}
+
+// openUniqueFileInRoot creates a new file inside root without following symlinks
+// or overwriting existing files. When a regular file already exists on disk, it
+// advances the namer suffix (" (2)", " (3)", ...) until an exclusive create succeeds.
+func openUniqueFileInRoot(root *os.Root, outDir string, naming *namer, initialDest string) (*os.File, string, string, error) {
+	candidate := initialDest
+	for {
+		rel, err := filepath.Rel(outDir, candidate)
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+			return nil, "", "", fmt.Errorf("refusing to write outside output directory: %q", candidate)
+		}
+
+		subDir := filepath.Dir(rel)
+		if subDir != "." {
+			if info, lerr := root.Lstat(subDir); lerr == nil && info.Mode()&os.ModeSymlink != 0 {
+				return nil, "", "", fmt.Errorf("refusing to follow symlink directory %q", subDir)
+			}
+			if err := root.MkdirAll(subDir, 0o700); err != nil {
+				return nil, "", "", err
+			}
+		}
+
+		if info, lerr := root.Lstat(rel); lerr == nil && info.Mode()&os.ModeSymlink != 0 {
+			return nil, "", "", fmt.Errorf("refusing to follow symlink %q", rel)
+		}
+
+		f, err := root.OpenFile(rel, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err == nil {
+			return f, candidate, rel, nil
+		}
+		if errors.Is(err, os.ErrExist) {
+			candidate = naming.claim(initialDest)
+			continue
+		}
+		return nil, "", "", err
+	}
 }
 
 // readBlobChunks consumes codec-prefixed chunks until expectedBytes of plaintext
@@ -437,9 +542,15 @@ func readBlobChunks(rd *reader, expectedBytes int64, w io.Writer) error {
 		if err != nil {
 			return err
 		}
+		if plaintextLen == 0 || plaintextLen > maxPlaintextChunk || int64(plaintextLen) > remaining {
+			return fmt.Errorf("invalid chunk plaintext length %d (remaining %d)", plaintextLen, remaining)
+		}
 		payloadLen, err := rd.u32()
 		if err != nil {
 			return err
+		}
+		if payloadLen == 0 || payloadLen > maxPlaintextChunk {
+			return fmt.Errorf("invalid chunk payload length %d", payloadLen)
 		}
 		payload, err := rd.full(int(payloadLen))
 		if err != nil {
@@ -454,11 +565,12 @@ func readBlobChunks(rd *reader, expectedBytes int64, w io.Writer) error {
 			}
 			chunk = payload
 		case codecLZFSE:
-			chunk = make([]byte, plaintextLen)
-			n := lzfse.DecodeBufferInto(payload, chunk)
+			buf := make([]byte, int(plaintextLen)+1)
+			n := lzfse.DecodeBufferInto(payload, buf)
 			if n != int(plaintextLen) {
 				return fmt.Errorf("LZFSE decode produced %d bytes, expected %d", n, plaintextLen)
 			}
+			chunk = buf[:plaintextLen]
 		default:
 			return fmt.Errorf("unknown chunk codec %d", codec)
 		}

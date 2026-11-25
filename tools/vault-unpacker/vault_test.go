@@ -198,7 +198,7 @@ func TestUnpackRoundTrip(t *testing.T) {
 	}
 
 	outDir := filepath.Join(dir, "out")
-	extracted, _, err := unpackOne(vaultPath, password, outDir, false)
+	extracted, _, err := unpackOne(vaultPath, password, outDir, false, nil)
 	if err != nil {
 		t.Fatalf("unpack failed: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestWrongPassword(t *testing.T) {
 	vaultPath := filepath.Join(dir, "t.vault")
 	os.WriteFile(vaultPath, vaultBytes, 0o644)
 
-	_, _, err := unpackOne(vaultPath, "wrong", filepath.Join(dir, "out"), false)
+	_, _, err := unpackOne(vaultPath, "wrong", filepath.Join(dir, "out"), false, nil)
 	if err == nil {
 		t.Fatal("expected error with wrong password")
 	}
@@ -282,7 +282,7 @@ func TestUnpackLivePhotoAndAlbumCover(t *testing.T) {
 	}
 
 	outDir := filepath.Join(dir, "out")
-	extracted, _, err := unpackOne(vaultPath, password, outDir, false)
+	extracted, _, err := unpackOne(vaultPath, password, outDir, false, nil)
 	if err != nil {
 		t.Fatalf("unpack failed: %v", err)
 	}
@@ -302,5 +302,143 @@ func TestUnpackLivePhotoAndAlbumCover(t *testing.T) {
 		if !bytes.Equal(got, want) {
 			t.Fatalf("%s content mismatch", path)
 		}
+	}
+}
+
+func TestMalformedHeaderAndNonceRejectedWithoutPanic(t *testing.T) {
+	dir := t.TempDir()
+
+	// 1. Oversized header length must fail cleanly instead of allocating gigabytes.
+	var badHeader bytes.Buffer
+	badHeader.WriteString(vaultMagic)
+	badHeader.WriteByte(vaultVersion)
+	badHeader.Write(be32(maxHeaderBytes + 1))
+	badHeaderPath := filepath.Join(dir, "bad-header.vault")
+	if err := os.WriteFile(badHeaderPath, badHeader.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := unpackOne(badHeaderPath, "pw", filepath.Join(dir, "out1"), false, nil); err == nil {
+		t.Fatal("expected error for oversized headerLen")
+	}
+
+	// 2. Non-12-byte GCM nonce must return an error instead of panicking in gcm.Open.
+	salt := make([]byte, 32)
+	rand.Read(salt)
+	header := vaultHeader{
+		AppName:          "PrivyGallery",
+		FormatVersion:    2,
+		PartIndex:        0,
+		TotalParts:       1,
+		ArchiveEncoding:  "chunked-lzfse-v1",
+		Cipher:           "aes-gcm-chunked-archive",
+		ChunkSize:        4096,
+		ArchiveByteCount: 16,
+	}
+	header.KDF.Algorithm = "pbkdf2-sha256"
+	header.KDF.Rounds = minKDFRounds
+	header.KDF.SaltBase64 = base64.StdEncoding.EncodeToString(salt)
+	headerBytes, _ := json.Marshal(header)
+
+	var badNonce bytes.Buffer
+	badNonce.WriteString(vaultMagic)
+	badNonce.WriteByte(vaultVersion)
+	badNonce.Write(be32(uint32(len(headerBytes))))
+	badNonce.Write(headerBytes)
+	badNonce.Write(be32(0))    // chunkIndex
+	badNonce.Write(be64(16))   // plaintextLen
+	badNonce.Write(be64(16))   // ciphertextLen
+	badNonce.Write(be32(1))    // invalid nonceLen != 12
+	badNonce.Write([]byte{0})  // 1-byte nonce
+	badNonce.Write(be32(16))   // tagLen
+	badNonce.Write(make([]byte, 16))
+	badNonce.Write(make([]byte, 16))
+
+	badNoncePath := filepath.Join(dir, "bad-nonce.vault")
+	if err := os.WriteFile(badNoncePath, badNonce.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := unpackOne(badNoncePath, "pw", filepath.Join(dir, "out2"), false, nil); err == nil {
+		t.Fatal("expected error for invalid GCM nonce length")
+	}
+}
+
+func TestMultiPartCollisionAndSymlinkProtection(t *testing.T) {
+	password := "pw"
+	dir := t.TempDir()
+	outDir := filepath.Join(dir, "out")
+
+	makePart := func(name string, payload []byte) string {
+		man := manifest{
+			SpaceRawValue: "spaceA",
+			TotalParts:    2,
+			Items:         []manifestItem{{RelativePath: "VaultStorage/Space_A/Active/a.jpg", OriginalFilename: "same.jpg"}},
+			BlobEntries:   []blobEntry{{RelativePath: "VaultStorage/Space_A/Active/a.jpg", SourceDomain: domainMedia, ByteCount: int64(len(payload))}},
+		}
+		archive := buildInnerArchive(t, man, map[string][]byte{"VaultStorage/Space_A/Active/a.jpg": payload})
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, buildVault(t, password, 2, 0, 2, archive), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	p1 := makePart("part1.vault", []byte("first-part-content"))
+	p2 := makePart("part2.vault", []byte("second-part-content"))
+
+	// Pre-populate same.jpg on disk to verify on-disk O_EXCL collision avoidance too.
+	if err := os.MkdirAll(outDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outDir, "same.jpg"), []byte("preexisting"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	naming := newNamer(outDir)
+	if _, _, err := unpackOne(p1, password, outDir, false, naming); err != nil {
+		t.Fatalf("part1 failed: %v", err)
+	}
+	if _, _, err := unpackOne(p2, password, outDir, false, naming); err != nil {
+		t.Fatalf("part2 failed: %v", err)
+	}
+
+	for path, want := range map[string]string{
+		filepath.Join(outDir, "same.jpg"):     "preexisting",
+		filepath.Join(outDir, "same (2).jpg"): "first-part-content",
+		filepath.Join(outDir, "same (3).jpg"): "second-part-content",
+	} {
+		got, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("missing %s: %v", path, err)
+		}
+		if string(got) != want {
+			t.Fatalf("%s = %q, want %q", path, got, want)
+		}
+	}
+
+	// Symlink at target path must be refused rather than followed.
+	symOut := filepath.Join(dir, "symout")
+	if err := os.MkdirAll(symOut, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(symOut, "same.jpg")); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := unpackOne(p1, password, symOut, false, nil); err == nil {
+		t.Fatal("expected symlink target to be rejected")
+	}
+	if got, _ := os.ReadFile(outside); string(got) != "keep" {
+		t.Fatalf("outside file was modified through symlink: %q", got)
+	}
+}
+
+func TestSanitizeExtBlocksAlternateDataStreams(t *testing.T) {
+	n := newNamer("/tmp/out")
+	got := n.coverDestination(manifestAlbum{Name: "Album"}, "VaultStorage/Space_A/AlbumCovers/c.jpg:evil")
+	if filepath.Base(got) != "Album.jpg_evil" {
+		t.Fatalf("unexpected sanitized cover destination: %q", got)
 	}
 }

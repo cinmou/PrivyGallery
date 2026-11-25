@@ -15,12 +15,36 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"syscall"
 
 	"golang.org/x/term"
 )
+
+var (
+	activeTempArchiveMu   sync.Mutex
+	activeTempArchivePath string
+)
+
+func setActiveTempArchive(path string) {
+	activeTempArchiveMu.Lock()
+	activeTempArchivePath = path
+	activeTempArchiveMu.Unlock()
+}
+
+func cleanupActiveTempArchive() {
+	activeTempArchiveMu.Lock()
+	path := activeTempArchivePath
+	activeTempArchivePath = ""
+	activeTempArchiveMu.Unlock()
+	if path != "" {
+		_ = os.Remove(path)
+	}
+}
 
 func main() {
 	outDir := flag.String("o", "vault-unpacked", "output directory for extracted media")
@@ -65,19 +89,28 @@ func main() {
 		fatalf("password must not be empty")
 	}
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		cleanupActiveTempArchive()
+		os.Exit(130)
+	}()
+
 	if !*listOnly {
-		if err := os.MkdirAll(*outDir, 0o755); err != nil {
+		if err := os.MkdirAll(*outDir, 0o700); err != nil {
 			fatalf("could not create output directory: %v", err)
 		}
 	}
 
+	naming := newNamer(*outDir)
 	var totalFiles int
 	var totalBytes int64
 	var failures int
 
 	for _, vf := range vaultFiles {
 		fmt.Printf("\n📦 %s\n", vf)
-		extracted, bytes, err := unpackOne(vf, pass, *outDir, *listOnly)
+		extracted, bytes, err := unpackOne(vf, pass, *outDir, *listOnly, naming)
 		if err != nil {
 			if errors.Is(err, ErrWrongPassword) {
 				fatalf("incorrect password — could not decrypt %s", filepath.Base(vf))
@@ -103,14 +136,15 @@ func main() {
 }
 
 // unpackOne decrypts a single .vault file and extracts (or lists) its media.
-func unpackOne(vaultPath, password, outDir string, listOnly bool) (int, int64, error) {
+func unpackOne(vaultPath, password, outDir string, listOnly bool, naming *namer) (int, int64, error) {
 	tmp, err := os.CreateTemp("", "vault-archive-*.tmp")
 	if err != nil {
 		return 0, 0, err
 	}
 	archivePath := tmp.Name()
 	tmp.Close()
-	defer os.Remove(archivePath)
+	setActiveTempArchive(archivePath)
+	defer cleanupActiveTempArchive()
 
 	header, err := decryptVaultToArchive(vaultPath, password, archivePath)
 	if err != nil {
@@ -120,7 +154,7 @@ func unpackOne(vaultPath, password, outDir string, listOnly bool) (int, int64, e
 		fmt.Printf("   part %d of %d\n", header.PartIndex+1, header.TotalParts)
 	}
 
-	extracted, man, err := extractArchive(archivePath, outDir, listOnly)
+	extracted, man, err := extractArchive(archivePath, outDir, listOnly, naming)
 	if err != nil {
 		return 0, 0, err
 	}
