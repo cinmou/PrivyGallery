@@ -30,6 +30,7 @@ struct UnlockView: View {
     @State private var isRequestingOnboardingBiometrics = false
     @State private var lockoutRemaining: TimeInterval?
     @State private var lockoutRefreshID = UUID()
+    @State private var errorShakeCount = 0
 
     private enum NavigationDirection {
         case forward
@@ -118,13 +119,9 @@ struct UnlockView: View {
                 onboardingDraft.sanitize()
             }
             .onChange(of: unlockInput) { _, newValue in
-                switch unlockKind {
-                case .fourDigits:
-                    unlockInput = String(newValue.filter(\.isNumber).prefix(4))
-                case .sixDigits:
-                    unlockInput = String(newValue.filter(\.isNumber).prefix(6))
-                case .custom:
-                    break
+                let sanitized = unlockKind.sanitized(newValue)
+                if unlockInput != sanitized {
+                    unlockInput = sanitized
                 }
             }
             .onChange(of: viewModel.errorMessage) { _, newValue in
@@ -333,20 +330,16 @@ struct UnlockView: View {
 
     private var onboardingPasscodeEntryAction: some View {
         centeredActionButton(title: String(localized: "确认并继续")) {
-            performOnboardingStageChange(direction: .forward) {
-                viewModel.submitPrimaryOnboardingPasscodeEntry(draft: onboardingDraft)
-            }
+            submitOnboardingPasscodeEntry()
         }
-        .disabled(onboardingDraft.kind == .custom ? onboardingDraft.primaryValue.isEmpty : onboardingDraft.primaryValue.count != expectedLength(for: onboardingDraft.kind))
+        .disabled(!onboardingDraft.kind.isReadyForSubmission(onboardingDraft.primaryValue))
     }
 
     private var onboardingPasscodeConfirmationAction: some View {
         centeredActionButton(title: String(localized: "完成设置")) {
-            performOnboardingStageChange(direction: .forward) {
-                viewModel.submitPrimaryOnboardingPasscode(draft: onboardingDraft, using: session)
-            }
+            submitOnboardingPasscodeConfirmation()
         }
-        .disabled(onboardingDraft.kind == .custom ? onboardingDraft.confirmationValue.isEmpty : onboardingDraft.confirmationValue.count != expectedLength(for: onboardingDraft.kind))
+        .disabled(!onboardingDraft.kind.isReadyForSubmission(onboardingDraft.confirmationValue))
     }
 
     private var onboardingPasscodeEntryView: some View {
@@ -366,7 +359,9 @@ struct UnlockView: View {
                         .font(.title3)
                         .fontWeight(.bold)
 
-                    Text(String(localized: "请输入新密码。"))
+                    Text(onboardingDraft.kind == .custom
+                         ? String(localized: "请使用大于 6 位且至少包含 1 个字母的密码。")
+                         : String(localized: "请输入新密码。"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -375,16 +370,21 @@ struct UnlockView: View {
                         AutoFocusSecureField(
                             title: onboardingDraft.kind.prompt,
                             text: $onboardingDraft.primaryValue,
-                            textContentType: .newPassword
-                        )
-                            .padding(.horizontal)
+                            submitLabel: .next,
+                            shakeTrigger: errorShakeCount
+                        ) {
+                            guard onboardingDraft.kind.isReadyForSubmission(onboardingDraft.primaryValue) else { return }
+                            submitOnboardingPasscodeEntry()
+                        }
+                        .padding(.horizontal)
                     } else {
                         NativeNumericPasscodeField(
                             title: "",
                             prompt: "",
                             value: $onboardingDraft.primaryValue,
-                            expectedLength: expectedLength(for: onboardingDraft.kind),
+                            expectedLength: onboardingDraft.kind.expectedLength,
                             autoFocus: true,
+                            shakeTrigger: errorShakeCount,
                             onCompleted: nil
                         )
                         .padding(.vertical, 8)
@@ -452,16 +452,20 @@ struct UnlockView: View {
                         AutoFocusSecureField(
                             title: onboardingDraft.kind.confirmationPrompt,
                             text: $onboardingDraft.confirmationValue,
-                            textContentType: .newPassword
-                        )
-                            .padding(.horizontal)
+                            shakeTrigger: errorShakeCount
+                        ) {
+                            guard onboardingDraft.kind.isReadyForSubmission(onboardingDraft.confirmationValue) else { return }
+                            submitOnboardingPasscodeConfirmation()
+                        }
+                        .padding(.horizontal)
                     } else {
                         NativeNumericPasscodeField(
                             title: "",
                             prompt: "",
                             value: $onboardingDraft.confirmationValue,
-                            expectedLength: expectedLength(for: onboardingDraft.kind),
+                            expectedLength: onboardingDraft.kind.expectedLength,
                             autoFocus: true,
+                            shakeTrigger: errorShakeCount,
                             onCompleted: nil
                         )
                         .padding(.vertical, 8)
@@ -508,7 +512,7 @@ struct UnlockView: View {
         List {
             Section {
                 VStack(spacing: onboardingSpacing) {
-                    Image(systemName: biometricIconName)
+                    Image(systemName: session.biometricIconName)
                         .resizable()
                         .scaledToFit()
                         .frame(width: onboardingIconSize, height: onboardingIconSize)
@@ -516,12 +520,12 @@ struct UnlockView: View {
                         .padding(.top, isWideLayout ? 0 : 2)
                         .accessibilityHidden(true)
 
-                    Text(String.localizedStringWithFormat(String(localized: "%@ 解锁"), biometricDisplayName))
+                    Text(String.localizedStringWithFormat(String(localized: "%@ 解锁"), session.biometricDisplayName))
                         .font(.title3)
                         .fontWeight(.bold)
 
                     Text(session.canUseBiometrics
-                         ? String.localizedStringWithFormat(String(localized: "%@ 可用于快速解锁应用，你仍然可以随时使用密码解锁。"), biometricDisplayName)
+                         ? String.localizedStringWithFormat(String(localized: "%@ 可用于快速解锁应用，你仍然可以随时使用密码解锁。"), session.biometricDisplayName)
                          : String(localized: "当前设备暂不支持生物识别，请跳过。"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -544,7 +548,7 @@ struct UnlockView: View {
                 centeredActionButton(
                     title: isRequestingOnboardingBiometrics
                         ? String(localized: "验证中")
-                        : String.localizedStringWithFormat(String(localized: "使用 %@"), biometricDisplayName)
+                        : String.localizedStringWithFormat(String(localized: "使用 %@"), session.biometricDisplayName)
                 ) {
                     requestOnboardingBiometrics()
                 }
@@ -562,7 +566,7 @@ struct UnlockView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(biometricDisplayName)
+        .navigationTitle(session.biometricDisplayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             onboardingBackToolbar
@@ -587,7 +591,7 @@ struct UnlockView: View {
                         .font(.title3)
                         .fontWeight(.bold)
 
-                    Text(String.localizedStringWithFormat(String(localized: "第二空间是一个独立的空间。可以在\u{201C}设置 / 隐私与安全 / 空间管理\u{201D}中创建，可以根据需要切换 %@ 默认解锁的空间。"), biometricDisplayName))
+                    Text(String.localizedStringWithFormat(String(localized: "第二空间是一个独立的空间。可以在\u{201C}设置 / 隐私与安全 / 空间管理\u{201D}中创建，可以根据需要切换 %@ 默认解锁的空间。"), session.biometricDisplayName))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -649,9 +653,11 @@ struct UnlockView: View {
     private var lockView: some View {
         // 普通锁定页：根据当前密码类型选择数字圆点输入或复杂密码输入。
         LockScreenContent(
+            isWideLayout: isWideLayout,
             canUseBiometrics: session.canUseBiometrics,
             biometricEnabled: session.isBiometricUnlockEnabled,
-            biometricDisplayName: biometricDisplayName,
+            biometricDisplayName: session.biometricDisplayName,
+            willAutoAttemptBiometrics: willAutoAttemptBiometrics,
             requiresPasscodeAfterBiometricFailures: session.requiresPasscodeAfterBiometricFailures,
             unlockKind: unlockKind,
             unlockInput: $unlockInput,
@@ -659,10 +665,12 @@ struct UnlockView: View {
             isSubmittingUnlock: isSubmittingUnlock || session.isAuthenticating,
             errorMessage: viewModel.errorMessage,
             lockoutMessage: lockoutMessage,
-            expectedLength: expectedLength(for: unlockKind),
+            expectedLength: unlockKind.expectedLength,
+            errorShakeCount: errorShakeCount,
             onBiometricUnlock: { viewModel.unlockWithBiometrics(using: session) },
             onUnlock: submitUnlock
         )
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private var lockoutMessage: String? {
@@ -708,17 +716,6 @@ struct UnlockView: View {
         viewModel.preferredUnlockKind(using: session)
     }
 
-    private func expectedLength(for kind: AppPasscodeKind) -> Int {
-        switch kind {
-        case .fourDigits:
-            return 4
-        case .sixDigits:
-            return 6
-        case .custom:
-            return 8
-        }
-    }
-
     private func prepareForCurrentSession() {
         // 每次回到未解锁态时，重新根据 session 判断：
         // 是进入首次引导，还是进入普通锁定页。
@@ -739,14 +736,43 @@ struct UnlockView: View {
 
     private func submitUnlock() {
         guard !isSubmittingUnlock else { return }
+        let passcode = unlockInput
+        let previousError = viewModel.errorMessage
         isSubmittingUnlock = true
-        viewModel.submitUnlock(passcode: unlockInput, using: session)
+        viewModel.submitUnlock(passcode: passcode, using: session)
         isSubmittingUnlock = false
+        unlockInput = ""
 
-        if session.isUnlocked {
-            unlockInput = ""
-        } else {
+        if !session.isUnlocked {
+            triggerPasscodeErrorFeedback(previousError: previousError)
             lockoutRefreshID = UUID()
+        }
+    }
+
+    private func submitOnboardingPasscodeEntry() {
+        let previousError = viewModel.errorMessage
+        performOnboardingStageChange(direction: .forward) {
+            viewModel.submitPrimaryOnboardingPasscodeEntry(draft: onboardingDraft)
+        }
+        if viewModel.errorMessage != nil {
+            triggerPasscodeErrorFeedback(previousError: previousError)
+        }
+    }
+
+    private func submitOnboardingPasscodeConfirmation() {
+        let previousError = viewModel.errorMessage
+        performOnboardingStageChange(direction: .forward) {
+            viewModel.submitPrimaryOnboardingPasscode(draft: onboardingDraft, using: session)
+        }
+        if viewModel.errorMessage != nil {
+            triggerPasscodeErrorFeedback(previousError: previousError)
+        }
+    }
+
+    private func triggerPasscodeErrorFeedback(previousError: String?) {
+        errorShakeCount += 1
+        if previousError == viewModel.errorMessage, viewModel.errorMessage != nil {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
         }
     }
 
@@ -762,7 +788,7 @@ struct UnlockView: View {
         isRequestingOnboardingBiometrics = true
         session.authenticateOwner(
             policy: .deviceOwnerAuthenticationWithBiometrics,
-            reason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), biometricDisplayName)
+            reason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), session.biometricDisplayName)
         ) { success in
             isRequestingOnboardingBiometrics = false
             if success {
@@ -772,7 +798,7 @@ struct UnlockView: View {
             } else {
                 session.setBiometricUnlockEnabled(false)
                 viewModel.onboardingBiometricsEnabled = false
-                viewModel.errorMessage = String.localizedStringWithFormat(String(localized: "%@ 验证失败，请继续使用密码解锁"), biometricDisplayName)
+                viewModel.errorMessage = String.localizedStringWithFormat(String(localized: "%@ 验证失败，请继续使用密码解锁"), session.biometricDisplayName)
             }
         }
     }
@@ -787,6 +813,14 @@ struct UnlockView: View {
         }
     }
 
+    private var willAutoAttemptBiometrics: Bool {
+        session.canUseBiometrics &&
+        session.isBiometricUnlockEnabled &&
+        session.canAutomaticallyAttemptBiometricUnlock &&
+        !session.requiresPasscodeAfterBiometricFailures &&
+        !viewModel.availableSpaces(using: session).isEmpty
+    }
+
     private var automaticBiometricAttemptTrigger: String {
         // 把会影响"是否应该自动唤起 Face ID"的条件都压进一个 task id 里，
         // 这样条件变化时 SwiftUI 会自动取消旧任务并重新评估。
@@ -797,40 +831,6 @@ struct UnlockView: View {
             session.requiresPasscodeAfterBiometricFailures ? "passcodeOnly" : "biometricOK",
             unlockInput.isEmpty ? "idle" : "typing"
         ].joined(separator: "|")
-    }
-
-    private var biometricDisplayName: String {
-        let context = LAContext()
-        var error: NSError?
-        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
-
-        switch context.biometryType {
-        case .faceID:
-            return String(localized: "Face ID")
-        case .touchID:
-            return String(localized: "Touch ID")
-        case .opticID:
-            return String(localized: "Optic ID")
-        default:
-            return String(localized: "生物识别")
-        }
-    }
-
-    private var biometricIconName: String {
-        let context = LAContext()
-        var error: NSError?
-        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
-
-        switch context.biometryType {
-        case .faceID:
-            return "faceid"
-        case .touchID:
-            return "touchid"
-        case .opticID:
-            return "opticid"
-        default:
-            return session.canUseBiometrics ? "person.badge.key.fill" : "lock.slash.fill"
-        }
     }
 }
 
@@ -865,9 +865,11 @@ private struct OnboardingContainerModifier: ViewModifier {
 }
 
 private struct LockScreenContent: View {
+    let isWideLayout: Bool
     let canUseBiometrics: Bool
     let biometricEnabled: Bool
     let biometricDisplayName: String
+    let willAutoAttemptBiometrics: Bool
     let requiresPasscodeAfterBiometricFailures: Bool
     let unlockKind: AppPasscodeKind
     @Binding var unlockInput: String
@@ -876,6 +878,7 @@ private struct LockScreenContent: View {
     let errorMessage: String?
     let lockoutMessage: String?
     let expectedLength: Int
+    let errorShakeCount: Int
     let onBiometricUnlock: () -> Void
     let onUnlock: () -> Void
 
@@ -884,28 +887,50 @@ private struct LockScreenContent: View {
 
     private let unlockIconAnimationDuration: Double = 0.3
 
+    private var shouldAutoFocusPasscode: Bool {
+        lockoutMessage == nil && !willAutoAttemptBiometrics && !isSubmittingUnlock
+    }
+
+    private var showsBiometricAction: Bool {
+        canUseBiometrics && biometricEnabled && !requiresPasscodeAfterBiometricFailures
+    }
+
+    private var showsManualUnlockAction: Bool {
+        unlockKind == .custom || !autoSubmitNumericPasscode
+    }
+
+    private var pinsManualUnlockAction: Bool {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        showsManualUnlockAction
+        #endif
+    }
+
     var body: some View {
         List {
             headerSection
 
-            if let message = lockoutMessage ?? errorMessage {
-                errorSection(message: message)
+            if showsBiometricAction || (showsManualUnlockAction && !pinsManualUnlockAction) {
+                actionSection
             }
-
-            actionSection
         }
-
         .listStyle(.insetGrouped)
-
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom) {
+            if pinsManualUnlockAction {
+                pinnedUnlockButton
+            }
+        }
     }
 
     private var headerSection: some View {
         Section {
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 Image("custom.wheel")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 62, height: 62)
+                    .frame(width: 56, height: 56)
                     .foregroundStyle(.tint)
                     .rotationEffect(.degrees(iconRotation))
                     .padding(.top, 2)
@@ -915,7 +940,7 @@ private struct LockScreenContent: View {
                     .font(.title3)
                     .fontWeight(.bold)
 
-                Text(canUseBiometrics && biometricEnabled && !requiresPasscodeAfterBiometricFailures
+                Text(showsBiometricAction
                      ? String.localizedStringWithFormat(String(localized: "输入密码，或使用 %@ 解锁"), biometricDisplayName)
                      : String(localized: "输入密码以解锁应用"))
                     .font(.subheadline)
@@ -926,8 +951,13 @@ private struct LockScreenContent: View {
                     AutoFocusSecureField(
                         title: String(localized: "输入密码"),
                         text: $unlockInput,
-                        textContentType: .password
-                    )
+                        autoFocus: shouldAutoFocusPasscode,
+                        shakeTrigger: errorShakeCount
+                    ) {
+                        if unlockKind.isReadyForSubmission(unlockInput) && !isSubmittingUnlock && !isAnimatingUnlock && lockoutMessage == nil {
+                            performUnlockWithIconAnimation()
+                        }
+                    }
                     .padding(.horizontal)
                     .disabled(lockoutMessage != nil || isSubmittingUnlock)
                 } else {
@@ -936,12 +966,20 @@ private struct LockScreenContent: View {
                         prompt: "",
                         value: $unlockInput,
                         expectedLength: expectedLength,
-                        autoFocus: true,
+                        autoFocus: shouldAutoFocusPasscode,
+                        shakeTrigger: errorShakeCount,
                         onCompleted: autoSubmitNumericPasscode ? { performUnlockWithIconAnimation() } : nil
                     )
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 4)
                     .disabled(lockoutMessage != nil || isSubmittingUnlock)
-                    
+                }
+
+                if let message = lockoutMessage ?? errorMessage {
+                    Text(message)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -949,18 +987,9 @@ private struct LockScreenContent: View {
         }
     }
 
-    private func errorSection(message: String) -> some View {
-        Section {
-            Text(message)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(.red)
-                .frame(maxWidth: .infinity, alignment: .center)
-        }
-    }
-
     private var actionSection: some View {
         Section {
-            if canUseBiometrics && biometricEnabled && !requiresPasscodeAfterBiometricFailures {
+            if showsBiometricAction {
                 Button(String.localizedStringWithFormat(String(localized: "使用 %@ 解锁"), biometricDisplayName)) {
                     performUnlockWithIconAnimation(action: onBiometricUnlock)
                 }
@@ -971,18 +1000,39 @@ private struct LockScreenContent: View {
                 }
             }
 
-            if unlockKind == .custom || !autoSubmitNumericPasscode {
+            if showsManualUnlockAction && !pinsManualUnlockAction {
                 Button(String(localized: "解锁")) {
                     performUnlockWithIconAnimation()
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
-                .disabled(unlockInput.isEmpty || isSubmittingUnlock || isAnimatingUnlock || lockoutMessage != nil)
+                .disabled(isManualUnlockDisabled)
                 .keyboardShortcut(.defaultAction)
                 .alignmentGuide(.listRowSeparatorLeading) { _ in
                     return 0 // 强制分割线从 0（最左侧）开始
                 }
             }
         }
+    }
+
+    private var pinnedUnlockButton: some View {
+        Button {
+            performUnlockWithIconAnimation()
+        } label: {
+            Text(String(localized: "解锁"))
+                .frame(maxWidth: isWideLayout ? 400 : .infinity, alignment: .center)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .disabled(isManualUnlockDisabled)
+        .keyboardShortcut(.defaultAction)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(.bar)
+    }
+
+    private var isManualUnlockDisabled: Bool {
+        !unlockKind.isReadyForSubmission(unlockInput) || isSubmittingUnlock || isAnimatingUnlock || lockoutMessage != nil
     }
 
     private func performUnlockWithIconAnimation() {

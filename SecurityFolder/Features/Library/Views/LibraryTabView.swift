@@ -73,12 +73,11 @@ private struct LibraryTabContent: View {
 
     @ViewBuilder
     private var tabContainer: some View {
-        if hasDeviceHinge {
-            baseTabView
-        } else if usesPadSidebarLayout {
+        if usesPadSidebarLayout && !hasDeviceHinge {
             largePadContentView
         } else {
-            // 普通尺寸设备继续交给系统原生 TabView。
+            // 普通尺寸设备与 Duo 共用同一个 TabView 分支，避免 hasDeviceHinge
+            // 变化时重建 MediaLibraryView 导致相册导航状态丢失并退回主页。
             baseTabView
         }
     }
@@ -126,6 +125,7 @@ private struct LibraryTabContent: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 24, height: 24)
+                        .accessibilityLabel(AppTab.lock.title)
                 }
                 .tag(AppTab.lock)
 

@@ -243,7 +243,7 @@ struct DuplicateMediaView: View {
                 initialItemID: session.id,
                 policy: .regular,
                 actions: MediaViewerActions(
-                    exportURL: { _ in nil },
+                    exportItem: nil,
                     showDetails: { _ in },
                     detailInfo: { library.details(for: $0.id) }
                 ) { _ in EmptyView() },

@@ -29,8 +29,12 @@ struct AppLockService {
         self.defaults = defaults
     }
 
+    var biometricCapability: (available: Bool, biometryType: LABiometryType) {
+        cryptoService.biometricCapability
+    }
+
     var biometricHardwareAvailable: Bool {
-        cryptoService.biometricUnlockAvailable
+        biometricCapability.available
     }
 
     var biometricUnlockAvailable: Bool {

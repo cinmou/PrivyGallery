@@ -35,7 +35,7 @@ struct PhotoPreviewPresentation<Content: View>: UIViewControllerRepresentable {
     }
 }
 
-final class PhotoPreviewPresenter<Content: View>: UIViewController, UIAdaptivePresentationControllerDelegate {
+final class PhotoPreviewPresenter<Content: View>: UIViewController {
     var itemID: Binding<UUID?>
     var content: (UUID, @escaping () -> Void) -> Content
     private let source: PhotoPreviewTransitionSource
@@ -77,19 +77,57 @@ final class PhotoPreviewPresenter<Content: View>: UIViewController, UIAdaptivePr
         DispatchQueue.main.async { [weak self] in self?.updatePresentation() }
     }
 
+    private func resolvePresenter() -> UIViewController? {
+        guard let root = view.window?.rootViewController else { return nil }
+        var top = root
+        while let presented = top.presentedViewController, !presented.isBeingDismissed {
+            top = presented
+        }
+        return top
+    }
+
+    private func validSourceView(for itemID: UUID) -> UIView? {
+        guard let view = source.thumbnailView?(itemID, true),
+              view.window != nil,
+              !view.isHidden,
+              !view.bounds.isEmpty else {
+            return nil
+        }
+        return view
+    }
+
     private func updatePresentation() {
         guard !isDetached, !isDismissing else { return }
         guard let selectedID = itemID.wrappedValue else {
             if preview != nil { dismissPreview() }
             return
         }
-        guard preview == nil, view.window != nil else { return }
+        guard preview == nil, let presenter = resolvePresenter() else { return }
+        if let dismissing = presenter.presentedViewController, dismissing.isBeingDismissed {
+            if let coordinator = dismissing.transitionCoordinator {
+                coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                    self?.scheduleUpdate()
+                }
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                    self?.updatePresentation()
+                }
+            }
+            return
+        }
+        if let coordinator = presenter.transitionCoordinator
+            ?? navigationController?.transitionCoordinator
+            ?? splitViewController?.transitionCoordinator {
+            coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                self?.scheduleUpdate()
+            }
+            return
+        }
         source.currentItemID = selectedID
         presentedItemID = selectedID
         let host = PhotoPreviewHostingController(rootView: content(selectedID, { [weak self] in self?.dismissPreview() }))
         host.modalPresentationStyle = .fullScreen
         host.overrideUserInterfaceStyle = .dark
-        host.view.backgroundColor = .black
         host.onDismissed = { [weak self, weak host] in
             guard let self, self.preview === host else { return }
             self.finishDismissal()
@@ -98,17 +136,17 @@ final class PhotoPreviewPresenter<Content: View>: UIViewController, UIAdaptivePr
         options.interactiveDismissShouldBegin = { [weak source] context in
             context.willBegin && (source?.canBeginInteractiveDismiss?() ?? false)
         }
-        host.preferredTransition = .zoom(options: options) { [weak source] _ in
-            guard let source, let currentID = source.currentItemID else { return nil }
-            return source.thumbnailView?(currentID, true)
+        host.preferredTransition = .zoom(options: options) { [weak self] _ in
+            guard let self, let currentID = self.source.currentItemID else { return nil }
+            return self.validSourceView(for: currentID)
         }
         preview = host
-        present(host, animated: true) { [weak self, weak host] in
+        presenter.present(host, animated: true) { [weak self, weak host] in
             guard let self, let host else { return }
             if self.isDetached {
                 host.dismiss(animated: false)
-            } else {
-                host.presentationController?.delegate = self
+            } else if host.presentingViewController == nil {
+                self.finishDismissal()
             }
         }
     }
@@ -117,10 +155,6 @@ final class PhotoPreviewPresenter<Content: View>: UIViewController, UIAdaptivePr
         guard let preview, !isDismissing else { return }
         isDismissing = true
         preview.dismiss(animated: true) { [weak self] in self?.finishDismissal() }
-    }
-
-    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
-        finishDismissal()
     }
 
     private func finishDismissal() {
@@ -151,6 +185,11 @@ final class PhotoPreviewPresenter<Content: View>: UIViewController, UIAdaptivePr
 private final class PhotoPreviewHostingController<Content: View>: UIHostingController<Content> {
     var onDismissed: (() -> Void)?
     override var prefersStatusBarHidden: Bool { true }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+    }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)

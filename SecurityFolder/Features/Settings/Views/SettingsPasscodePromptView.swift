@@ -4,7 +4,8 @@ import SwiftUI
 /// 它会根据当前空间的密码类型，自动切换为数字圆点输入或复杂密码输入。
 struct SettingsPasscodePromptView: View {
     @Environment(\.dismiss) private var dismiss
-    @FocusState private var isCustomPasscodeFocused: Bool
+    @AppStorage(AppSettingsKey.autoSubmitNumericPasscode)
+    private var autoSubmitNumericPasscode = AppSettingsKey.defaultAutoSubmitNumericPasscode
 
     let title: String
     let message: String
@@ -12,6 +13,8 @@ struct SettingsPasscodePromptView: View {
     @Binding var passcode: String
     let onCancel: () -> Void
     let onConfirm: () -> Void
+
+    @State private var hasSubmitted = false
 
     var body: some View {
         NavigationStack {
@@ -35,25 +38,22 @@ struct SettingsPasscodePromptView: View {
                         .multilineTextAlignment(.center)
 
                     if kind == .custom {
-                        SecureField("", text: $passcode)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .textFieldStyle(.roundedBorder)
-                            .focused($isCustomPasscodeFocused)
-                            .onAppear {
-                                DispatchQueue.main.async {
-                                    isCustomPasscodeFocused = true
-                                }
-                            }
-                            .padding(.horizontal)
+                        AutoFocusSecureField(
+                            title: "",
+                            text: $passcode,
+                            autoFocus: true
+                        ) {
+                            submitConfirm()
+                        }
+                        .padding(.horizontal)
                     } else {
                         NativeNumericPasscodeField(
                             title: "",
                             prompt: "",
                             value: $passcode,
-                            expectedLength: expectedLength(for: kind),
+                            expectedLength: kind.expectedLength,
                             autoFocus: true,
-                            onCompleted: nil
+                            onCompleted: autoSubmitNumericPasscode ? { submitConfirm() } : nil
                         )
                         .padding(.vertical, 8)
                     }
@@ -87,8 +87,7 @@ struct SettingsPasscodePromptView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        dismiss()
-                        onConfirm()
+                        submitConfirm()
                     } label: {
                         #if targetEnvironment(macCatalyst)
                         Text(String(localized: "验证并继续"))
@@ -109,18 +108,14 @@ struct SettingsPasscodePromptView: View {
     }
 
     private var isConfirmDisabled: Bool {
-        kind == .custom ? passcode.isEmpty : passcode.count != expectedLength(for: kind)
+        hasSubmitted || !kind.isReadyForSubmission(passcode)
     }
 
-    private func expectedLength(for kind: AppPasscodeKind) -> Int {
-        switch kind {
-        case .fourDigits:
-            return 4
-        case .sixDigits:
-            return 6
-        case .custom:
-            return 8
-        }
+    private func submitConfirm() {
+        guard !isConfirmDisabled else { return }
+        hasSubmitted = true
+        dismiss()
+        onConfirm()
     }
 }
 

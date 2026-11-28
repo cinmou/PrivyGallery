@@ -21,13 +21,44 @@ final class AppSessionViewModel: ObservableObject {
     private var lastInteractionUptime = ProcessInfo.processInfo.systemUptime
     private var shouldAutomaticallyAttemptBiometricUnlock = true
     private var consecutiveBiometricFailureCount = 0
+    private var cachedBiometricCapability: (available: Bool, biometryType: LABiometryType)
 
     var isUnlocked: Bool {
         activeSpace != nil
     }
 
     var canUseBiometrics: Bool {
-        lockService.biometricHardwareAvailable
+        cachedBiometricCapability.available
+    }
+
+    var biometryType: LABiometryType {
+        cachedBiometricCapability.biometryType
+    }
+
+    var biometricDisplayName: String {
+        switch biometryType {
+        case .faceID:
+            return String(localized: "Face ID")
+        case .touchID:
+            return String(localized: "Touch ID")
+        case .opticID:
+            return String(localized: "Optic ID")
+        default:
+            return String(localized: "生物识别")
+        }
+    }
+
+    var biometricIconName: String {
+        switch biometryType {
+        case .faceID:
+            return "faceid"
+        case .touchID:
+            return "touchid"
+        case .opticID:
+            return "opticid"
+        default:
+            return canUseBiometrics ? "person.badge.key.fill" : "lock.slash.fill"
+        }
     }
 
     var shouldRunPrimaryOnboarding: Bool {
@@ -51,7 +82,12 @@ final class AppSessionViewModel: ObservableObject {
     }
 
     init() {
+        cachedBiometricCapability = lockService.biometricCapability
         syncSharedImportAppState()
+    }
+
+    func refreshBiometricCapability() {
+        cachedBiometricCapability = lockService.biometricCapability
     }
 
     func isPasscodeConfigured(for space: VaultSpaceKind) -> Bool {
@@ -286,7 +322,10 @@ final class AppSessionViewModel: ObservableObject {
 
     func handleScenePhaseChange(isActive: Bool) {
         isSceneActive = isActive
-        if isActive { hasEnteredBackground = false }
+        if isActive {
+            hasEnteredBackground = false
+            refreshBiometricCapability()
+        }
         logger.debug("Scene active: \(isActive)")
     }
 

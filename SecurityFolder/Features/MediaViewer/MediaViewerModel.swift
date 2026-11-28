@@ -11,18 +11,18 @@ struct MediaViewerSecurePolicy: Equatable {
 }
 
 struct MediaViewerActions<MenuContent: View> {
-    let exportURL: (VaultItem) -> URL?
+    let exportItem: ((VaultItem) -> ExportedMediaItem?)?
     let showDetails: (VaultItem) -> Void
     let detailInfo: (VaultItem) -> MediaItemDetailInfo?
     let menuContent: (VaultItem) -> MenuContent
 
     init(
-        exportURL: @escaping (VaultItem) -> URL?,
+        exportItem: ((VaultItem) -> ExportedMediaItem?)? = nil,
         showDetails: @escaping (VaultItem) -> Void,
         detailInfo: @escaping (VaultItem) -> MediaItemDetailInfo? = { _ in nil },
         @ViewBuilder menuContent: @escaping (VaultItem) -> MenuContent
     ) {
-        self.exportURL = exportURL
+        self.exportItem = exportItem
         self.showDetails = showDetails
         self.detailInfo = detailInfo
         self.menuContent = menuContent

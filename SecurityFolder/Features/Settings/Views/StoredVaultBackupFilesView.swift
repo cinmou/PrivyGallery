@@ -153,16 +153,20 @@ struct StoredVaultBackupFilesView: View {
             sharePayload = nil
         }
         #else
-        .sheet(item: $sharePayload) { payload in
-            ActivityView(activityItems: payload.urls, onPresented: {
-                #if DEBUG
-                VaultBackupFilesDebugLog.mark("shareSheet.presented", "fileCount=\(payload.urls.count)")
-                #endif
-            }, onFinish: { completed in
-                #if DEBUG
-                VaultBackupFilesDebugLog.mark("shareSheet.dismissed", "completed=\(completed) fileCount=\(payload.urls.count)")
-                #endif
-            })
+        .nativeActivitySheet(item: $sharePayload) { payload in
+            NativeActivitySheetConfiguration(
+                activityItems: payload.urls,
+                onPresented: {
+                    #if DEBUG
+                    VaultBackupFilesDebugLog.mark("shareSheet.presented", "fileCount=\(payload.urls.count)")
+                    #endif
+                },
+                onFinish: { completed in
+                    #if DEBUG
+                    VaultBackupFilesDebugLog.mark("shareSheet.dismissed", "completed=\(completed) fileCount=\(payload.urls.count)")
+                    #endif
+                }
+            )
         }
         #endif
         .confirmationDialog(

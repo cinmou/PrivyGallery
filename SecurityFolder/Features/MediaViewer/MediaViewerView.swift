@@ -41,7 +41,7 @@ struct MediaViewerView<MenuContent: View>: View {
                     onDismiss: onDismiss,
                     onShowDetails: actions.showDetails,
                     detailInfo: actions.detailInfo,
-                    exportURL: actions.exportURL
+                    exportItem: actions.exportItem
                 )
             } else {
                 UIKitMediaViewerRepresentable(
@@ -52,7 +52,7 @@ struct MediaViewerView<MenuContent: View>: View {
                     onDismiss: onDismiss,
                     onShowDetails: actions.showDetails,
                     detailInfo: actions.detailInfo,
-                    exportURL: actions.exportURL,
+                    exportItem: actions.exportItem,
                     selectionIDs: selectionIDs,
                     canSelectItem: canSelectItem
                 )
@@ -74,7 +74,7 @@ private struct UIKitMediaViewerRepresentable: UIViewControllerRepresentable {
     let onDismiss: () -> Void
     let onShowDetails: (VaultItem) -> Void
     let detailInfo: (VaultItem) -> MediaItemDetailInfo?
-    let exportURL: (VaultItem) -> URL?
+    let exportItem: ((VaultItem) -> ExportedMediaItem?)?
     let selectionIDs: Binding<Set<UUID>>?
     let canSelectItem: ((VaultItem) -> Bool)?
 
@@ -85,7 +85,7 @@ private struct UIKitMediaViewerRepresentable: UIViewControllerRepresentable {
         controller.onDismiss = onDismiss
         controller.onShowDetails = onShowDetails
         controller.detailInfo = detailInfo
-        controller.exportURL = exportURL
+        controller.exportItem = exportItem
         updateSelection(on: controller)
         return controller
     }
@@ -94,7 +94,7 @@ private struct UIKitMediaViewerRepresentable: UIViewControllerRepresentable {
         uiViewController.onDismiss = onDismiss
         uiViewController.onShowDetails = onShowDetails
         uiViewController.detailInfo = detailInfo
-        uiViewController.exportURL = exportURL
+        uiViewController.exportItem = exportItem
         updateSelection(on: uiViewController)
     }
 
@@ -121,14 +121,14 @@ private struct SecureUIKitMediaViewerRepresentable: UIViewControllerRepresentabl
     let onDismiss: () -> Void
     let onShowDetails: (VaultItem) -> Void
     let detailInfo: (VaultItem) -> MediaItemDetailInfo?
-    let exportURL: (VaultItem) -> URL?
+    let exportItem: ((VaultItem) -> ExportedMediaItem?)?
 
     func makeUIViewController(context: Context) -> SecureMediaViewerHostController {
         let viewer = MediaViewerController(items: items, initialItemID: initialItemID, provider: provider)
         viewer.onDismiss = onDismiss
         viewer.onShowDetails = onShowDetails
         viewer.detailInfo = detailInfo
-        viewer.exportURL = exportURL
+        viewer.exportItem = exportItem
         viewer.protectsMediaContentFromCapture = true
         return SecureMediaViewerHostController(viewer: viewer)
     }
@@ -137,7 +137,7 @@ private struct SecureUIKitMediaViewerRepresentable: UIViewControllerRepresentabl
         uiViewController.viewer.onDismiss = onDismiss
         uiViewController.viewer.onShowDetails = onShowDetails
         uiViewController.viewer.detailInfo = detailInfo
-        uiViewController.viewer.exportURL = exportURL
+        uiViewController.viewer.exportItem = exportItem
     }
 }
 

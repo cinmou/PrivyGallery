@@ -44,16 +44,18 @@ final class VaultCryptoService {
 
     private init() {}
 
-    var biometricUnlockAvailable: Bool {
+    var biometricCapability: (available: Bool, biometryType: LABiometryType) {
         let context = LAContext()
-        return context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+        let available = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+        return (available, context.biometryType)
+    }
+
+    var biometricUnlockAvailable: Bool {
+        biometricCapability.available
     }
 
     private var biometricDisplayName: String {
-        let context = LAContext()
-        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
-
-        switch context.biometryType {
+        switch biometricCapability.biometryType {
         case .faceID:
             return String(localized: "Face ID")
         case .touchID:

@@ -32,12 +32,47 @@ enum AppPasscodeKind: String, CaseIterable, Identifiable {
         }
     }
 
+    var expectedLength: Int {
+        switch self {
+        case .fourDigits:
+            return 4
+        case .sixDigits:
+            return 6
+        case .custom:
+            return 8
+        }
+    }
+
+    static func filterASCIIDigits(_ value: String, maxLength: Int? = nil) -> String {
+        let filtered = value.filter { $0.isASCII && $0.isNumber }
+        guard let maxLength else { return filtered }
+        return String(filtered.prefix(maxLength))
+    }
+
     func normalized(_ value: String) -> String {
         switch self {
         case .fourDigits, .sixDigits:
-            return value.filter(\.isNumber)
+            return Self.filterASCIIDigits(value)
         case .custom:
             return value
+        }
+    }
+
+    func sanitized(_ value: String) -> String {
+        switch self {
+        case .fourDigits, .sixDigits:
+            return Self.filterASCIIDigits(value, maxLength: expectedLength)
+        case .custom:
+            return value
+        }
+    }
+
+    func isReadyForSubmission(_ value: String) -> Bool {
+        switch self {
+        case .fourDigits, .sixDigits:
+            return sanitized(value).count == expectedLength
+        case .custom:
+            return !value.isEmpty
         }
     }
 

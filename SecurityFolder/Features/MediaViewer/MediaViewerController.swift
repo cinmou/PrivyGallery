@@ -16,7 +16,7 @@ final class MediaViewerController: UIViewController {
     var onDismiss: (() -> Void)?
     var onShowDetails: ((VaultItem) -> Void)?
     var detailInfo: ((VaultItem) -> MediaItemDetailInfo?)?
-    var exportURL: ((VaultItem) -> URL?)?
+    var exportItem: ((VaultItem) -> ExportedMediaItem?)?
     private var selectionHandler: (isSelected: (VaultItem) -> Bool, isEnabled: (VaultItem) -> Bool, toggle: (VaultItem) -> Void)?
 
     private let pageController = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal)
@@ -664,12 +664,27 @@ final class MediaViewerController: UIViewController {
             self?.scheduleHideControlsIfNeeded(reset: true)
             self?.showDetailPanel(for: item)
         })
-        if exportURL?(item) != nil {
+        if exportItem != nil {
             sheet.addAction(UIAlertAction(title: String(localized: "导出"), style: .default) { [weak self] _ in
-                guard let self, let url = self.exportURL?(item) else { return }
+                guard let self, let exported = self.exportItem?(item) else { return }
                 self.isMenuVisible = false
                 self.scheduleHideControlsIfNeeded(reset: true)
-                let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+                let items = [exported]
+                let activity = UIActivityViewController(
+                    activityItems: exported.allURLs,
+                    applicationActivities: MediaExportSupport.applicationActivities(for: items)
+                )
+                activity.excludedActivityTypes = MediaExportSupport.excludedActivityTypes(for: items)
+                activity.completionWithItemsHandler = { _, _, _, _ in
+                    for url in exported.allURLs {
+                        VaultFileStorageService.shared.clearDecryptedTemporaryURLIfManaged(url)
+                    }
+                }
+                if let popover = activity.popoverPresentationController {
+                    popover.sourceView = self.topOverlay.moreButton
+                    popover.sourceRect = self.topOverlay.moreButton.bounds
+                    popover.permittedArrowDirections = .up
+                }
                 self.present(activity, animated: true)
             })
         }

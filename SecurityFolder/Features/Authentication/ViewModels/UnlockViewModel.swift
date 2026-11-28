@@ -100,6 +100,7 @@ final class UnlockViewModel: ObservableObject {
         let candidate = draft.normalizedPrimaryValue
 
         guard draft.kind.isValid(candidate) else {
+            draft.primaryValue = ""
             errorMessage = String(localized: "密码格式不符合要求。")
             return
         }
@@ -116,11 +117,13 @@ final class UnlockViewModel: ObservableObject {
         draft.sanitize()
 
         guard draft.kind.isValid(draft.normalizedPrimaryValue) else {
+            draft.primaryValue = ""
             errorMessage = String(localized: "密码格式不符合要求。")
             return
         }
 
         guard draft.normalizedPrimaryValue == draft.normalizedConfirmationValue else {
+            draft.confirmationValue = ""
             errorMessage = String(localized: "两次输入的密码不一致。")
             return
         }

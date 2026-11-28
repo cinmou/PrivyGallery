@@ -64,13 +64,19 @@ struct AlbumDetailView: View {
     @State private var previewSelection: PreviewSelection?
     @State private var photoPreviewItemID: UUID?
     @State private var photoTransitionSource = PhotoPreviewTransitionSource()
-    @State private var shareURLs: [URL] = []
-    @State private var showingShareSheet = false
+    private struct ExportSharePayload: Identifiable {
+        let id = UUID()
+        let items: [ExportedMediaItem]
+    }
+
+    @State private var activeSharePayload: ExportSharePayload?
+    @State private var pendingSharePayload: ExportSharePayload?
     @State private var pendingOperation: PendingMediaOperation?
     @State private var renamingItem: VaultItem?
     @State private var renameText = ""
     @State private var detailItemID: UUID?
     @State private var isPreparingExport = false
+    @State private var showingExportPreparationSheet = false
     @State private var exportPreparationCompletedCount = 0
     @State private var exportPreparationTotalCount = 0
     @State private var visibleItemLimit = 48
@@ -283,13 +289,23 @@ struct AlbumDetailView: View {
         .sheet(isPresented: $showingCustomSort) {
             AlbumCustomSortView(viewModel: viewModel, albumID: albumID)
         }
-        .sheet(isPresented: $showingShareSheet) {
-            ActivityView(activityItems: shareURLs, onComplete: {
-                viewModel.clearExportedTemporaryURLs(shareURLs)
-                shareURLs.removeAll()
-            })
+        .nativeActivitySheet(item: $activeSharePayload) { payload in
+            let urls = payload.items.flatMap(\.allURLs)
+            return NativeActivitySheetConfiguration(
+                activityItems: urls,
+                applicationActivities: MediaExportSupport.applicationActivities(for: payload.items),
+                excludedActivityTypes: MediaExportSupport.excludedActivityTypes(for: payload.items),
+                onComplete: {
+                    viewModel.clearExportedTemporaryURLs(urls)
+                }
+            )
         }
-        .sheet(isPresented: $isPreparingExport) {
+        .sheet(isPresented: $showingExportPreparationSheet, onDismiss: {
+            if let pending = pendingSharePayload {
+                pendingSharePayload = nil
+                activeSharePayload = pending
+            }
+        }) {
             exportPreparationSheet
         }
         .sheet(item: detailItemBinding) { detail in
@@ -1230,6 +1246,13 @@ struct AlbumDetailView: View {
         exportPreparationCompletedCount = 0
         exportPreparationTotalCount = itemIDs.count
         isPreparingExport = true
+        pendingSharePayload = nil
+
+        let progressSheetTask = Task {
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled, isPreparingExport else { return }
+            showingExportPreparationSheet = true
+        }
 
         Task {
             let result = await viewModel.prepareExportURLs(for: itemIDs) { completed, total in
@@ -1237,17 +1260,26 @@ struct AlbumDetailView: View {
                 exportPreparationTotalCount = total
             }
 
+            progressSheetTask.cancel()
             isPreparingExport = false
-            shareURLs = result.urls
+
             if result.failedCount > 0 {
-                viewModel.lastErrorMessage = result.urls.isEmpty
+                viewModel.lastErrorMessage = result.items.isEmpty
                     ? String(localized: "导出失败")
                     : String(localized: "部分项目无法导出")
             }
-            if !result.urls.isEmpty {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                    showingShareSheet = true
-                }
+
+            guard !result.items.isEmpty else {
+                showingExportPreparationSheet = false
+                return
+            }
+
+            let payload = ExportSharePayload(items: result.items)
+            if showingExportPreparationSheet {
+                pendingSharePayload = payload
+                showingExportPreparationSheet = false
+            } else {
+                activeSharePayload = payload
             }
         }
     }

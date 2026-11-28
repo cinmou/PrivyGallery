@@ -33,6 +33,7 @@ struct ChangePasswordView: View {
     @State private var errorMessage: String?
     @State private var isSaving = false
     @State private var resultAlert: PasswordChangeResultAlert?
+    @State private var errorShakeCount = 0
 
     init(session: AppSessionViewModel, initialStage: Stage = .verifyCurrent) {
         self.session = session
@@ -64,7 +65,9 @@ struct ChangePasswordView: View {
                 case .enterPrimaryNew:
                     newPasscodeSection(
                         title: String(localized: "输入新密码"),
-                        helper: "",
+                        helper: selectedKind == .custom
+                            ? String(localized: "请使用大于 6 位且至少包含 1 个字母的密码。")
+                            : "",
                         kind: selectedKind,
                         text: $primaryDraft.primaryValue
                     )
@@ -299,23 +302,34 @@ struct ChangePasswordView: View {
     private var primaryActionDisabled: Bool {
         switch stage {
         case .verifyCurrent:
-            return currentPasscode.isEmpty
+            return !currentKind.isReadyForSubmission(currentPasscode)
         case .chooseKind:
             return false
         case .enterPrimaryNew:
-            return primaryDraft.primaryValue.isEmpty
+            return !selectedKind.isReadyForSubmission(primaryDraft.primaryValue)
         case .confirmPrimaryNew:
-            return primaryDraft.confirmationValue.isEmpty
+            return !selectedKind.isReadyForSubmission(primaryDraft.confirmationValue)
         case .verifySecondaryCurrent:
-            return secondaryCurrentPasscode.isEmpty
+            return !(counterpartKind ?? selectedKind).isReadyForSubmission(secondaryCurrentPasscode)
         case .enterSecondaryNew:
-            return secondaryDraft.primaryValue.isEmpty
+            return !selectedKind.isReadyForSubmission(secondaryDraft.primaryValue)
         case .confirmSecondaryNew:
-            return secondaryDraft.confirmationValue.isEmpty
+            return !selectedKind.isReadyForSubmission(secondaryDraft.confirmationValue)
         case .enterPrimaryCoercion:
-            return coercionDraft.primaryValue.isEmpty
+            return !selectedKind.isReadyForSubmission(coercionDraft.primaryValue)
         case .confirmPrimaryCoercion:
-            return coercionDraft.confirmationValue.isEmpty
+            return !selectedKind.isReadyForSubmission(coercionDraft.confirmationValue)
+        }
+    }
+
+    private var currentSubmitLabel: SubmitLabel {
+        switch stage {
+        case .confirmPrimaryNew where !requiresMigration,
+             .confirmSecondaryNew where !requiresCoercionMigration,
+             .confirmPrimaryCoercion:
+            return .done
+        default:
+            return .next
         }
     }
 
@@ -342,19 +356,29 @@ struct ChangePasswordView: View {
                     .multilineTextAlignment(.center) // 如果文字太长被折叠到两行，让它们保持居中对齐
                 
                 if currentKind == .custom {
-                    SecureField(String(localized: "密码"), text: $currentPasscode)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .textFieldStyle(.roundedBorder) // 给予输入框一个圆角描边
-                        .padding(.horizontal) // 让输入框距离左右两边有留白
+                    AutoFocusSecureField(
+                        title: String(localized: "密码"),
+                        text: $currentPasscode,
+                        autoFocus: true,
+                        submitLabel: currentSubmitLabel,
+                        shakeTrigger: errorShakeCount
+                    ) {
+                        if !isSaving && !primaryActionDisabled {
+                            handlePrimaryAction()
+                        }
+                    }
+                    .id(stage)
+                    .padding(.horizontal) // 让输入框距离左右两边有留白
                 } else {
                     NativeNumericPasscodeField(
                         title: "", 
                         prompt: "", 
                         value: $currentPasscode, // 当前的输入值双向绑定
-                        expectedLength: expectedLength(for: currentKind), // 期望的长度（4或6）
-                        autoFocus: false // 这个页面进来到时候不需要自动弹起键盘
+                        expectedLength: currentKind.expectedLength, // 期望的长度（4或6）
+                        autoFocus: true,
+                        shakeTrigger: errorShakeCount
                     )
+                    .id(stage)
                     .padding(.vertical, 8) // 上下留出间隙
                 }
             }
@@ -484,19 +508,29 @@ struct ChangePasswordView: View {
                 }
 
                 if kind == .custom {
-                    SecureField(String(localized: "密码"), text: text)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .textFieldStyle(.roundedBorder)
-                        .padding(.horizontal)
+                    AutoFocusSecureField(
+                        title: String(localized: "密码"),
+                        text: text,
+                        autoFocus: true,
+                        submitLabel: currentSubmitLabel,
+                        shakeTrigger: errorShakeCount
+                    ) {
+                        if !isSaving && !primaryActionDisabled {
+                            handlePrimaryAction()
+                        }
+                    }
+                    .id(stage)
+                    .padding(.horizontal)
                 } else {
                     NativeNumericPasscodeField(
                         title: "", 
                         prompt: "",
                         value: text,
-                        expectedLength: expectedLength(for: kind),
-                        autoFocus: false
+                        expectedLength: kind.expectedLength,
+                        autoFocus: true,
+                        shakeTrigger: errorShakeCount
                     )
+                    .id(stage)
                     .padding(.vertical, 8)
                 }
             }
@@ -849,12 +883,8 @@ struct ChangePasswordView: View {
 
     private func presentError(_ message: String) {
         UINotificationFeedbackGenerator().notificationOccurred(.error)
+        errorShakeCount += 1
         errorMessage = message
-        resultAlert = PasswordChangeResultAlert(
-            title: String(localized: "修改失败"),
-            message: message,
-            dismissesView: false
-        )
     }
 
     private func presentSuccessAndDismiss() {
@@ -867,15 +897,7 @@ struct ChangePasswordView: View {
     }
 
     private func sanitizeCurrentPasscode(with newValue: String, kind: AppPasscodeKind, assignToSecondary: Bool) {
-        let sanitized: String
-        switch kind {
-        case .fourDigits:
-            sanitized = String(newValue.filter(\.isNumber).prefix(4))
-        case .sixDigits:
-            sanitized = String(newValue.filter(\.isNumber).prefix(6))
-        case .custom:
-            sanitized = newValue
-        }
+        let sanitized = kind.sanitized(newValue)
 
         if assignToSecondary {
             if secondaryCurrentPasscode != sanitized {
@@ -883,17 +905,6 @@ struct ChangePasswordView: View {
             }
         } else if currentPasscode != sanitized {
             currentPasscode = sanitized
-        }
-    }
-
-    private func expectedLength(for kind: AppPasscodeKind) -> Int {
-        switch kind {
-        case .fourDigits:
-            return 4
-        case .sixDigits:
-            return 6
-        case .custom:
-            return 8
         }
     }
 

@@ -3,14 +3,20 @@ import Combine
 import SwiftUI
 
 struct MediaExportPreparationResult {
-    let urls: [URL]
+    let items: [ExportedMediaItem]
     let failedCount: Int
+
+    var urls: [URL] {
+        items.flatMap(\.allURLs)
+    }
 }
 
 private struct ExportItemSnapshot: Sendable {
     let id: UUID
     let relativePath: String
+    let companionRelativePath: String?
     let originalFilename: String
+    let mediaKind: MediaKind
     let space: VaultSpaceKind
 }
 
@@ -628,18 +634,42 @@ final class MediaLibraryViewModel: ObservableObject {
         activeImportTask?.cancel()
     }
 
-    func exportURL(for itemID: UUID) -> URL? {
+    func exportItem(for itemID: UUID) -> ExportedMediaItem? {
         guard let item = items.first(where: { $0.id == itemID }) else { return nil }
-        guard let exportURL = try? fileStorage.decryptedTemporaryURL(
+        guard let stillURL = try? fileStorage.decryptedTemporaryURL(
             for: item.relativePath,
             originalFilename: item.originalFilename,
             space: item.space
-        ), FileManager.default.fileExists(atPath: exportURL.path(percentEncoded: false)) else {
+        ), FileManager.default.fileExists(atPath: stillURL.path(percentEncoded: false)) else {
             return nil
         }
+
+        var companionVideoURL: URL?
+        if let companionPath = item.livePhotoCompanionRelativePath {
+            let companionFilename = MediaExportSupport.companionExportFilename(
+                for: item.originalFilename,
+                companionRelativePath: companionPath
+            )
+            if let decryptedCompanion = try? fileStorage.decryptedTemporaryURL(
+                for: companionPath,
+                originalFilename: companionFilename,
+                space: item.space
+            ), FileManager.default.fileExists(atPath: decryptedCompanion.path(percentEncoded: false)) {
+                companionVideoURL = decryptedCompanion
+            }
+        }
+
         item.lastExportedAt = .now
         try? persistCurrentState()
-        return exportURL
+        return ExportedMediaItem(
+            stillURL: stillURL,
+            companionVideoURL: companionVideoURL,
+            mediaKind: item.mediaKind
+        )
+    }
+
+    func exportURL(for itemID: UUID) -> URL? {
+        exportItem(for: itemID)?.stillURL
     }
 
     func prepareExportURLs(
@@ -649,34 +679,59 @@ final class MediaLibraryViewModel: ObservableObject {
         let selectedItems = items.filter { itemIDs.contains($0.id) }
         let total = selectedItems.count
         guard total > 0 else {
-            return MediaExportPreparationResult(urls: [], failedCount: 0)
+            return MediaExportPreparationResult(items: [], failedCount: 0)
         }
 
         let snapshots = selectedItems.map { item in
             ExportItemSnapshot(
                 id: item.id,
                 relativePath: item.relativePath,
+                companionRelativePath: item.livePhotoCompanionRelativePath,
                 originalFilename: item.originalFilename,
+                mediaKind: item.mediaKind,
                 space: item.space
             )
         }
         let storage = fileStorage
-        var exportedURLs: [URL] = []
+        var exportedItems: [ExportedMediaItem] = []
         var exportedItemIDs = Set<UUID>()
         var failedCount = 0
 
         progress?(0, total)
         for (index, snapshot) in snapshots.enumerated() {
-            let exportURL = await Task.detached(priority: .utility) {
-                try? storage.decryptedTemporaryURL(
+            let exportedItem: ExportedMediaItem? = await Task.detached(priority: .utility) {
+                guard let stillURL = try? storage.decryptedTemporaryURL(
                     for: snapshot.relativePath,
                     originalFilename: snapshot.originalFilename,
                     space: snapshot.space
+                ), FileManager.default.fileExists(atPath: stillURL.path(percentEncoded: false)) else {
+                    return nil
+                }
+
+                var companionVideoURL: URL?
+                if let companionPath = snapshot.companionRelativePath {
+                    let companionFilename = MediaExportSupport.companionExportFilename(
+                        for: snapshot.originalFilename,
+                        companionRelativePath: companionPath
+                    )
+                    if let decryptedCompanion = try? storage.decryptedTemporaryURL(
+                        for: companionPath,
+                        originalFilename: companionFilename,
+                        space: snapshot.space
+                    ), FileManager.default.fileExists(atPath: decryptedCompanion.path(percentEncoded: false)) {
+                        companionVideoURL = decryptedCompanion
+                    }
+                }
+
+                return ExportedMediaItem(
+                    stillURL: stillURL,
+                    companionVideoURL: companionVideoURL,
+                    mediaKind: snapshot.mediaKind
                 )
             }.value
 
-            if let exportURL, FileManager.default.fileExists(atPath: exportURL.path(percentEncoded: false)) {
-                exportedURLs.append(exportURL)
+            if let exportedItem {
+                exportedItems.append(exportedItem)
                 exportedItemIDs.insert(snapshot.id)
             } else {
                 failedCount += 1
@@ -684,7 +739,7 @@ final class MediaLibraryViewModel: ObservableObject {
             progress?(index + 1, total)
         }
 
-        if !exportedURLs.isEmpty {
+        if !exportedItems.isEmpty {
             let exportedAt = Date.now
             for item in selectedItems where exportedItemIDs.contains(item.id) {
                 item.lastExportedAt = exportedAt
@@ -692,7 +747,7 @@ final class MediaLibraryViewModel: ObservableObject {
             try? persistCurrentState()
         }
 
-        return MediaExportPreparationResult(urls: exportedURLs, failedCount: failedCount)
+        return MediaExportPreparationResult(items: exportedItems, failedCount: failedCount)
     }
 
     func markDragExportPrepared(itemID: UUID, relativePath: String, generation: Int) {
@@ -1630,23 +1685,35 @@ final class MediaLibraryViewModel: ObservableObject {
                     do {
                         let url = try store.fileURL(for: entry)
                         let storedFile = try await self.fileStorage.importFile(from: url, space: self.space)
+                        var companionRelativePath: String?
+                        if let companionURL = try store.companionFileURL(for: entry),
+                           FileManager.default.fileExists(atPath: companionURL.path(percentEncoded: false)) {
+                            do {
+                                companionRelativePath = try self.fileStorage.importCompanionFile(from: companionURL, space: self.space)
+                            } catch {
+                                try? self.fileStorage.removeFile(relativePath: storedFile.relativePath)
+                                throw error
+                            }
+                        }
+                        let effectiveMediaKind: MediaKind = (companionRelativePath != nil) ? .livePhoto : storedFile.mediaKind
                         let item = VaultItem(
                             name: self.availableItemName(for: storedFile.displayName),
                             createdAt: .now,
                             importedAt: .now,
                             lastExportedAt: nil,
                             originalCapturedAt: storedFile.originalCapturedAt,
-                            mediaKind: storedFile.mediaKind,
+                            mediaKind: effectiveMediaKind,
                             space: self.space,
                             relativePath: storedFile.relativePath,
                             originalFilename: storedFile.originalFilename,
                             contentTypeIdentifier: storedFile.contentTypeIdentifier,
                             locationLatitude: storedFile.locationLatitude,
                             locationLongitude: storedFile.locationLongitude,
+                            livePhotoCompanionRelativePath: companionRelativePath,
                             videoDuration: storedFile.videoDuration
                         )
 
-                        switch storedFile.mediaKind {
+                        switch effectiveMediaKind {
                         case .photo, .livePhoto: photoCount += 1
                         case .video: videoCount += 1
                         }

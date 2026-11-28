@@ -150,11 +150,11 @@ private struct PasswordSettingsView: View {
             }
 
             MacSettingsSection(
-                currentBiometricDisplayName(),
-                footer: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间。%@ 仅用于本机身份验证，我们不会访问或保存你的生物识别数据。"), currentBiometricDisplayName(), currentBiometricDisplayName())
+                session.biometricDisplayName,
+                footer: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间。%@ 仅用于本机身份验证，我们不会访问或保存你的生物识别数据。"), session.biometricDisplayName, session.biometricDisplayName)
             ) {
                 MacSettingsToggleRow(
-                    String.localizedStringWithFormat(String(localized: "允许 %@ 解锁"), currentBiometricDisplayName()),
+                    String.localizedStringWithFormat(String(localized: "允许 %@ 解锁"), session.biometricDisplayName),
                     isOn: biometricEnabledBinding,
                     isDisabled: savingSensitiveSettings || !session.canUseBiometrics
                 )
@@ -197,12 +197,12 @@ private struct PasswordSettingsView: View {
             }
 
             Section {
-                Toggle(String.localizedStringWithFormat(String(localized: "允许 %@ 解锁"), currentBiometricDisplayName()), isOn: biometricEnabledBinding)
+                Toggle(String.localizedStringWithFormat(String(localized: "允许 %@ 解锁"), session.biometricDisplayName), isOn: biometricEnabledBinding)
                     .disabled(savingSensitiveSettings || !session.canUseBiometrics)
             } header: {
-                Text(currentBiometricDisplayName())
+                Text(session.biometricDisplayName)
             } footer: {
-                Text(String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间。%@ 仅用于本机身份验证，我们不会访问或保存你的生物识别数据。"), currentBiometricDisplayName(), currentBiometricDisplayName()))
+                Text(String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间。%@ 仅用于本机身份验证，我们不会访问或保存你的生物识别数据。"), session.biometricDisplayName, session.biometricDisplayName))
             }
 
             Section {
@@ -258,7 +258,7 @@ private struct PasswordSettingsView: View {
                     requestEnableBiometricUnlock()
                 } else {
                     session.setBiometricUnlockEnabled(false)
-                    completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 解锁未开启"), currentBiometricDisplayName()))
+                    completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 解锁未开启"), session.biometricDisplayName))
                 }
             }
         )
@@ -266,13 +266,13 @@ private struct PasswordSettingsView: View {
 
     private func requestEnableBiometricUnlock() {
         savingSensitiveSettings = true
-        session.authenticateOwner(policy: .deviceOwnerAuthenticationWithBiometrics, reason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), currentBiometricDisplayName())) { success in
+        session.authenticateOwner(policy: .deviceOwnerAuthenticationWithBiometrics, reason: String.localizedStringWithFormat(String(localized: "使用 %@ 解锁你的私密空间"), session.biometricDisplayName)) { success in
             savingSensitiveSettings = false
             session.setBiometricUnlockEnabled(success)
             if success {
-                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 解锁已开启"), currentBiometricDisplayName()))
+                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 解锁已开启"), session.biometricDisplayName))
             } else {
-                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 验证失败，请继续使用密码解锁"), currentBiometricDisplayName()))
+                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 验证失败，请继续使用密码解锁"), session.biometricDisplayName))
             }
         }
     }
@@ -339,11 +339,11 @@ private struct SpaceSettingsView: View {
             }
 
             if session.isBiometricUnlockEnabled {
-                MacSettingsSection(currentBiometricDisplayName()) {
+                MacSettingsSection(session.biometricDisplayName) {
                     HStack {
-                        Text(String.localizedStringWithFormat(String(localized: "%@ 模式"), currentBiometricDisplayName()))
+                        Text(String.localizedStringWithFormat(String(localized: "%@ 模式"), session.biometricDisplayName))
                         Spacer()
-                        Picker(String.localizedStringWithFormat(String(localized: "%@ 模式"), currentBiometricDisplayName()), selection: $biometricSettings.mode) {
+                        Picker(String.localizedStringWithFormat(String(localized: "%@ 模式"), session.biometricDisplayName), selection: $biometricSettings.mode) {
                             ForEach(BiometricUnlockMode.allCases) { mode in
                                 Text(mode.title).tag(mode)
                             }
@@ -398,7 +398,7 @@ private struct SpaceSettingsView: View {
                     Divider()
 
                     MacSettingsActionRow(
-                        String.localizedStringWithFormat(String(localized: "验证身份并保存 %@ 设置"), currentBiometricDisplayName()),
+                        String.localizedStringWithFormat(String(localized: "验证身份并保存 %@ 设置"), session.biometricDisplayName),
                         buttonTitle: savingSensitiveSettings ? String(localized: "正在验证...") : String(localized: "保存"),
                         isDisabled: savingSensitiveSettings,
                         action: saveBiometricSettings
@@ -445,7 +445,7 @@ private struct SpaceSettingsView: View {
 
             if session.isBiometricUnlockEnabled {
                 Section {
-                    Picker(String.localizedStringWithFormat(String(localized: "%@ 模式"), currentBiometricDisplayName()), selection: $biometricSettings.mode) {
+                    Picker(String.localizedStringWithFormat(String(localized: "%@ 模式"), session.biometricDisplayName), selection: $biometricSettings.mode) {
                         ForEach(BiometricUnlockMode.allCases) { mode in
                             Text(mode.title).tag(mode)
                         }
@@ -468,12 +468,12 @@ private struct SpaceSettingsView: View {
                         DatePicker(String(localized: "结束时间"), selection: scheduleEndBinding, displayedComponents: .hourAndMinute)
                     }
 
-                    Button(savingSensitiveSettings ? String(localized: "正在验证...") : String.localizedStringWithFormat(String(localized: "验证身份并保存 %@ 设置"), currentBiometricDisplayName())) {
+                    Button(savingSensitiveSettings ? String(localized: "正在验证...") : String.localizedStringWithFormat(String(localized: "验证身份并保存 %@ 设置"), session.biometricDisplayName)) {
                         saveBiometricSettings()
                     }
                     .disabled(savingSensitiveSettings)
                 } header: {
-                    Text(currentBiometricDisplayName())
+                    Text(session.biometricDisplayName)
                 }
             }
         }
@@ -556,13 +556,13 @@ private struct SpaceSettingsView: View {
     private func saveBiometricSettings() {
         savingSensitiveSettings = true
 
-        session.authenticateOwner(reason: String.localizedStringWithFormat(String(localized: "修改 %@ 解锁设置"), currentBiometricDisplayName())) { success in
+        session.authenticateOwner(reason: String.localizedStringWithFormat(String(localized: "修改 %@ 解锁设置"), session.biometricDisplayName)) { success in
             savingSensitiveSettings = false
             if success {
                 let adjusted = adjustedBiometricSettings(biometricSettings)
                 biometricSettings = adjusted
                 adjusted.save()
-                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 设置已更新"), currentBiometricDisplayName()))
+                completionAlert = SettingsCompletionAlert(message: String.localizedStringWithFormat(String(localized: "%@ 设置已更新"), session.biometricDisplayName))
             } else {
                 biometricSettings = adjustedBiometricSettings(BiometricUnlockSettings.load())
                 completionAlert = SettingsCompletionAlert(message: String(localized: "身份验证未通过，设置没有变更。"))
@@ -601,23 +601,6 @@ private struct SettingsCompletionAlert: Identifiable {
     let message: String
 }
 
-private func currentBiometricDisplayName() -> String {
-    let context = LAContext()
-    var error: NSError?
-    _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
-
-    switch context.biometryType {
-    case .faceID:
-        return String(localized: "Face ID")
-    case .touchID:
-        return String(localized: "Touch ID")
-    case .opticID:
-        return String(localized: "Optic ID")
-    default:
-        return String(localized: "生物识别")
-    }
-}
-
 /// 第二空间初始化流程。
 /// 如果空间 B 还没有密码，设置页会把用户带到这里完成创建。
 /// 它和首次引导类似，但密码类型固定跟随主空间，不再允许用户选择。
@@ -630,6 +613,7 @@ private struct SecondSpaceSetupView: View {
 
     @State private var stage: Stage = .introduction
     @State private var errorMessage: String?
+    @State private var errorShakeCount = 0
 
     private enum Stage {
         case introduction
@@ -753,7 +737,11 @@ private struct SecondSpaceSetupView: View {
                         .disabled(primaryActionDisabled)
                         .tint(.blue)
                         .keyboardShortcut(.defaultAction)
-                        .accessibilityLabel(stage == .passcodeEntry ? "确认并继续" : "创建\(session.displayName(for: .spaceB))")
+                        .accessibilityLabel(
+                            stage == .passcodeEntry
+                                ? String(localized: "确认并继续")
+                                : String.localizedStringWithFormat(String(localized: "创建%@"), session.displayName(for: .spaceB))
+                        )
                     }
                 }
             }
@@ -771,9 +759,9 @@ private struct SecondSpaceSetupView: View {
 
     private var primaryActionDisabled: Bool {
         if stage == .passcodeEntry {
-            return draft.primaryValue.isEmpty
+            return !resolvedKind.isReadyForSubmission(draft.primaryValue)
         } else if stage == .passcodeConfirmation {
-            return draft.confirmationValue.isEmpty
+            return !resolvedKind.isReadyForSubmission(draft.confirmationValue)
         }
         return false
     }
@@ -782,22 +770,12 @@ private struct SecondSpaceSetupView: View {
         session.configuredPasscodeKind(for: .spaceA) ?? .fourDigits
     }
 
-    private func expectedLength(for kind: AppPasscodeKind) -> Int {
-        switch kind {
-        case .fourDigits:
-            return 4
-        case .sixDigits:
-            return 6
-        case .custom:
-            return 8
-        }
-    }
-
     private func create() {
         draft.sanitize()
 
         guard draft.normalizedPrimaryValue == draft.normalizedConfirmationValue else {
-            errorMessage = String(localized: "两次输入的密码不一致。")
+            draft.confirmationValue = ""
+            presentError(String(localized: "两次输入的密码不一致。"))
             return
         }
 
@@ -806,7 +784,8 @@ private struct SecondSpaceSetupView: View {
             onCreated()
             dismiss()
         case let .failure(message):
-            errorMessage = message
+            draft.confirmationValue = ""
+            presentError(message)
         }
     }
 
@@ -814,13 +793,20 @@ private struct SecondSpaceSetupView: View {
         draft.sanitize()
 
         guard resolvedKind.isValid(draft.normalizedPrimaryValue) else {
-            errorMessage = String(localized: "密码格式不符合要求。")
+            draft.primaryValue = ""
+            presentError(String(localized: "密码格式不符合要求。"))
             return
         }
 
         errorMessage = nil
         draft.confirmationValue = ""
         stage = .passcodeConfirmation
+    }
+
+    private func presentError(_ message: String) {
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+        errorShakeCount += 1
+        errorMessage = message
     }
 
     private func goBack() {
@@ -862,19 +848,32 @@ private struct SecondSpaceSetupView: View {
                     .multilineTextAlignment(.center)
 
                 if kind == .custom {
-                    PrivatePasscodeSecureField(
+                    AutoFocusSecureField(
                         title: String(localized: "密码"),
-                        text: text
-                    )
-                        .padding(.horizontal)
+                        text: text,
+                        autoFocus: true,
+                        submitLabel: stage == .passcodeEntry ? .next : .done,
+                        shakeTrigger: errorShakeCount
+                    ) {
+                        guard !primaryActionDisabled else { return }
+                        if stage == .passcodeEntry {
+                            continueToConfirmation()
+                        } else {
+                            create()
+                        }
+                    }
+                    .id(stage)
+                    .padding(.horizontal)
                 } else {
                     NativeNumericPasscodeField(
                         title: "",
                         prompt: "",
                         value: text,
-                        expectedLength: expectedLength(for: kind),
-                        autoFocus: false
+                        expectedLength: kind.expectedLength,
+                        autoFocus: true,
+                        shakeTrigger: errorShakeCount
                     )
+                    .id(stage)
                     .padding(.vertical, 8)
                 }
             }
@@ -893,6 +892,7 @@ private struct CoercionPasscodeSetupView: View {
     @State private var remainingSeconds: Int = 10
     @State private var progressTask: Task<Void, Never>?
     @State private var errorMessage: String?
+    @State private var errorShakeCount = 0
 
     enum Stage {
         case warningOne
@@ -1066,20 +1066,9 @@ private struct CoercionPasscodeSetupView: View {
         case .warningOne, .warningTwo:
             return false
         case .passcodeEntry:
-            return resolvedKind == .custom ? draft.primaryValue.isEmpty : draft.primaryValue.count != expectedLength(for: resolvedKind)
+            return !resolvedKind.isReadyForSubmission(draft.primaryValue)
         case .passcodeConfirmation:
-            return resolvedKind == .custom ? draft.confirmationValue.isEmpty : draft.confirmationValue.count != expectedLength(for: resolvedKind)
-        }
-    }
-
-    private func expectedLength(for kind: AppPasscodeKind) -> Int {
-        switch kind {
-        case .fourDigits:
-            return 4
-        case .sixDigits:
-            return 6
-        case .custom:
-            return 8
+            return !resolvedKind.isReadyForSubmission(draft.confirmationValue)
         }
     }
 
@@ -1103,6 +1092,7 @@ private struct CoercionPasscodeSetupView: View {
         draft.sanitize()
 
         guard resolvedKind.isValid(draft.normalizedPrimaryValue) else {
+            draft.primaryValue = ""
             presentError(String(localized: "密码格式错误。"))
             return
         }
@@ -1116,6 +1106,7 @@ private struct CoercionPasscodeSetupView: View {
         draft.sanitize()
 
         guard draft.normalizedPrimaryValue == draft.normalizedConfirmationValue else {
+            draft.confirmationValue = ""
             presentError(String(localized: "两次输入的密码不一致。"))
             return
         }
@@ -1125,6 +1116,7 @@ private struct CoercionPasscodeSetupView: View {
             onSaved?()
             dismiss()
         case let .failure(message):
+            draft.confirmationValue = ""
             presentError(message)
         }
     }
@@ -1156,20 +1148,33 @@ private struct CoercionPasscodeSetupView: View {
                     .multilineTextAlignment(.center)
 
                 if kind == .custom {
-                    PrivatePasscodeSecureField(
+                    AutoFocusSecureField(
                         title: String(localized: "密码"),
-                        text: text
-                    )
-                        .padding(.horizontal)
+                        text: text,
+                        autoFocus: true,
+                        submitLabel: stage == .passcodeEntry ? .next : .done,
+                        shakeTrigger: errorShakeCount
+                    ) {
+                        guard !primaryActionDisabled else { return }
+                        if stage == .passcodeEntry {
+                            continueToConfirmation()
+                        } else {
+                            saveCoercionPasscode()
+                        }
+                    }
+                    .id(stage)
+                    .padding(.horizontal)
                 } else {
                     NativeNumericPasscodeField(
                         title: "",
                         prompt: "",
                         value: text,
-                        expectedLength: expectedLength(for: kind),
+                        expectedLength: kind.expectedLength,
                         autoFocus: true,
+                        shakeTrigger: errorShakeCount,
                         onCompleted: nil
                     )
+                    .id(stage)
                     .padding(.vertical, 8)
                 }
             }
@@ -1179,29 +1184,8 @@ private struct CoercionPasscodeSetupView: View {
 
     private func presentError(_ message: String) {
         UINotificationFeedbackGenerator().notificationOccurred(.error)
+        errorShakeCount += 1
         errorMessage = message
-    }
-}
-
-private struct PrivatePasscodeSecureField: View {
-    let title: String
-    @Binding var text: String
-    var autoFocus: Bool = true
-
-    @FocusState private var isFocused: Bool
-
-    var body: some View {
-        SecureField(title, text: $text)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .textFieldStyle(.roundedBorder)
-            .focused($isFocused)
-            .onAppear {
-                guard autoFocus else { return }
-                DispatchQueue.main.async {
-                    isFocused = true
-                }
-            }
     }
 }
 

@@ -21,7 +21,7 @@ struct MediaPreviewView: View {
             policy: .regular,
             photoTransitionSource: photoTransitionSource,
             actions: MediaViewerActions(
-                exportURL: { item in viewModel.exportURL(for: item.id) },
+                exportItem: { item in viewModel.exportItem(for: item.id) },
                 showDetails: { item in detailItemID = item.id },
                 detailInfo: { item in viewModel.details(for: item.id) },
                 menuContent: { item in menuContent(for: item) }

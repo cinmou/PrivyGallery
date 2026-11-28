@@ -29,19 +29,8 @@ final class PasscodeDraftController: ObservableObject {
     }
 
     func sanitize() {
-        primaryValue = kind.normalized(primaryValue)
-        confirmationValue = kind.normalized(confirmationValue)
-
-        switch kind {
-        case .fourDigits:
-            primaryValue = String(primaryValue.prefix(4))
-            confirmationValue = String(confirmationValue.prefix(4))
-        case .sixDigits:
-            primaryValue = String(primaryValue.prefix(6))
-            confirmationValue = String(confirmationValue.prefix(6))
-        case .custom:
-            break
-        }
+        primaryValue = kind.sanitized(primaryValue)
+        confirmationValue = kind.sanitized(confirmationValue)
     }
 }
 
@@ -49,14 +38,17 @@ final class PasscodeDraftController: ObservableObject {
 /// 显示层只保留 iOS 常见的圆点/空心圆，真正的输入由隐藏的 TextField 承担。
 /// 首次引导、锁定页、第二空间设置里凡是 4 位/6 位输入，基本都复用它。
 struct NativeNumericPasscodeField: View {
+    @Environment(\.isEnabled) private var isEnabled
+
     let title: String
     let prompt: String
     @Binding var value: String
     let expectedLength: Int
     var autoFocus: Bool = true
+    var shakeTrigger: Int = 0
     var onCompleted: (() -> Void)? = nil
 
-    @State private var focusRequestID = UUID()
+    @State private var focusRequestCount = 0
 
     var body: some View {
         VStack(spacing: 18) {
@@ -78,21 +70,39 @@ struct NativeNumericPasscodeField: View {
                             }
                     }
                 }
+                .modifier(PasscodeShakeModifier(trigger: shakeTrigger))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
-
+                .padding(.vertical, 16)
             }
             .overlay {
                 HiddenNumericTextField(
                     text: $value,
-                    focusRequestID: focusRequestID
+                    expectedLength: expectedLength,
+                    isEnabled: isEnabled,
+                    focusRequestCount: focusRequestCount
                 )
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
             }
             .contentShape(Rectangle())
             .onTapGesture {
-                focusRequestID = UUID()
+                guard isEnabled else { return }
+                focusRequestCount += 1
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(title.isEmpty ? String(localized: "密码") : title)
+            .accessibilityValue(
+                String.localizedStringWithFormat(
+                    String(localized: "已输入 %lld / %lld 位"),
+                    Int64(value.count),
+                    Int64(expectedLength)
+                )
+            )
+            .accessibilityHint(isEnabled ? String(localized: "轻点以输入密码") : "")
+            .accessibilityAddTraits(isEnabled ? [] : .isStaticText)
+            .accessibilityAction {
+                guard isEnabled else { return }
+                focusRequestCount += 1
             }
 
             if !prompt.isEmpty {
@@ -103,37 +113,55 @@ struct NativeNumericPasscodeField: View {
             }
         }
         .onAppear {
-            guard autoFocus else { return }
-            DispatchQueue.main.async {
-                focusRequestID = UUID()
+            requestFocusIfAllowed()
+        }
+        .onChange(of: autoFocus) { _, shouldFocus in
+            if shouldFocus {
+                requestFocusIfAllowed()
+            }
+        }
+        .onChange(of: isEnabled) { _, enabled in
+            if enabled && autoFocus {
+                requestFocusIfAllowed()
             }
         }
         .onChange(of: value) { _, newValue in
-            let filtered = String(newValue.filter(\.isNumber).prefix(expectedLength))
+            let filtered = AppPasscodeKind.filterASCIIDigits(newValue, maxLength: expectedLength)
             if filtered != value {
                 value = filtered
                 return
             }
 
-            if filtered.count == expectedLength {
+            if isEnabled, filtered.count == expectedLength {
                 onCompleted?()
             }
+        }
+    }
+
+    private func requestFocusIfAllowed() {
+        guard autoFocus, isEnabled else { return }
+        DispatchQueue.main.async {
+            guard autoFocus, isEnabled else { return }
+            focusRequestCount += 1
         }
     }
 }
 
 private struct HiddenNumericTextField: UIViewRepresentable {
     @Binding var text: String
-    let focusRequestID: UUID
+    let expectedLength: Int
+    let isEnabled: Bool
+    let focusRequestCount: Int
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text)
+        Coordinator(text: $text, maxLength: expectedLength, isEnabled: isEnabled)
     }
 
-    func makeUIView(context: Context) -> UITextField {
+    func makeUIView(context: Context) -> HiddenKeyboardTextField {
         let textField = HiddenKeyboardTextField(frame: .zero)
         textField.keyboardType = .numberPad
         textField.isSecureTextEntry = true
+        textField.textContentType = nil
         textField.textColor = .clear
         textField.tintColor = .clear
         textField.backgroundColor = .clear
@@ -141,46 +169,105 @@ private struct HiddenNumericTextField: UIViewRepresentable {
         textField.autocorrectionType = .no
         textField.autocapitalizationType = .none
         textField.spellCheckingType = .no
+        textField.smartQuotesType = .no
+        textField.smartDashesType = .no
+        textField.smartInsertDeleteType = .no
+        textField.inputAssistantItem.leadingBarButtonGroups = []
+        textField.inputAssistantItem.trailingBarButtonGroups = []
+        textField.isEnabled = isEnabled
         textField.isAccessibilityElement = false
         textField.delegate = context.coordinator
         textField.addTarget(context.coordinator, action: #selector(Coordinator.textDidChange(_:)), for: .editingChanged)
         return textField
     }
 
-    func updateUIView(_ uiView: UITextField, context: Context) {
+    func updateUIView(_ uiView: HiddenKeyboardTextField, context: Context) {
         if uiView.text != text {
             uiView.text = text
         }
 
-        context.coordinator.text = $text
+        if uiView.isEnabled != isEnabled {
+            uiView.isEnabled = isEnabled
+        }
 
-        if context.coordinator.lastFocusRequestID != focusRequestID {
-            context.coordinator.lastFocusRequestID = focusRequestID
-            DispatchQueue.main.async {
-                guard uiView.window != nil else { return }
-                if !uiView.isFirstResponder {
-                    uiView.becomeFirstResponder()
+        context.coordinator.text = $text
+        context.coordinator.maxLength = expectedLength
+        context.coordinator.isEnabled = isEnabled
+
+        if !isEnabled {
+            uiView.cancelPendingFocus()
+            if uiView.isFirstResponder {
+                DispatchQueue.main.async {
+                    uiView.resignFirstResponder()
                 }
             }
+            return
+        }
+
+        if context.coordinator.lastFocusRequestCount != focusRequestCount {
+            context.coordinator.lastFocusRequestCount = focusRequestCount
+            uiView.requestFocus()
         }
     }
 
     final class Coordinator: NSObject, UITextFieldDelegate {
         var text: Binding<String>
-        var lastFocusRequestID: UUID?
+        var maxLength: Int
+        var isEnabled: Bool
+        var lastFocusRequestCount = 0
 
-        init(text: Binding<String>) {
+        init(text: Binding<String>, maxLength: Int, isEnabled: Bool) {
             self.text = text
+            self.maxLength = maxLength
+            self.isEnabled = isEnabled
+        }
+
+        func textField(
+            _ textField: UITextField,
+            shouldChangeCharactersIn range: NSRange,
+            replacementString string: String
+        ) -> Bool {
+            guard isEnabled else { return false }
+            if string.isEmpty { return true }
+
+            let filteredReplacement = AppPasscodeKind.filterASCIIDigits(string)
+            guard !filteredReplacement.isEmpty else { return false }
+
+            let currentText = textField.text ?? ""
+            guard let stringRange = Range(range, in: currentText) else { return false }
+            let updatedText = currentText.replacingCharacters(in: stringRange, with: filteredReplacement)
+
+            if filteredReplacement == string {
+                return updatedText.count <= maxLength
+            }
+
+            let truncated = String(updatedText.prefix(maxLength))
+            textField.text = truncated
+            text.wrappedValue = truncated
+            return false
         }
 
         @objc
         func textDidChange(_ textField: UITextField) {
-            text.wrappedValue = textField.text ?? ""
+            guard isEnabled else {
+                textField.text = text.wrappedValue
+                return
+            }
+            let sanitized = AppPasscodeKind.filterASCIIDigits(textField.text ?? "", maxLength: maxLength)
+            if textField.text != sanitized {
+                textField.text = sanitized
+            }
+            if text.wrappedValue != sanitized {
+                text.wrappedValue = sanitized
+            }
         }
     }
 }
 
 private final class HiddenKeyboardTextField: UITextField {
+    private var pendingFocus = false
+    private var pendingFocusGeneration = 0
+
     override var intrinsicContentSize: CGSize {
         .zero
     }
@@ -188,26 +275,178 @@ private final class HiddenKeyboardTextField: UITextField {
     override func caretRect(for position: UITextPosition) -> CGRect {
         .zero
     }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil, pendingFocus {
+            attemptFocusIfPending(generation: pendingFocusGeneration, remainingRetries: 6)
+        }
+    }
+
+    func requestFocus() {
+        pendingFocus = true
+        pendingFocusGeneration += 1
+        let generation = pendingFocusGeneration
+        DispatchQueue.main.async { [weak self] in
+            self?.attemptFocusIfPending(generation: generation, remainingRetries: 6)
+        }
+    }
+
+    func cancelPendingFocus() {
+        pendingFocus = false
+        pendingFocusGeneration += 1
+    }
+
+    private func attemptFocusIfPending(generation: Int, remainingRetries: Int) {
+        guard pendingFocus, generation == pendingFocusGeneration else { return }
+        guard isEnabled else {
+            pendingFocus = false
+            return
+        }
+        guard let window else {
+            // Defer until didMoveToWindow() once UIKit attaches this field.
+            return
+        }
+        if isFirstResponder {
+            pendingFocus = false
+            return
+        }
+
+        // Wait for any modal sheet covering this field (e.g., SettingsPasscodePromptView
+        // dismissing while locking back to UnlockView) to finish before claiming focus.
+        if let coveringVC = coveringPresentedController(in: window) {
+            if let coordinator = coveringVC.transitionCoordinator {
+                coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                    DispatchQueue.main.async {
+                        self?.attemptFocusIfPending(generation: generation, remainingRetries: remainingRetries)
+                    }
+                }
+                return
+            }
+            if remainingRetries > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+                    self?.attemptFocusIfPending(generation: generation, remainingRetries: remainingRetries - 1)
+                }
+                return
+            }
+            pendingFocus = false
+            return
+        }
+
+        if becomeFirstResponder() {
+            pendingFocus = false
+            return
+        }
+
+        guard remainingRetries > 0 else {
+            pendingFocus = false
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+            self?.attemptFocusIfPending(generation: generation, remainingRetries: remainingRetries - 1)
+        }
+    }
+
+    private func coveringPresentedController(in window: UIWindow) -> UIViewController? {
+        var current = window.rootViewController
+        while let presented = current?.presentedViewController {
+            if !isDescendant(of: presented.view) {
+                return presented
+            }
+            current = presented
+        }
+        return nil
+    }
 }
 
 struct AutoFocusSecureField: View {
+    @Environment(\.isEnabled) private var isEnabled
+
     let title: String
     @Binding var text: String
     var textContentType: UITextContentType? = nil
     var autoFocus: Bool = true
+    var submitLabel: SubmitLabel = .done
+    var shakeTrigger: Int = 0
+    var onSubmit: (() -> Void)? = nil
 
     @FocusState private var isFocused: Bool
+    @State private var focusTask: Task<Void, Never>?
 
     var body: some View {
         SecureField(title, text: $text)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
+            .textContentType(textContentType)
+            .submitLabel(submitLabel)
             .textFieldStyle(.roundedBorder)
+            .modifier(PasscodeShakeModifier(trigger: shakeTrigger))
             .focused($isFocused)
+            .onSubmit {
+                guard isEnabled else { return }
+                onSubmit?()
+            }
             .onAppear {
-                guard autoFocus else { return }
-                DispatchQueue.main.async {
-                    isFocused = true
+                requestFocusIfAllowed()
+            }
+            .onDisappear {
+                focusTask?.cancel()
+                focusTask = nil
+            }
+            .onChange(of: autoFocus) { _, shouldFocus in
+                if shouldFocus {
+                    requestFocusIfAllowed()
+                }
+            }
+            .onChange(of: isEnabled) { _, enabled in
+                if !enabled {
+                    focusTask?.cancel()
+                    focusTask = nil
+                    isFocused = false
+                } else if autoFocus {
+                    requestFocusIfAllowed()
+                }
+            }
+    }
+
+    private func requestFocusIfAllowed() {
+        focusTask?.cancel()
+        guard autoFocus, isEnabled else { return }
+        focusTask = Task { @MainActor in
+            await Task.yield()
+            for attempt in 0..<5 {
+                guard !Task.isCancelled, autoFocus, isEnabled else { return }
+                isFocused = true
+                if isFocused || attempt == 4 { return }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
+    }
+}
+
+private struct PasscodeShakeEffect: GeometryEffect {
+    var travelDistance: CGFloat = 10
+    var shakesPerUnit: CGFloat = 3
+    var animatableData: CGFloat
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        let offset = travelDistance * sin(animatableData * .pi * 2 * shakesPerUnit)
+        return ProjectionTransform(CGAffineTransform(translationX: offset, y: 0))
+    }
+}
+
+private struct PasscodeShakeModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let trigger: Int
+    @State private var shakePhase: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(PasscodeShakeEffect(animatableData: reduceMotion ? 0 : shakePhase))
+            .onChange(of: trigger) { _, _ in
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 0.36)) {
+                    shakePhase += 1
                 }
             }
     }

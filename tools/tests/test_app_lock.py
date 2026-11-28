@@ -16,11 +16,11 @@ import LocalAuthentication
     static func complete(_ index: Int, _ result: BiometricKeyResult) { pending[index].resume(returning: result) }
 }
 enum AppTab { case media }
-enum AppPasscodeKind { case fourDigits; func normalized(_ value: String) -> String { value } }
 enum UnlockAttemptResult { case success(VaultSpaceKind); case failure(message: String) }
 enum BiometricKeyResult { case success(VaultSpaceKind, Data); case failure(message: String) }
 enum PasscodeUpdateResult { case success; case failure(message: String) }
 @MainActor struct AppLockService {
+    var biometricCapability: (available: Bool, biometryType: LABiometryType) { (true, .faceID) }
     var biometricHardwareAvailable: Bool { true }
     var biometricUnlockEnabled: Bool { true }
     func unlockLockoutRemaining() -> TimeInterval? { nil }
@@ -135,6 +135,16 @@ import Foundation
         session.handleDidEnterBackground()
         session.handleScenePhaseChange(isActive: true)
         precondition(session.requiresPasscodeAfterBiometricFailures && !session.canAutomaticallyAttemptBiometricUnlock, "Real failures must retain the passcode fallback")
+
+        precondition(session.biometryType == .faceID && session.biometricIconName == "faceid", "Session must expose cached biometric capability")
+        precondition(AppPasscodeKind.fourDigits.expectedLength == 4 && AppPasscodeKind.sixDigits.expectedLength == 6 && AppPasscodeKind.custom.expectedLength == 8)
+        precondition(AppPasscodeKind.fourDigits.sanitized("12ab3456") == "1234", "Numeric sanitizer must keep ASCII digits and enforce expectedLength")
+        precondition(AppPasscodeKind.fourDigits.sanitized("１２３４") == "", "Full-width digits must be rejected for numeric passcodes")
+        precondition(AppPasscodeKind.sixDigits.normalized("12٣٤56") == "1256", "Non-ASCII Unicode digits must be stripped from numeric passcodes")
+        precondition(!AppPasscodeKind.fourDigits.isValid("１２３４"), "Full-width digits must not validate as a 4-digit passcode")
+        precondition(!AppPasscodeKind.fourDigits.isReadyForSubmission("123") && AppPasscodeKind.fourDigits.isReadyForSubmission("1234"))
+        precondition(!AppPasscodeKind.sixDigits.isReadyForSubmission("12345") && AppPasscodeKind.sixDigits.isReadyForSubmission("123456"))
+        precondition(!AppPasscodeKind.custom.isReadyForSubmission("") && AppPasscodeKind.custom.isReadyForSubmission("a"))
         print("App lock lifecycle and delayed authentication regressions passed")
     }
 }
@@ -146,6 +156,7 @@ with tempfile.TemporaryDirectory(prefix='privygallery-app-lock-') as folder:
     (folder / 'Checks.swift').write_text(checks)
     subprocess.run(['swiftc', '-parse-as-library', '-module-cache-path', str(folder / 'module-cache'),
                     str(folder / 'Fixtures.swift'), str(folder / 'Session.swift'),
+                    str(ROOT / 'SecurityFolder/Core/Models/AppPasscodeKind.swift'),
                     str(ROOT / 'SecurityFolder/Core/Models/VaultSpaceKind.swift'),
                     str(ROOT / 'SecurityFolder/Core/Models/AppSettingsKey.swift'),
                     str(ROOT / 'SecurityFolder/Shared/Models/AppNotifications.swift'),

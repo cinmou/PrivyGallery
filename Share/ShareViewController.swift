@@ -1,5 +1,6 @@
 import AVFoundation
 import ImageIO
+import Photos
 import UIKit
 import UniformTypeIdentifiers
 
@@ -240,13 +241,19 @@ final class ShareViewController: UIViewController {
         Task {
             do {
                 for attachment in supportedAttachments {
-                    let savedURL = try await attachment.loadTemporaryFile()
-                    defer { try? FileManager.default.removeItem(at: savedURL) }
+                    let media = try await attachment.loadTemporaryMedia()
+                    defer {
+                        try? FileManager.default.removeItem(at: media.fileURL)
+                        if let companionURL = media.companionVideoURL {
+                            try? FileManager.default.removeItem(at: companionURL)
+                        }
+                    }
                     try store.enqueueFile(
-                        at: savedURL,
-                        originalFilename: attachment.originalFilename,
-                        contentType: attachment.contentType,
-                        space: selectedSpace
+                        at: media.fileURL,
+                        originalFilename: media.originalFilename,
+                        contentType: media.contentType,
+                        space: selectedSpace,
+                        companionFileURL: media.companionVideoURL
                     )
                 }
                 await MainActor.run {
@@ -358,6 +365,76 @@ private struct ShareAttachment {
 
         let fallbackExtension = contentType.preferredFilenameExtension ?? (contentType.conforms(to: .movie) ? "mov" : "jpg")
         return "Shared-\(UUID().uuidString).\(fallbackExtension)"
+    }
+
+    func loadTemporaryMedia() async throws -> (fileURL: URL, companionVideoURL: URL?, originalFilename: String, contentType: UTType) {
+        if provider.canLoadObject(ofClass: PHLivePhoto.self),
+           let livePhotoMedia = await loadTemporaryLivePhoto() {
+            return livePhotoMedia
+        }
+        let savedURL = try await loadTemporaryFile()
+        return (savedURL, nil, originalFilename, contentType)
+    }
+
+    private func loadTemporaryLivePhoto() async -> (fileURL: URL, companionVideoURL: URL?, originalFilename: String, contentType: UTType)? {
+        let fallbackFilename = originalFilename
+        return await withCheckedContinuation { continuation in
+            _ = provider.loadObject(ofClass: PHLivePhoto.self) { object, _ in
+                guard let livePhoto = object as? PHLivePhoto else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let resources = PHAssetResource.assetResources(for: livePhoto)
+                let still: PHAssetResource?
+                let video: PHAssetResource?
+                if let editedStill = resources.first(where: { $0.type == .fullSizePhoto }),
+                   let editedVideo = resources.first(where: { $0.type == .fullSizePairedVideo }) {
+                    still = editedStill
+                    video = editedVideo
+                } else if let originalStill = resources.first(where: { $0.type == .photo }),
+                          let originalVideo = resources.first(where: { $0.type == .pairedVideo }) {
+                    still = originalStill
+                    video = originalVideo
+                } else {
+                    still = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto })
+                    video = resources.first(where: { $0.type == .pairedVideo || $0.type == .fullSizePairedVideo })
+                }
+
+                guard let still, let video else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let stillExt = URL(fileURLWithPath: still.originalFilename).pathExtension.lowercased()
+                let videoExt = URL(fileURLWithPath: video.originalFilename).pathExtension.lowercased()
+                let stillURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("\(UUID().uuidString).\(stillExt.isEmpty ? "heic" : stillExt)")
+                let videoURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("\(UUID().uuidString).\(videoExt.isEmpty ? "mov" : videoExt)")
+                let name = still.originalFilename.trimmingCharacters(in: .whitespacesAndNewlines)
+                let resolvedName = name.isEmpty ? fallbackFilename : name
+                let resolvedType = UTType(filenameExtension: stillURL.pathExtension) ?? .jpeg
+
+                let options = PHAssetResourceRequestOptions()
+                options.isNetworkAccessAllowed = true
+                PHAssetResourceManager.default().writeData(for: still, toFile: stillURL, options: options) { stillError in
+                    if stillError != nil {
+                        try? FileManager.default.removeItem(at: stillURL)
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    PHAssetResourceManager.default().writeData(for: video, toFile: videoURL, options: options) { videoError in
+                        if videoError != nil {
+                            try? FileManager.default.removeItem(at: stillURL)
+                            try? FileManager.default.removeItem(at: videoURL)
+                            continuation.resume(returning: nil)
+                            return
+                        }
+                        continuation.resume(returning: (stillURL, videoURL, resolvedName, resolvedType))
+                    }
+                }
+            }
+        }
     }
 
     func loadTemporaryFile() async throws -> URL {

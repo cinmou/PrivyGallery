@@ -30,7 +30,11 @@ struct DeviceHingeObserver: ViewModifier {
         #else
         if #available(iOS 27.1, *) {
             content.onHingeChange { _, context in
-                hasDeviceHinge = context.hinge != nil
+                // A device does not lose its physical hinge when a full-screen
+                // presentation temporarily detaches the underlying view hierarchy.
+                if context.hinge != nil, !hasDeviceHinge {
+                    hasDeviceHinge = true
+                }
             }
         } else {
             content

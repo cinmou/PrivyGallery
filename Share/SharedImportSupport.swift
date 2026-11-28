@@ -63,9 +63,28 @@ struct SharedImportQueueEntry: Codable, Identifiable {
     let id: UUID
     let spaceRawValue: String
     let relativePath: String
+    let companionRelativePath: String?
     let originalFilename: String
     let contentTypeIdentifier: String
     let createdAt: Date
+
+    init(
+        id: UUID,
+        spaceRawValue: String,
+        relativePath: String,
+        companionRelativePath: String? = nil,
+        originalFilename: String,
+        contentTypeIdentifier: String,
+        createdAt: Date
+    ) {
+        self.id = id
+        self.spaceRawValue = spaceRawValue
+        self.relativePath = relativePath
+        self.companionRelativePath = companionRelativePath
+        self.originalFilename = originalFilename
+        self.contentTypeIdentifier = contentTypeIdentifier
+        self.createdAt = createdAt
+    }
 }
 
 enum SharedImportError: LocalizedError {
@@ -150,7 +169,8 @@ final class SharedImportStore {
         at sourceURL: URL,
         originalFilename: String,
         contentType: UTType,
-        space: SharedImportSpace
+        space: SharedImportSpace,
+        companionFileURL: URL? = nil
     ) throws {
         guard contentType.conforms(to: .image) || contentType.conforms(to: .movie) else {
             throw SharedImportError.unsupportedType
@@ -173,10 +193,34 @@ final class SharedImportStore {
             ofItemAtPath: destinationURL.path()
         )
 
+        var storedCompanionFilename: String?
+        var companionDestinationURL: URL?
+        if let companionFileURL {
+            let companionExt = resolvedFileExtension(for: .quickTimeMovie, originalFilename: companionFileURL.lastPathComponent)
+            let companionName = "\(id.uuidString)-companion.\(companionExt)"
+            let companionDest = try filesDirectory().appendingPathComponent(companionName, isDirectory: false)
+            if fileManager.fileExists(atPath: companionDest.path()) {
+                try fileManager.removeItem(at: companionDest)
+            }
+            do {
+                try fileManager.copyItem(at: companionFileURL, to: companionDest)
+                try? fileManager.setAttributes(
+                    [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                    ofItemAtPath: companionDest.path()
+                )
+                storedCompanionFilename = companionName
+                companionDestinationURL = companionDest
+            } catch {
+                try? fileManager.removeItem(at: destinationURL)
+                throw error
+            }
+        }
+
         let entry = SharedImportQueueEntry(
             id: id,
             spaceRawValue: space.rawValue,
             relativePath: storedFilename,
+            companionRelativePath: storedCompanionFilename,
             originalFilename: originalFilename,
             contentTypeIdentifier: contentType.identifier,
             createdAt: .now
@@ -185,12 +229,23 @@ final class SharedImportStore {
             try appendEntry(entry)
         } catch {
             try? fileManager.removeItem(at: destinationURL)
+            if let companionDestinationURL {
+                try? fileManager.removeItem(at: companionDestinationURL)
+            }
             throw error
         }
     }
 
     func fileURL(for entry: SharedImportQueueEntry) throws -> URL {
-        let filename = entry.relativePath
+        try validatedQueuedFileURL(filename: entry.relativePath)
+    }
+
+    func companionFileURL(for entry: SharedImportQueueEntry) throws -> URL? {
+        guard let companionRelativePath = entry.companionRelativePath else { return nil }
+        return try validatedQueuedFileURL(filename: companionRelativePath)
+    }
+
+    private func validatedQueuedFileURL(filename: String) throws -> URL {
         guard !filename.isEmpty,
               filename != ".",
               filename != "..",
@@ -214,6 +269,10 @@ final class SharedImportStore {
             if let url = try? fileURL(for: entry),
                fileManager.fileExists(atPath: url.path()) {
                 try? fileManager.removeItem(at: url)
+            }
+            if let companionURL = try? companionFileURL(for: entry),
+               fileManager.fileExists(atPath: companionURL.path()) {
+                try? fileManager.removeItem(at: companionURL)
             }
         }
     }

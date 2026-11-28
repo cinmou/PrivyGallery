@@ -134,9 +134,9 @@ struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
                 let fallbackName = "Imported Media \(index + 1)"
 
                 // ── Live Photo: authoritative PHAsset-level detection ──────────────────────
-                // A HEIC still on its own is not a Live Photo. The only reliable signal is
-                // PHAsset.mediaSubtypes.contains(.photoLive). Check that first before
-                // falling through to the item-provider path.
+                // A HEIC still on its own is not a Live Photo. Check PHAsset first when
+                // Photos authorization is available, then fall back to loading PHLivePhoto
+                // directly from the picker's NSItemProvider (which works without Photos permission).
                 if let assetID = result.assetIdentifier,
                    let asset = fetchPHAsset(withIdentifier: assetID),
                    asset.mediaSubtypes.contains(.photoLive) {
@@ -148,9 +148,17 @@ struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
                         importedAssets.append(pickerAsset)
                         continue
                     }
-                    // PHAssetResourceManager write failed (e.g. iCloud not available,
-                    // authorization revoked mid-session). Fall through and import as a
-                    // plain still image so the user doesn't silently lose the item.
+                }
+
+                if result.itemProvider.canLoadObject(ofClass: PHLivePhoto.self) {
+                    if let pickerAsset = await extractLivePhotoFromItemProvider(
+                        result.itemProvider,
+                        assetIdentifier: result.assetIdentifier,
+                        fallbackName: fallbackName
+                    ) {
+                        importedAssets.append(pickerAsset)
+                        continue
+                    }
                 }
 
                 // ── Regular photo or video ───────────────────────────────────────────────
@@ -195,25 +203,95 @@ struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
             fallbackName: String
         ) async -> ImportedPickerAsset? {
             let resources = PHAssetResource.assetResources(for: asset)
+            return await extractLivePhoto(
+                from: resources,
+                assetIdentifier: result.assetIdentifier,
+                fallbackName: fallbackName
+            )
+        }
 
-            // Prefer the primary resource over the full-size variant for edited assets.
-            let stillResource = resources.first { $0.type == .photo }
-                             ?? resources.first { $0.type == .fullSizePhoto }
-            let videoResource = resources.first { $0.type == .pairedVideo }
-                             ?? resources.first { $0.type == .fullSizePairedVideo }
+        /// Extract still image + paired video from a picker NSItemProvider without
+        /// requiring Photos library authorization.
+        private func extractLivePhotoFromItemProvider(
+            _ provider: NSItemProvider,
+            assetIdentifier: String?,
+            fallbackName: String
+        ) async -> ImportedPickerAsset? {
+            await withCheckedContinuation { continuation in
+                _ = provider.loadObject(ofClass: PHLivePhoto.self) { object, _ in
+                    guard let livePhoto = object as? PHLivePhoto else {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    let resources = PHAssetResource.assetResources(for: livePhoto)
+                    Self.writeLivePhotoResources(
+                        resources,
+                        assetIdentifier: assetIdentifier,
+                        fallbackName: fallbackName
+                    ) { asset in
+                        continuation.resume(returning: asset)
+                    }
+                }
+            }
+        }
 
-            guard let stillResource, let videoResource else { return nil }
+        private func extractLivePhoto(
+            from resources: [PHAssetResource],
+            assetIdentifier: String?,
+            fallbackName: String
+        ) async -> ImportedPickerAsset? {
+            await withCheckedContinuation { continuation in
+                Self.writeLivePhotoResources(
+                    resources,
+                    assetIdentifier: assetIdentifier,
+                    fallbackName: fallbackName
+                ) { asset in
+                    continuation.resume(returning: asset)
+                }
+            }
+        }
+
+        nonisolated private static func matchedLivePhotoResources(
+            from resources: [PHAssetResource]
+        ) -> (still: PHAssetResource, video: PHAssetResource)? {
+            // Keep edited pairs together so content identifiers and trim ranges match.
+            if let editedStill = resources.first(where: { $0.type == .fullSizePhoto }),
+               let editedVideo = resources.first(where: { $0.type == .fullSizePairedVideo }) {
+                return (editedStill, editedVideo)
+            }
+            if let originalStill = resources.first(where: { $0.type == .photo }),
+               let originalVideo = resources.first(where: { $0.type == .pairedVideo }) {
+                return (originalStill, originalVideo)
+            }
+            if let still = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto }),
+               let video = resources.first(where: { $0.type == .pairedVideo || $0.type == .fullSizePairedVideo }) {
+                return (still, video)
+            }
+            return nil
+        }
+
+        nonisolated private static func writeLivePhotoResources(
+            _ resources: [PHAssetResource],
+            assetIdentifier: String?,
+            fallbackName: String,
+            completion: @escaping @Sendable (ImportedPickerAsset?) -> Void
+        ) {
+            guard let pair = matchedLivePhotoResources(from: resources) else {
+                completion(nil)
+                return
+            }
 
             let tempDir = FileManager.default.temporaryDirectory
                 .appendingPathComponent("LivePhotoImport-\(UUID().uuidString)", isDirectory: true)
             guard (try? FileManager.default.createDirectory(
                 at: tempDir, withIntermediateDirectories: true
-            )) != nil else { return nil }
+            )) != nil else {
+                completion(nil)
+                return
+            }
 
-            let stillExt = URL(fileURLWithPath: stillResource.originalFilename)
-                .pathExtension.lowercased()
-            let videoExt = URL(fileURLWithPath: videoResource.originalFilename)
-                .pathExtension.lowercased()
+            let stillExt = URL(fileURLWithPath: pair.still.originalFilename).pathExtension.lowercased()
+            let videoExt = URL(fileURLWithPath: pair.video.originalFilename).pathExtension.lowercased()
 
             let stillURL = tempDir.appendingPathComponent(
                 "\(UUID().uuidString).\(stillExt.isEmpty ? "heic" : stillExt)"
@@ -221,44 +299,39 @@ struct SystemPhotoImporterSheet: UIViewControllerRepresentable {
             let videoURL = tempDir.appendingPathComponent(
                 "\(UUID().uuidString).\(videoExt.isEmpty ? "mov" : videoExt)"
             )
+            let preferredName = pair.still.originalFilename.trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolvedFallbackName = preferredName.isEmpty ? fallbackName : preferredName
 
-            guard await writePHAssetResource(stillResource, to: stillURL) else {
-                try? FileManager.default.removeItem(at: tempDir)
-                return nil
-            }
-            try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: stillURL.path(percentEncoded: false))
-            guard await writePHAssetResource(videoResource, to: videoURL) else {
-                try? FileManager.default.removeItem(at: tempDir)
-                return nil
-            }
-            try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: videoURL.path(percentEncoded: false))
-
-            let contentType = UTType(filenameExtension: stillURL.pathExtension) ?? .jpeg
-            return ImportedPickerAsset(
-                fileURL: stillURL,
-                contentType: contentType,
-                fallbackName: fallbackName,
-                assetIdentifier: result.assetIdentifier,
-                companionVideoURL: videoURL
-            )
-        }
-
-        /// Write a single PHAssetResource to a local file URL.
-        /// `isNetworkAccessAllowed` is enabled so that iCloud-only assets are
-        /// fetched from the network rather than failing silently.
-        private func writePHAssetResource(
-            _ resource: PHAssetResource,
-            to url: URL
-        ) async -> Bool {
-            await withCheckedContinuation { continuation in
-                let options = PHAssetResourceRequestOptions()
-                options.isNetworkAccessAllowed = true
-                PHAssetResourceManager.default().writeData(
-                    for: resource,
-                    toFile: url,
-                    options: options
-                ) { error in
-                    continuation.resume(returning: error == nil)
+            let options = PHAssetResourceRequestOptions()
+            options.isNetworkAccessAllowed = true
+            PHAssetResourceManager.default().writeData(for: pair.still, toFile: stillURL, options: options) { stillError in
+                if stillError != nil {
+                    try? FileManager.default.removeItem(at: tempDir)
+                    completion(nil)
+                    return
+                }
+                try? FileManager.default.setAttributes(
+                    [.protectionKey: FileProtectionType.complete],
+                    ofItemAtPath: stillURL.path(percentEncoded: false)
+                )
+                PHAssetResourceManager.default().writeData(for: pair.video, toFile: videoURL, options: options) { videoError in
+                    if videoError != nil {
+                        try? FileManager.default.removeItem(at: tempDir)
+                        completion(nil)
+                        return
+                    }
+                    try? FileManager.default.setAttributes(
+                        [.protectionKey: FileProtectionType.complete],
+                        ofItemAtPath: videoURL.path(percentEncoded: false)
+                    )
+                    let contentType = UTType(filenameExtension: stillURL.pathExtension) ?? .jpeg
+                    completion(ImportedPickerAsset(
+                        fileURL: stillURL,
+                        contentType: contentType,
+                        fallbackName: resolvedFallbackName,
+                        assetIdentifier: assetIdentifier,
+                        companionVideoURL: videoURL
+                    ))
                 }
             }
         }
